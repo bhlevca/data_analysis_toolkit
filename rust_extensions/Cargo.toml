@@ -1,0 +1,25 @@
+[package]
+name = "data_toolkit_rust"
+version = "0.1.0"
+edition = "2021"
+authors = ["Data Toolkit Contributors"]
+description = "High-performance Rust extensions for the Data Analysis Toolkit"
+license = "MIT"
+
+[lib]
+name = "data_toolkit_rust"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.20", features = ["extension-module"] }
+numpy = "0.20"
+ndarray = "0.15"
+ndarray-stats = "0.5"
+rayon = "1.8"
+rand = "0.8"
+rand_distr = "0.4"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
