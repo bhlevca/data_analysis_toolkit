@@ -56,6 +56,109 @@ PLOTLY_TEMPLATE = "plotly_white"
 
 
 # =============================================================================
+# DATE/TIME PARSING UTILITIES
+# =============================================================================
+def detect_and_convert_datetime_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Detect columns with date/time data and convert them to numeric timestamps.
+    Handles various formats including:
+    - MM/DD/YYYY, DD/MM/YYYY, YYYY-MM-DD
+    - HH:MM, HH:MM:SS (24h and 12h with AM/PM)
+    - Combined datetime formats
+    
+    Args:
+        df: Input DataFrame
+        
+    Returns:
+        DataFrame with datetime columns converted to numeric timestamps
+    """
+    df_copy = df.copy()
+    
+    # Common date/time format patterns to try
+    date_formats = [
+        '%Y-%m-%d',           # YYYY-MM-DD
+        '%Y/%m/%d',           # YYYY/MM/DD
+        '%d/%m/%Y',           # DD/MM/YYYY
+        '%m/%d/%Y',           # MM/DD/YYYY
+        '%d-%m-%Y',           # DD-MM-YYYY
+        '%m-%d-%Y',           # MM-DD-YYYY
+        '%Y-%m-%d %H:%M:%S',  # YYYY-MM-DD HH:MM:SS
+        '%Y/%m/%d %H:%M:%S',  # YYYY/MM/DD HH:MM:SS
+        '%d/%m/%Y %H:%M:%S',  # DD/MM/YYYY HH:MM:SS
+        '%m/%d/%Y %H:%M:%S',  # MM/DD/YYYY HH:MM:SS
+        '%Y-%m-%d %H:%M',     # YYYY-MM-DD HH:MM
+        '%d/%m/%Y %H:%M',     # DD/MM/YYYY HH:MM
+        '%m/%d/%Y %H:%M',     # MM/DD/YYYY HH:MM
+        '%H:%M:%S',           # HH:MM:SS
+        '%H:%M',              # HH:MM
+        '%I:%M:%S %p',        # HH:MM:SS AM/PM
+        '%I:%M %p',           # HH:MM AM/PM
+    ]
+    
+    converted_cols = []
+    
+    for col in df_copy.columns:
+        # Skip if already numeric
+        if pd.api.types.is_numeric_dtype(df_copy[col]):
+            continue
+            
+        # Skip if column has too many nulls (>50%)
+        if df_copy[col].isnull().sum() / len(df_copy) > 0.5:
+            continue
+        
+        # Try to convert with pandas auto-detection first
+        try:
+            # Attempt automatic datetime parsing
+            temp_series = pd.to_datetime(df_copy[col], errors='coerce', infer_datetime_format=True)
+            
+            # Check if conversion was successful for most values (>70%)
+            success_rate = temp_series.notna().sum() / len(temp_series)
+            
+            if success_rate > 0.7:
+                # Convert to Unix timestamp (seconds since epoch) for numeric analysis
+                df_copy[col] = temp_series.astype('int64') / 10**9  # Convert nanoseconds to seconds
+                converted_cols.append(col)
+                continue
+        except:
+            pass
+        
+        # If auto-detection failed, try specific formats
+        converted = False
+        for fmt in date_formats:
+            try:
+                temp_series = pd.to_datetime(df_copy[col], format=fmt, errors='coerce')
+                success_rate = temp_series.notna().sum() / len(temp_series)
+                
+                if success_rate > 0.7:
+                    # Convert to Unix timestamp
+                    df_copy[col] = temp_series.astype('int64') / 10**9
+                    converted_cols.append(col)
+                    converted = True
+                    break
+            except:
+                continue
+        
+        # If still not converted, check for time-only formats
+        if not converted:
+            try:
+                # Try parsing as time only, convert to seconds since midnight
+                temp_series = pd.to_datetime(df_copy[col], format='%H:%M:%S', errors='coerce').dt.time
+                if temp_series.notna().sum() / len(temp_series) > 0.7:
+                    df_copy[col] = pd.to_datetime(df_copy[col], format='%H:%M:%S', errors='coerce').dt.hour * 3600 + \
+                                   pd.to_datetime(df_copy[col], format='%H:%M:%S', errors='coerce').dt.minute * 60 + \
+                                   pd.to_datetime(df_copy[col], format='%H:%M:%S', errors='coerce').dt.second
+                    converted_cols.append(col)
+            except:
+                pass
+    
+    # Log conversion info if any columns were converted
+    if converted_cols:
+        st.info(f"📅 Detected and converted {len(converted_cols)} date/time column(s) to numeric: {', '.join(converted_cols)}")
+    
+    return df_copy
+
+
+# =============================================================================
 # TUTORIAL CONTENT
 # =============================================================================
 TUTORIALS = {
@@ -1002,6 +1105,10 @@ def render_data_tab():
                     st.session_state.df = pd.read_csv(uploaded_file)
                 else:
                     st.session_state.df = pd.read_excel(uploaded_file)
+                
+                # Detect and convert date/time columns to numeric
+                st.session_state.df = detect_and_convert_datetime_columns(st.session_state.df)
+                
                 st.success(f"✅ Loaded: {uploaded_file.name}")
             except Exception as e:
                 st.error(f"Error loading file: {e}")
@@ -1022,6 +1129,10 @@ def render_data_tab():
                 'feature_3': x3,
                 'target': target
             })
+            
+            # Detect and convert any date/time columns in sample data
+            st.session_state.df = detect_and_convert_datetime_columns(st.session_state.df)
+            
             st.success("✅ Sample data generated!")
 
     if st.session_state.df is not None:
@@ -1109,21 +1220,38 @@ def render_data_tab():
         st.dataframe(df.head(10), use_container_width=True)
 
         # Quick plot with Plotly - only if valid selection
-        if len(st.session_state.feature_cols) >= 1 and st.session_state.target_col:
-            # Check for overlap before plotting
-            if st.session_state.target_col not in st.session_state.feature_cols:
-                st.markdown("### Quick Visualization (Interactive!)")
+        if len(st.session_state.feature_cols) >= 1:
+            st.markdown("### Quick Visualization (Interactive!)")
+            
+            col1, col2, col3 = st.columns([1, 1, 2])
+            
+            with col1:
+                all_numeric = numeric_cols
+                x_col = st.selectbox("X-axis", all_numeric, 
+                                    index=0 if len(all_numeric) > 0 else 0,
+                                    key="quick_viz_x")
+            
+            with col2:
+                default_y_idx = 1 if len(all_numeric) > 1 else 0
+                # If target is set, use it as default
+                if st.session_state.target_col and st.session_state.target_col in all_numeric:
+                    default_y_idx = all_numeric.index(st.session_state.target_col)
+                
+                y_col = st.selectbox("Y-axis", all_numeric,
+                                    index=default_y_idx,
+                                    key="quick_viz_y")
+            
+            if x_col and y_col:
                 try:
-                    x_col = st.session_state.feature_cols[0]
-                    y_col = st.session_state.target_col
-
                     fig = px.scatter(
                         df, x=x_col, y=y_col,
                         trendline="ols",
-                        title=f'{x_col} vs {y_col}',
+                        title=f'{y_col} vs {x_col}',
                         template=PLOTLY_TEMPLATE
                     )
-                    fig.update_layout(height=500)
+                    fig.update_layout(height=500, 
+                                    xaxis_title=x_col,
+                                    yaxis_title=y_col)
                     st.plotly_chart(fig, use_container_width=True)
                 except Exception as e:
                     st.warning(f"Could not generate quick visualization: {e}")
@@ -1164,9 +1292,21 @@ def render_statistical_tab():
 
     with col3:
         outlier_method = st.selectbox("Outlier Method", ['iqr', 'zscore'])
+        # Add threshold controls based on method
+        if outlier_method == 'iqr':
+            iqr_mult = st.slider("IQR Multiplier", 1.0, 3.0, 1.5, 0.1, 
+                                 help="1.5=standard, 3.0=far outliers only")
+            zscore_thresh = 3.0  # not used
+        else:
+            zscore_thresh = st.slider("Z-score Threshold", 2.0, 4.0, 3.0, 0.1,
+                                      help="2.0=stricter, 3.0=standard, 4.0=lenient")
+            iqr_mult = 1.5  # not used
         if st.button("🎯 Outlier Detection", use_container_width=True):
             # Correct method name: outlier_detection
-            st.session_state.analysis_results['outliers'] = stats.outlier_detection(features, method=outlier_method)
+            st.session_state.analysis_results['outliers'] = stats.outlier_detection(
+                features, method=outlier_method, 
+                iqr_multiplier=iqr_mult, zscore_threshold=zscore_thresh
+            )
 
     st.markdown("---")
 
@@ -1194,21 +1334,116 @@ def render_statistical_tab():
         st.subheader("🎯 Outlier Detection Results")
         outlier_data = st.session_state.analysis_results['outliers']
 
-        # Box plots
-        box_data = df[features].melt(var_name='Feature', value_name='Value')
-        fig = px.box(box_data, x='Feature', y='Value', title='Box Plots with Outliers',
-                    template=PLOTLY_TEMPLATE, points='outliers')
-        fig.update_layout(height=500)
+        # Create scatter plot with outliers highlighted using the ACTUAL detected indices
+        from plotly.subplots import make_subplots
+        n_features = len(features)
+        n_cols = min(2, n_features)
+        n_rows = (n_features + n_cols - 1) // n_cols
+        
+        fig = make_subplots(rows=n_rows, cols=n_cols, 
+                           subplot_titles=[f"{col}" for col in features])
+        
+        for idx, col in enumerate(features):
+            row = idx // n_cols + 1
+            col_pos = idx % n_cols + 1
+            
+            info = outlier_data.get(col, {})
+            outlier_indices = info.get('outlier_indices', [])
+            
+            # All points
+            all_values = df[col].values
+            all_indices = list(range(len(all_values)))
+            
+            # Create mask for outliers
+            is_outlier = df.index.isin(outlier_indices)
+            normal_mask = ~is_outlier
+            outlier_mask = is_outlier
+            
+            # Plot normal points (blue)
+            fig.add_trace(
+                go.Scatter(
+                    x=df.index[normal_mask].tolist(),
+                    y=df.loc[normal_mask, col].tolist(),
+                    mode='markers',
+                    marker=dict(color='steelblue', size=5, opacity=0.6),
+                    name=f'{col} (normal)',
+                    showlegend=(idx == 0)
+                ),
+                row=row, col=col_pos
+            )
+            
+            # Plot outlier points (red)
+            if outlier_mask.any():
+                fig.add_trace(
+                    go.Scatter(
+                        x=df.index[outlier_mask].tolist(),
+                        y=df.loc[outlier_mask, col].tolist(),
+                        mode='markers',
+                        marker=dict(color='red', size=8, symbol='x'),
+                        name=f'{col} (outliers)',
+                        showlegend=(idx == 0)
+                    ),
+                    row=row, col=col_pos
+                )
+            
+            # Add bounds as horizontal lines if available (IQR method)
+            if 'lower_bound' in info:
+                fig.add_hline(y=info['lower_bound'], line_dash='dash', line_color='orange',
+                             annotation_text='lower', row=row, col=col_pos)
+            if 'upper_bound' in info:
+                fig.add_hline(y=info['upper_bound'], line_dash='dash', line_color='orange',
+                             annotation_text='upper', row=row, col=col_pos)
+        
+        fig.update_layout(
+            height=300 * n_rows,
+            title='Outlier Detection: Blue = Normal, Red X = Outliers, Orange = Bounds',
+            template=PLOTLY_TEMPLATE,
+            showlegend=True
+        )
         st.plotly_chart(fig, use_container_width=True)
+        
+        # Also show box plots for reference (without Plotly's own outlier detection)
+        box_data = df[features].melt(var_name='_Feature_', value_name='_Value_')
+        fig_box = px.box(box_data, x='_Feature_', y='_Value_', title='Box Plots (for distribution reference)',
+                    template=PLOTLY_TEMPLATE, points=False)  # Don't show Plotly's outlier points
+        fig_box.update_layout(height=400)
+        st.plotly_chart(fig_box, use_container_width=True)
 
+        # Summary table
+        summary_data = []
         for col, info in outlier_data.items():
             n_outliers = info.get('n_outliers', 0)
             pct = info.get('percentage', 0)
-            with st.expander(f"**{col}**: {n_outliers} outliers ({pct:.1f}%)"):
-                if 'lower_bound' in info:
-                    st.write(f"Lower bound: {info['lower_bound']:.4f}")
-                if 'upper_bound' in info:
-                    st.write(f"Upper bound: {info['upper_bound']:.4f}")
+            lower = info.get('lower_bound', 'N/A')
+            upper = info.get('upper_bound', 'N/A')
+            summary_data.append({
+                'Feature': col,
+                'Outliers': n_outliers,
+                'Percentage': f"{pct:.2f}%",
+                'Lower Bound': f"{lower:.4f}" if isinstance(lower, float) else lower,
+                'Upper Bound': f"{upper:.4f}" if isinstance(upper, float) else upper
+            })
+        
+        st.dataframe(pd.DataFrame(summary_data), use_container_width=True)
+        
+        # Expandable details with actual outlier values
+        for col, info in outlier_data.items():
+            n_outliers = info.get('n_outliers', 0)
+            pct = info.get('percentage', 0)
+            method_str = info.get('method', 'IQR')
+            with st.expander(f"**{col}** [{method_str}]: {n_outliers} outliers ({pct:.1f}%) - Click to see values"):
+                outlier_indices = info.get('outlier_indices', [])
+                if outlier_indices and len(outlier_indices) > 0:
+                    # Filter to only valid indices that exist in the dataframe
+                    valid_indices = [idx for idx in outlier_indices if idx in df.index]
+                    if valid_indices:
+                        outlier_values = df.loc[valid_indices, col]
+                        st.write("Outlier indices and values:")
+                        st.dataframe(outlier_values.to_frame(), use_container_width=True)
+                    else:
+                        st.write("No valid outlier indices found.")
+                else:
+                    st.write("✅ No outliers detected.")
 
 
 # =============================================================================
@@ -2574,20 +2809,41 @@ def render_timeseries_tab():
 
     df = st.session_state.df
     features = st.session_state.feature_cols
+    all_numeric = df.select_dtypes(include=[np.number]).columns.tolist()
 
     ts = TimeSeriesAnalysis(df)
 
     col1, col2 = st.columns([1, 3])
 
     with col1:
-        selected_col = st.selectbox("Select Column", features)
+        st.markdown("#### Axis Selection")
+        
+        # X-axis selection
+        x_options = ['Index (Row Number)'] + all_numeric
+        x_col = st.selectbox("X-axis (Time/Index)", x_options, 
+                            help="Select a column for X-axis (typically time/date) or use row index")
+        
+        # Y-axis selection
+        selected_col = st.selectbox("Y-axis (Value)", features)
+        
         max_lag = st.slider("Max Lag", 5, 50, 20)
 
     # Plot the time series
     st.subheader("📈 Time Series Plot")
     series = df[selected_col].dropna()
+    
     fig = go.Figure()
-    fig.add_trace(go.Scatter(y=series, mode='lines', name=selected_col))
+    
+    if x_col == 'Index (Row Number)':
+        # Use row index as X-axis
+        fig.add_trace(go.Scatter(x=series.index, y=series, mode='lines', name=selected_col))
+        fig.update_layout(xaxis_title='Index', yaxis_title=selected_col)
+    else:
+        # Use selected column as X-axis
+        x_data = df[x_col].loc[series.index]  # Match indices with non-null Y values
+        fig.add_trace(go.Scatter(x=x_data, y=series, mode='lines', name=selected_col))
+        fig.update_layout(xaxis_title=x_col, yaxis_title=selected_col)
+    
     fig.update_layout(title=f'Time Series: {selected_col}', template=PLOTLY_TEMPLATE, height=400)
     st.plotly_chart(fig, use_container_width=True)
 
@@ -2750,21 +3006,69 @@ def render_causality_tab():
                 {
                     'Lag': lag,
                     'p-value': data.get('ssr_ftest_pvalue', 0),
+                    '-log10(p)': -np.log10(max(data.get('ssr_ftest_pvalue', 1e-100), 1e-100)),
                     'Significant': '✅ Yes' if data.get('is_significant', False) else '❌ No'
                 }
                 for lag, data in results.items() if isinstance(data, dict)
             ])
             st.dataframe(granger_df, use_container_width=True)
 
-            # Plot p-values
+            # Plot -log10(p-value) - standard way to visualize p-values
+            # Higher bars = more significant (smaller p-value)
             lags = [lag for lag in results.keys() if isinstance(results[lag], dict)]
-            pvals = [results[lag].get('ssr_ftest_pvalue', 0) for lag in lags]
+            pvals = [results[lag].get('ssr_ftest_pvalue', 1) for lag in lags]
+            
+            # Transform to -log10(p) for visualization (clamp to avoid log(0))
+            neg_log_pvals = [-np.log10(max(p, 1e-100)) for p in pvals]
+            
+            # Color bars based on significance
+            colors = ['green' if p < 0.05 else 'gray' for p in pvals]
+            
+            # Significance threshold line: -log10(0.05) ≈ 1.3
+            sig_threshold = -np.log10(0.05)
 
             fig = go.Figure()
-            fig.add_trace(go.Scatter(x=lags, y=pvals, mode='lines+markers'))
-            fig.add_hline(y=0.05, line_dash='dash', line_color='red', annotation_text='p=0.05')
-            fig.update_layout(title='Granger Causality p-values', template=PLOTLY_TEMPLATE, height=400)
+            fig.add_trace(go.Bar(x=lags, y=neg_log_pvals, marker_color=colors, name='-log10(p)'))
+            fig.add_hline(y=sig_threshold, line_dash='dash', line_color='red', 
+                         annotation_text='p=0.05 threshold')
+            fig.update_layout(
+                title='Granger Causality: -log₁₀(p-value) by Lag (Higher = More Significant)',
+                xaxis_title='Lag',
+                yaxis_title='-log₁₀(p-value)',
+                template=PLOTLY_TEMPLATE, 
+                height=400
+            )
             st.plotly_chart(fig, use_container_width=True)
+            
+            # Show interpretation
+            sig_lags = [lag for lag, p in zip(lags, pvals) if p < 0.05]
+            if sig_lags:
+                min_p = min(pvals)
+                st.success(f"✅ Significant Granger causality at lags: {sig_lags} (min p-value: {min_p:.2e})")
+            else:
+                st.warning("❌ No significant Granger causality found at any lag")
+            
+            # Explanation of p-value interpretation
+            with st.expander("ℹ️ Understanding Granger Causality p-values"):
+                st.markdown("""
+**What does the p-value mean?**
+
+The p-value indicates the probability of observing the data (or something more extreme) 
+under the null hypothesis that past values of X do **not** provide any additional 
+predictive power for Y beyond what past values of Y alone already provide.
+
+| p-value | Interpretation |
+|---------|----------------|
+| **< 0.05** | Reject null hypothesis → X Granger-causes Y (significant predictive power) |
+| **> 0.05** | Cannot reject null → No evidence that X helps predict Y |
+
+**Important notes:**
+- The p-value does **not** measure the *strength* of the causal relationship
+- It only assesses the *statistical significance* of the predictive improvement
+- The test compares a restricted model (without X lags) to an unrestricted model (with X lags)
+- Lower p-values indicate stronger evidence against the null hypothesis
+- The -log₁₀(p) transformation makes small p-values easier to visualize (taller bars = more significant)
+""")
 
     if 'lead_lag' in st.session_state.analysis_results:
         results = st.session_state.analysis_results['lead_lag']

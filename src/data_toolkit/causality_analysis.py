@@ -106,9 +106,10 @@ class CausalityAnalysis:
         results = {}
         
         for feature in features:
-            # Get clean data
-            feat_data = self.df[feature].dropna().values
-            targ_data = self.df[target].dropna().values
+            # Get clean data - must align indices first, then drop NaN together
+            combined = self.df[[feature, target]].dropna()
+            feat_data = combined[feature].values
+            targ_data = combined[target].values
             
             # Use accelerated lead-lag (handles Rust/Python switching internally)
             lags, correlations = _accel_lead_lag(feat_data, targ_data, max_lag)

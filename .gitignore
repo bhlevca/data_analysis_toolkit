@@ -145,3 +145,7 @@ Thumbs.db
 *.xls
 data/
 output/
+wvenv/
+
+# But include test data files
+!test_data/*.csv

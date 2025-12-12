@@ -602,9 +602,19 @@ class StatisticalAnalysis:
     # OUTLIER DETECTION
     # =========================================================================
     
-    def outlier_detection(self, columns: List[str], method: str = 'iqr') -> Dict[str, Dict]:
+    def outlier_detection(self, columns: List[str], method: str = 'iqr', 
+                          iqr_multiplier: float = 1.5, zscore_threshold: float = 3.0) -> Dict[str, Dict]:
         """
         Detect outliers using IQR or Z-score method
+        
+        Args:
+            columns: List of column names to analyze
+            method: 'iqr' or 'zscore'
+            iqr_multiplier: Multiplier for IQR bounds (default 1.5, use 3.0 for "far" outliers)
+            zscore_threshold: Z-score threshold (default 3.0, use 2.5 for stricter detection)
+        
+        Returns:
+            Dict with outlier info per column including indices, bounds, counts
         """
         if self.df is None:
             return {}
@@ -613,15 +623,15 @@ class StatisticalAnalysis:
         
         if method == 'iqr':
             data_matrix = self.df[columns].values
-            counts, percentages = _accel_outliers(data_matrix, multiplier=1.5)
+            counts, percentages = _accel_outliers(data_matrix, multiplier=iqr_multiplier)
             
             for i, col in enumerate(columns):
                 data = self.df[col].dropna()
                 Q1 = data.quantile(0.25)
                 Q3 = data.quantile(0.75)
                 IQR = Q3 - Q1
-                lower_bound = Q1 - 1.5 * IQR
-                upper_bound = Q3 + 1.5 * IQR
+                lower_bound = Q1 - iqr_multiplier * IQR
+                upper_bound = Q3 + iqr_multiplier * IQR
                 outliers = (data < lower_bound) | (data > upper_bound)
                 
                 results[col] = {
@@ -629,33 +639,90 @@ class StatisticalAnalysis:
                     'percentage': float(percentages[i]),
                     'outlier_indices': data[outliers].index.tolist(),
                     'lower_bound': float(lower_bound),
-                    'upper_bound': float(upper_bound)
+                    'upper_bound': float(upper_bound),
+                    'method': f'IQR (×{iqr_multiplier})'
                 }
         else:  # zscore
             for col in columns:
                 data = self.df[col].dropna()
                 z_scores = np.abs(stats.zscore(data))
-                outliers = z_scores > 3
+                outliers = z_scores > zscore_threshold
                 n_outliers = outliers.sum()
+                
+                # Calculate bounds: values at z=threshold from mean
+                mean_val = data.mean()
+                std_val = data.std()
+                lower_bound = mean_val - zscore_threshold * std_val
+                upper_bound = mean_val + zscore_threshold * std_val
                 
                 results[col] = {
                     'n_outliers': int(n_outliers),
                     'percentage': float((n_outliers / len(data)) * 100),
-                    'outlier_indices': data[outliers].index.tolist()
+                    'outlier_indices': data[outliers].index.tolist(),
+                    'lower_bound': float(lower_bound),
+                    'upper_bound': float(upper_bound),
+                    'method': f'Z-score (>{zscore_threshold}σ)'
                 }
         
         return results
     
-    def plot_boxplots(self, columns: List[str]) -> plt.Figure:
-        """Plot box plots for outlier visualization"""
+    def plot_boxplots(self, columns: List[str], outlier_results: Dict = None) -> plt.Figure:
+        """Plot box plots with actual detected outliers highlighted
+        
+        Args:
+            columns: List of column names to plot
+            outlier_results: Dict from outlier_detection() with outlier_indices for each column
+        """
         if self.df is None or not columns:
             return None
         
-        fig, ax = plt.subplots(figsize=(12, 6))
-        self.df[columns].boxplot(ax=ax)
-        ax.set_title('Box Plots - Outlier Detection')
-        ax.set_ylabel('Value')
-        plt.xticks(rotation=45, ha='right')
+        n_cols = len(columns)
+        fig, axes = plt.subplots(1, n_cols, figsize=(4*n_cols, 6), squeeze=False)
+        axes = axes.flatten()
+        
+        for i, col in enumerate(columns):
+            ax = axes[i]
+            data = self.df[col].dropna()
+            
+            # Plot box without outlier points (we'll add our own)
+            bp = ax.boxplot(data, showfliers=False, patch_artist=True)
+            bp['boxes'][0].set_facecolor('lightblue')
+            bp['boxes'][0].set_alpha(0.7)
+            
+            # Get outlier info if provided
+            if outlier_results and col in outlier_results:
+                info = outlier_results[col]
+                outlier_indices = info.get('outlier_indices', [])
+                is_outlier = self.df.index.isin(outlier_indices)
+                
+                # Plot normal points (small blue)
+                normal_data = self.df.loc[~is_outlier, col].dropna()
+                ax.scatter([1]*len(normal_data), normal_data, 
+                          c='steelblue', s=15, alpha=0.4, label='Normal')
+                
+                # Plot outliers (large red X)
+                if len(outlier_indices) > 0:
+                    outlier_data = self.df.loc[is_outlier, col].dropna()
+                    ax.scatter([1]*len(outlier_data), outlier_data,
+                              c='red', s=80, marker='x', linewidths=2, 
+                              label=f'Outliers ({len(outlier_indices)})', zorder=5)
+                
+                # Add IQR bounds as horizontal lines
+                if 'lower_bound' in info:
+                    ax.axhline(info['lower_bound'], color='orange', linestyle='--', 
+                              alpha=0.8, label='IQR bounds')
+                if 'upper_bound' in info:
+                    ax.axhline(info['upper_bound'], color='orange', linestyle='--', alpha=0.8)
+            else:
+                # No outlier info, just scatter all points
+                ax.scatter([1]*len(data), data, c='steelblue', s=15, alpha=0.4)
+            
+            ax.set_title(col)
+            ax.set_xticks([])
+            if i == 0:
+                ax.legend(loc='upper right', fontsize=8)
+        
+        fig.suptitle('🔍 Outlier Detection: Red X = Detected Outliers, Orange = IQR Bounds', fontsize=12)
         plt.tight_layout()
         
         return fig

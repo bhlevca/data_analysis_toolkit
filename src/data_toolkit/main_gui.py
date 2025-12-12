@@ -1134,10 +1134,15 @@ class AdvancedDataAnalysisGUI:
         self.results_text.insert(tk.END, "═══ OUTLIER DETECTION (IQR Method) ═══\n\n")
         
         for col, data in results.items():
+            status = '⚠️' if data['n_outliers'] > 0 else '✅'
             self.results_text.insert(tk.END, 
-                f"{col}: {data['n_outliers']} outliers ({data['percentage']:.2f}%)\n")
+                f"{status} {col}: {data['n_outliers']} outliers ({data['percentage']:.2f}%)\n")
+            if data['n_outliers'] > 0 and 'lower_bound' in data:
+                self.results_text.insert(tk.END,
+                    f"   Bounds: [{data['lower_bound']:.3f}, {data['upper_bound']:.3f}]\n")
         
-        fig = self.stats_analysis.plot_boxplots(features)
+        # Pass outlier results to plot for accurate visualization
+        fig = self.stats_analysis.plot_boxplots(features, outlier_results=results)
         if fig:
             plt.show()
     

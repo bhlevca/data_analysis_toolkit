@@ -319,8 +319,9 @@ def plot_wavelet_torrence(cwt_results: Dict[str, Any], column: str, y_scale: str
         
         if y_scale == 'log':
             ax_main.set_yscale('log')
-            ax_main.invert_yaxis()
-            ax_main.set_ylim([periods[-1] * 1.1, periods[0] * 0.9])
+        # Small periods (high freq) at TOP, large periods at BOTTOM
+        # Invert y-axis: set ylim with large value first, small value second
+        ax_main.set_ylim([periods[-1] * 1.1, periods[0] * 0.9])
         
         # Draw COI as filled region (hatched area = unreliable)
         if show_coi and coi is not None and len(coi) == len(time):
@@ -407,9 +408,8 @@ def plot_wavelet_torrence(cwt_results: Dict[str, Any], column: str, y_scale: str
     ax_global.set_xlim([0, np.max(global_power) * 1.1])
     if y_scale == 'log':
         ax_global.set_yscale('log')
-        ax_global.invert_yaxis()
-    
-    # ═══════════════════════════════════════════════════════════════
+    # Match main plot: small periods at top (inverted)
+    ax_global.set_ylim([periods[-1] * 1.1, periods[0] * 0.9])    # ═══════════════════════════════════════════════════════════════
     # SCALE-AVERAGED POWER (bottom panel) - Time series of variance
     # ═══════════════════════════════════════════════════════════════
     scale_avg_power = np.mean(normalized_power, axis=0)
