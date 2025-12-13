@@ -1,0 +1,36 @@
+{
+    "recommendations": [
+        // Python essentials
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.debugpy",
+        "ms-python.black-formatter",
+        "ms-python.isort",
+        
+        // Jupyter
+        "ms-toolsai.jupyter",
+        "ms-toolsai.jupyter-keymap",
+        "ms-toolsai.jupyter-renderers",
+        
+        // Rust (for rust_extensions)
+        "rust-lang.rust-analyzer",
+        
+        // Data/Visualization
+        "RandomFractalsInc.vscode-data-preview",
+        "GrapeCity.gc-excelviewer",
+        
+        // Git
+        "eamodio.gitlens",
+        "mhutchie.git-graph",
+        
+        // General productivity
+        "streetsidesoftware.code-spell-checker",
+        "yzhang.markdown-all-in-one",
+        "tamasfe.even-better-toml",
+        "redhat.vscode-yaml",
+        
+        // Testing
+        "littlefoxteam.vscode-python-test-adapter"
+    ],
+    "unwantedRecommendations": []
+}
