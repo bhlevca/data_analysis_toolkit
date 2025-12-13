@@ -4,8 +4,12 @@ Tutorial Sidebar module for the Data Analysis Toolkit
 
 import streamlit as st
 
-from data_toolkit.rust_accelerated import (AccelerationSettings,
-                                           get_backend_name, is_rust_available)
+# Import accelerated functions
+try:
+    from rust_accelerated import AccelerationSettings, is_rust_available
+except ImportError:
+    from .rust_accelerated import AccelerationSettings, is_rust_available
+
 
 TUTORIALS = {
     "getting_started": """
@@ -25,7 +29,7 @@ Welcome! This toolkit provides comprehensive data analysis capabilities organize
 | **📊 Statistics** | Descriptive Statistics, Hypothesis Tests, Bayesian Inference, Uncertainty Analysis |
 | **🔊 Signal Processing** | FFT/Wavelet (frequency and time-frequency analysis) |
 | **⏱️ Time Series** | Time Series Analysis, Causality (Granger) |
-| **🤖 Machine Learning** | Regression/Classification, PCA, Clustering, Anomaly Detection, Dimensionality Reduction, Non-Linear Analysis |
+| **🤖 Machine Learning** | Regression/Classification, 🧠 Neural Networks, PCA, Clustering, Anomaly Detection, Dimensionality Reduction, Non-Linear Analysis |
 | **📈 Visualization** | Interactive Plots (scatter, box, 3D, regression lines) |
 
 ---
@@ -52,6 +56,7 @@ Welcome! This toolkit provides comprehensive data analysis capabilities organize
 | Time patterns? | ⏱️ Time Series → Analysis |
 | Does X cause Y? | ⏱️ Time Series → Causality |
 | Predict values? | 🤖 ML → Regression/Classification |
+| Deep learning? | 🤖 ML → 🧠 Neural Networks |
 | Reduce dimensions? | 🤖 ML → PCA or Dimensionality Reduction |
 | Find clusters? | 🤖 ML → Clustering |
 | Find outliers? | 🤖 ML → Anomaly Detection |
@@ -823,6 +828,126 @@ p-value tells significance, not importance. Also report:
 - **Correlation coefficient**: Strength of relationship
 
 💡 **Tip**: Statistical significance ≠ practical significance. Always consider effect size!
+""",
+
+    "neural_networks": """
+## 🧠 Neural Networks Guide
+
+Deep learning models for regression, forecasting, and anomaly detection.
+
+### Available Models
+
+| Model | Use Case | Best For |
+|-------|----------|----------|
+| **MLP Regressor** | Predict continuous values | Non-linear regression |
+| **MLP Classifier** | Classify categories | Multi-class classification |
+| **LSTM Forecast** | Time series prediction | Sequential patterns |
+| **Autoencoder** | Anomaly detection | Finding outliers |
+
+---
+
+### 🔮 MLP (Multi-Layer Perceptron)
+
+Feedforward neural network with customizable architecture.
+
+**Parameters:**
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `hidden_layers` | [64, 32] | Neurons per layer |
+| `activation` | relu | Activation function |
+| `dropout_rate` | 0.2 | Regularization (0-0.5) |
+| `epochs` | 100 | Training iterations |
+| `batch_size` | 32 | Samples per update |
+
+**Output Metrics (Regression):**
+- **RMSE**: Root Mean Square Error (lower is better)
+- **MAE**: Mean Absolute Error
+- **R²**: Coefficient of determination (closer to 1 is better)
+
+**Tips:**
+- Use 100+ epochs for complex patterns
+- Reduce dropout for small datasets
+- Add more layers for highly non-linear relationships
+
+---
+
+### 📈 LSTM (Long Short-Term Memory)
+
+Specialized for time series with temporal dependencies.
+
+**Parameters:**
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `sequence_length` | 20 | Lookback window (past steps to use) |
+| `forecast_horizon` | 10 | Future steps to predict |
+| `lstm_units` | 64 | Neurons per LSTM layer |
+| `n_lstm_layers` | 2 | Number of LSTM layers |
+
+**When to Use:**
+- Data has temporal patterns
+- Sequential dependencies matter
+- Need to forecast future values
+
+**Tips:**
+- sequence_length should capture one full cycle/pattern
+- More data = better forecasts (100+ samples minimum)
+- Use for univariate time series (single column)
+
+---
+
+### 🚨 Autoencoder (Anomaly Detection)
+
+Learns to compress and reconstruct data. Anomalies have high reconstruction error.
+
+**Parameters:**
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `encoding_dim` | 8 | Bottleneck size (compression) |
+| `contamination` | 0.05 | Expected anomaly rate (5%) |
+| `hidden_layers` | [64, 32] | Encoder architecture |
+
+**How It Works:**
+1. **Encoder**: Compresses data to low dimensions
+2. **Decoder**: Reconstructs original data
+3. **Error**: Normal data reconstructs well, anomalies don't
+4. **Threshold**: Set by contamination rate
+
+**Output:**
+- `reconstruction_errors`: Error per sample
+- `threshold`: Cutoff for anomaly classification
+- `anomaly_indices`: Which samples are anomalies
+
+---
+
+### ⚠️ Important Notes
+
+**Data Requirements:**
+- Neural networks need MORE data than traditional ML
+- Minimum: 500+ samples (1000+ recommended)
+- More features = need more data
+
+**When NOT to Use:**
+- Small datasets (< 200 samples) → Use Random Forest instead
+- Simple linear relationships → Use Linear Regression
+- Need interpretability → Use Decision Trees
+
+**Training Tips:**
+- Watch for overfitting (val_loss increasing while loss decreases)
+- Start with fewer epochs, increase if needed
+- Use validation split to monitor generalization
+
+---
+
+### 🔧 Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| Predictions always same value | Increase epochs, reduce dropout |
+| Overfitting (val_loss >> loss) | Increase dropout, reduce layers |
+| Training too slow | Reduce batch_size, fewer layers |
+| Poor accuracy | More data, more epochs, tune architecture |
+
+💡 **Tip**: Start simple (2 layers, 64 neurons) and add complexity only if needed!
 """
 }
 
@@ -860,6 +985,7 @@ def render_tutorial_sidebar():
                 "causality": "⏱️ Time Series › Causality (Granger)",
                 # Machine Learning group
                 "machine_learning": "🤖 ML › Regression/Classification",
+                "neural_networks": "🧠 ML › Neural Networks",
                 "pca": "🤖 ML › PCA (Principal Components)",
                 "clustering": "🤖 ML › Clustering",
                 "anomaly": "🤖 ML › Anomaly Detection",
