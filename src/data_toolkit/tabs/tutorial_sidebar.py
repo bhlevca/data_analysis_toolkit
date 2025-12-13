@@ -4,6 +4,9 @@ Tutorial Sidebar module for the Data Analysis Toolkit
 
 import streamlit as st
 
+from data_toolkit.rust_accelerated import (AccelerationSettings,
+                                           get_backend_name, is_rust_available)
+
 TUTORIALS = {
     "getting_started": """
 ## 🚀 Getting Started with the Advanced Data Analysis Toolkit
