@@ -4,15 +4,18 @@ These functions are designed to be called from `TimeSeriesAnalysis` as thin
 wrappers so the public API remains stable while grouping signal-specific code
 in a single module for easier maintenance and future additions.
 """
-import numpy as np
 import matplotlib
+import numpy as np
+
 matplotlib.use('Agg')
+import warnings
+from typing import Any, Dict
+
 import matplotlib.pyplot as plt
 from scipy.fft import fft, fftfreq
 from scipy.signal import welch
 from scipy.stats import chi2
-from typing import Dict, Any
-import warnings
+
 warnings.filterwarnings('ignore')
 
 # Try to import pywt for CWT and DWT
@@ -273,12 +276,12 @@ def plot_wavelet_power(cwt_results: Dict[str, Any], column: str) -> plt.Figure:
 def plot_wavelet_torrence(cwt_results: Dict[str, Any], column: str, y_scale: str = 'log', significance_level: float = 0.95, show_coi: bool = True, wavelet: str = None, ax=None) -> plt.Figure:
     """
     Plot CWT power spectrum following Torrence & Compo (1998) style.
-    
+
     If ax=None: Creates full layout with:
     - Main power spectrum heatmap with COI shading
     - Global wavelet power spectrum on the right
     - Scale-averaged power (time-averaged variance) on the bottom
-    
+
     If ax is provided: Plots only to that axes (for embedding in custom layouts)
     """
     power = cwt_results.get('power')
@@ -299,48 +302,48 @@ def plot_wavelet_torrence(cwt_results: Dict[str, Any], column: str, y_scale: str
         variance = 1.0
     normalized_power = power / variance
     log_power = np.log2(normalized_power + 1e-10)
-    
+
     # Helper function to plot main heatmap on an axes
     def plot_main_heatmap(ax_main, add_colorbar=True, show_xlabel=True):
         # Use pcolormesh for full heatmap without truncation
         dt = time[1] - time[0] if len(time) > 1 else 1.0
         time_edges = np.concatenate([time - dt/2, [time[-1] + dt/2]])
-        
+
         # For periods, use log spacing for edges
         period_edges = np.zeros(len(periods) + 1)
         period_edges[0] = periods[0] * 0.9
         period_edges[-1] = periods[-1] * 1.1
         for i in range(1, len(periods)):
             period_edges[i] = np.sqrt(periods[i-1] * periods[i])
-        
+
         # Plot the full power spectrum
-        im = ax_main.pcolormesh(time_edges, period_edges, log_power, 
+        im = ax_main.pcolormesh(time_edges, period_edges, log_power,
                                  cmap='viridis', shading='flat')
-        
+
         if y_scale == 'log':
             ax_main.set_yscale('log')
         # Small periods (high freq) at TOP, large periods at BOTTOM
         # Invert y-axis: set ylim with large value first, small value second
         ax_main.set_ylim([periods[-1] * 1.1, periods[0] * 0.9])
-        
+
         # Draw COI as filled region (hatched area = unreliable)
         if show_coi and coi is not None and len(coi) == len(time):
-            ax_main.fill_between(time, coi, periods[-1] * 2, 
-                                  facecolor='white', alpha=0.3, 
+            ax_main.fill_between(time, coi, periods[-1] * 2,
+                                  facecolor='white', alpha=0.3,
                                   hatch='///', edgecolor='gray')
             ax_main.plot(time, coi, 'k--', linewidth=2, label='COI')
-        
+
         # Add significance contours
         try:
             mean_power_scale = np.mean(power, axis=1)
             chi2_crit = chi2.ppf(significance_level, df=2)
             signif = mean_power_scale * chi2_crit / 2.0
             mask = power > signif[:, None]
-            ax_main.contour(time, periods, mask.astype(int), levels=[0.5], 
+            ax_main.contour(time, periods, mask.astype(int), levels=[0.5],
                             colors='black', linewidths=1.5)
         except Exception:
             pass
-        
+
         ax_main.set_ylabel('Period', fontsize=12)
         if show_xlabel:
             ax_main.set_xlabel('Time', fontsize=12)
@@ -348,9 +351,9 @@ def plot_wavelet_torrence(cwt_results: Dict[str, Any], column: str, y_scale: str
         if wavelet:
             title += f' [{wavelet}]'
         ax_main.set_title(title, fontsize=14)
-        
+
         return im
-    
+
     # ═══════════════════════════════════════════════════════════════
     # MODE 1: If ax is provided, just plot to that axes (simple mode)
     # ═══════════════════════════════════════════════════════════════
@@ -360,14 +363,14 @@ def plot_wavelet_torrence(cwt_results: Dict[str, Any], column: str, y_scale: str
         cbar = fig.colorbar(im, ax=ax)
         cbar.set_label('Log₂(Power/Variance)')
         return fig
-    
+
     # ═══════════════════════════════════════════════════════════════
     # MODE 2: Full Torrence & Compo layout with side panels
     # ═══════════════════════════════════════════════════════════════
     fig = plt.figure(figsize=(14, 10))
     gs = fig.add_gridspec(3, 2, width_ratios=[4, 1], height_ratios=[3, 1, 0.15],
                           hspace=0.15, wspace=0.08)
-    
+
     # Main power spectrum axes
     ax_main = fig.add_subplot(gs[0, 0])
     # Global power spectrum (right panel)
@@ -376,17 +379,17 @@ def plot_wavelet_torrence(cwt_results: Dict[str, Any], column: str, y_scale: str
     ax_scale_avg = fig.add_subplot(gs[1, 0], sharex=ax_main)
     # Colorbar axes
     ax_cbar = fig.add_subplot(gs[2, 0])
-    
+
     # Plot main heatmap
     im = plot_main_heatmap(ax_main, add_colorbar=False, show_xlabel=False)
     ax_main.tick_params(labelbottom=False)  # Hide x labels on main plot
-    
+
     # ═══════════════════════════════════════════════════════════════
     # GLOBAL WAVELET POWER SPECTRUM (right panel)
     # ═══════════════════════════════════════════════════════════════
     global_power = np.mean(normalized_power, axis=1)
     ax_global.plot(global_power, periods, 'b-', linewidth=1.5)
-    
+
     # Add significance level for global power
     try:
         mean_power_scale = np.mean(power, axis=1)
@@ -397,11 +400,11 @@ def plot_wavelet_torrence(cwt_results: Dict[str, Any], column: str, y_scale: str
             dof = 2
         chi2_crit_global = chi2.ppf(significance_level, df=dof)
         global_signif = np.mean(signif) * chi2_crit_global / dof
-        ax_global.axvline(global_signif, color='r', linestyle='--', 
+        ax_global.axvline(global_signif, color='r', linestyle='--',
                           linewidth=1, label=f'{int(significance_level*100)}% signif')
     except Exception:
         pass
-    
+
     ax_global.set_xlabel('Power', fontsize=10)
     ax_global.set_title('Global\nPower', fontsize=10)
     ax_global.tick_params(labelleft=False)
@@ -420,13 +423,13 @@ def plot_wavelet_torrence(cwt_results: Dict[str, Any], column: str, y_scale: str
     ax_scale_avg.set_title('Scale-Averaged Power (Variance)', fontsize=10)
     ax_scale_avg.set_xlim([time[0], time[-1]])
     ax_scale_avg.grid(True, alpha=0.3)
-    
+
     # ═══════════════════════════════════════════════════════════════
     # COLORBAR
     # ═══════════════════════════════════════════════════════════════
     cbar = fig.colorbar(im, cax=ax_cbar, orientation='horizontal')
     cbar.set_label('Log₂(Power/Variance)', fontsize=10)
-    
+
     plt.tight_layout()
     return fig
 
@@ -436,7 +439,7 @@ def plot_discrete_wavelet(dwt_results: Dict[str, Any], column: str) -> plt.Figur
     Plot DWT decomposition showing:
     - Detail coefficients for each level (cD1, cD2, cD3, ...)
     - Final approximation coefficients at the bottom
-    
+
     Following standard wavelet decomposition visualization.
     """
     coefficients = dwt_results.get('coefficients')
@@ -447,43 +450,43 @@ def plot_discrete_wavelet(dwt_results: Dict[str, Any], column: str) -> plt.Figur
         return None
 
     n_levels = len(coefficients)
-    
+
     # Create figure with n_levels + 1 subplots (details + final approximation)
     fig, axes = plt.subplots(n_levels + 1, 1, figsize=(14, 3 * (n_levels + 1)))
-    
+
     if n_levels == 0:
         return fig
-    
+
     # Ensure axes is always iterable
     if n_levels == 0:
         axes = [axes]
-    
+
     # Color scheme for different levels
     detail_colors = plt.cm.Blues(np.linspace(0.4, 0.9, n_levels))
-    
+
     # Plot detail coefficients for each level
     for i, coeff in enumerate(coefficients):
         ax = axes[i]
         detail = coeff['detail']
         level = coeff['level']
-        
+
         # Create x-axis that represents time position
         x = np.linspace(0, 1, len(detail))
-        
+
         # Plot detail coefficients as stem plot for better visualization
         ax.fill_between(x, 0, detail, alpha=0.5, color=detail_colors[i])
         ax.plot(x, detail, color=detail_colors[i], linewidth=0.8)
         ax.axhline(y=0, color='gray', linestyle='-', linewidth=0.5)
-        
+
         ax.set_ylabel(f'cD{level}', fontsize=11, fontweight='bold')
         ax.set_title(f'Level {level} Detail Coefficients (High Frequency)', fontsize=10)
         ax.set_xlim([0, 1])
         ax.grid(True, alpha=0.3, axis='y')
         ax.tick_params(labelbottom=False)  # Hide x labels except last
-        
+
         # Add statistics
         rms = np.sqrt(np.mean(detail**2))
-        ax.text(0.98, 0.95, f'RMS: {rms:.4f}', transform=ax.transAxes, 
+        ax.text(0.98, 0.95, f'RMS: {rms:.4f}', transform=ax.transAxes,
                 fontsize=9, verticalalignment='top', horizontalalignment='right',
                 bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
 
@@ -493,17 +496,17 @@ def plot_discrete_wavelet(dwt_results: Dict[str, Any], column: str) -> plt.Figur
     ax_approx.fill_between(x_approx, 0, final_approx, alpha=0.5, color='green')
     ax_approx.plot(x_approx, final_approx, color='darkgreen', linewidth=1.5)
     ax_approx.axhline(y=0, color='gray', linestyle='-', linewidth=0.5)
-    
+
     ax_approx.set_ylabel(f'cA{n_levels}', fontsize=11, fontweight='bold')
     ax_approx.set_title(f'Final Approximation Coefficients (Level {n_levels} - Low Frequency)', fontsize=10)
     ax_approx.set_xlabel('Normalized Time', fontsize=11)
     ax_approx.set_xlim([0, 1])
     ax_approx.grid(True, alpha=0.3)
-    
+
     # Add main title
     fig.suptitle(f'Discrete Wavelet Transform Decomposition - {column}\n'
-                 f'Wavelet: {wavelet_name}, Levels: {n_levels}', 
+                 f'Wavelet: {wavelet_name}, Levels: {n_levels}',
                  fontsize=13, fontweight='bold', y=1.02)
-    
+
     plt.tight_layout()
     return fig

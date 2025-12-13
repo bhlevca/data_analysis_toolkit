@@ -7,16 +7,17 @@
 3. [Tab: Data Loading](#tab-data-loading)
 4. [Tab: Statistical Analysis](#tab-statistical-analysis)
 5. [Tab: Machine Learning](#tab-machine-learning)
-6. [Tab: Bayesian Analysis](#tab-bayesian-analysis)
-7. [Tab: Uncertainty Analysis](#tab-uncertainty-analysis)
-8. [Tab: Non-Linear Analysis](#tab-non-linear-analysis)
-9. [Tab: Time Series](#tab-time-series)
-10. [Tab: Causality Analysis](#tab-causality-analysis)
-11. [Tab: Visualizations](#tab-visualizations)
-12. [Tab: Plugins](#tab-plugins)
-13. [Rust Acceleration Toggle](#rust-acceleration-toggle)
-14. [Tips and Best Practices](#tips-and-best-practices)
-15. [Troubleshooting](#troubleshooting)
+6. [Tab: Neural Networks](#tab-neural-networks) 🧠
+7. [Tab: Bayesian Analysis](#tab-bayesian-analysis)
+8. [Tab: Uncertainty Analysis](#tab-uncertainty-analysis)
+9. [Tab: Non-Linear Analysis](#tab-non-linear-analysis)
+10. [Tab: Time Series](#tab-time-series)
+11. [Tab: Causality Analysis](#tab-causality-analysis)
+12. [Tab: Visualizations](#tab-visualizations)
+13. [Tab: Plugins](#tab-plugins)
+14. [Rust Acceleration Toggle](#rust-acceleration-toggle)
+15. [Tips and Best Practices](#tips-and-best-practices)
+16. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -278,6 +279,112 @@ Choose from:
 **Output**: Cluster labels (-1 = noise/outlier)
 
 **When to use**: Unknown number of clusters, non-spherical clusters.
+
+---
+
+## Tab: Neural Networks 🧠
+
+**Purpose**: Deep learning models for regression, classification, time series forecasting, and anomaly detection.
+
+> ⚠️ **Requirement**: TensorFlow must be installed (`pip install tensorflow`)
+
+### Model Types
+
+#### 🧠 MLP Regressor
+**What it does**: Multi-Layer Perceptron for regression tasks.
+
+**Parameters**:
+- Hidden Layers: Comma-separated layer sizes (e.g., "64,32")
+- Epochs: Number of training iterations (default: 100)
+- Batch Size: Samples per gradient update (default: 32)
+- Validation Split: Fraction for validation (default: 0.2)
+
+**Output**:
+- Training/Validation loss curves
+- MSE, MAE, R² score on test set
+- Model architecture summary
+
+**When to use**: Non-linear regression, complex feature relationships.
+
+---
+
+#### 🧠 MLP Classifier
+**What it does**: Multi-Layer Perceptron for classification tasks.
+
+**Parameters**: Same as MLP Regressor
+
+**Output**:
+- Training/Validation loss curves
+- Accuracy, Precision, Recall, F1-score
+- Confusion matrix
+
+**When to use**: Multi-class classification, pattern recognition.
+
+---
+
+#### 📈 LSTM Forecast
+**What it does**: Long Short-Term Memory network for time series forecasting.
+
+**Parameters**:
+- LSTM Lookback: Number of past time steps to use (default: 10)
+- Forecast Horizon: Steps to predict ahead (default: 5)
+- Epochs: Training iterations (default: 100)
+- Batch Size: Samples per update (default: 32)
+
+**Output**:
+- Actual vs Predicted comparison
+- Future forecast values
+- Test MSE and MAE
+
+**When to use**: Time series with sequential patterns, stock prices, sensor data.
+
+---
+
+#### 🚨 Autoencoder Anomaly Detection
+**What it does**: Learns normal patterns and flags anomalies via reconstruction error.
+
+**Parameters**:
+- Encoding Dimension: Bottleneck size (default: 8)
+- Epochs: Training iterations (default: 100)
+- Contamination: Expected anomaly rate (default: 0.05)
+
+**Output**:
+- Reconstruction error plot
+- Threshold line
+- Anomaly indices and count
+- Anomaly percentage
+
+**When to use**: Detecting fraud, equipment failures, unusual patterns.
+
+### API Usage
+
+```python
+from data_toolkit import NeuralNetworkModels
+
+nn = NeuralNetworkModels(df)
+
+# MLP Regressor
+results = nn.mlp_regressor(
+    features=['col1', 'col2'],
+    target='target',
+    hidden_layers=[64, 32],
+    epochs=100
+)
+
+# LSTM Forecast
+results = nn.lstm_forecast(
+    column='value',
+    lookback=10,
+    forecast_horizon=5
+)
+
+# Autoencoder
+results = nn.autoencoder_anomaly_detection(
+    features=['col1', 'col2', 'col3'],
+    encoding_dim=8,
+    contamination=0.05
+)
+```
 
 ---
 

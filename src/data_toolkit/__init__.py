@@ -9,6 +9,7 @@ Modules
 - data_loading_methods: Data loading and preprocessing
 - statistical_analysis: Statistical analysis tools
 - ml_models: Machine learning models
+- neural_networks: Deep learning models (MLP, LSTM, Autoencoder)
 - bayesian_analysis: Bayesian statistical methods
 - uncertainty_analysis: Uncertainty quantification
 - nonlinear_analysis: Non-linear analysis methods
@@ -25,13 +26,17 @@ GUI Application::
 
 Or use as a library::
 
-    from data_toolkit import DataLoader, StatisticalAnalysis
+    from data_toolkit import DataLoader, StatisticalAnalysis, NeuralNetworkModels
     
     loader = DataLoader()
     loader.load_csv('data.csv')
     
     stats = StatisticalAnalysis(loader.df)
     results = stats.descriptive_stats(['col1', 'col2'])
+    
+    # Neural Networks
+    nn = NeuralNetworkModels(loader.df)
+    lstm_results = nn.lstm_forecast('price', sequence_length=30)
 """
 
 from .data_loading_methods import DataLoader
@@ -43,6 +48,14 @@ from .nonlinear_analysis import NonLinearAnalysis
 from .timeseries_analysis import TimeSeriesAnalysis
 from .causality_analysis import CausalityAnalysis
 from .visualization_methods import VisualizationMethods
+
+# Neural Networks (optional - requires TensorFlow)
+try:
+    from .neural_networks import NeuralNetworkModels
+    NEURAL_NETWORKS_AVAILABLE = True
+except ImportError:
+    NeuralNetworkModels = None
+    NEURAL_NETWORKS_AVAILABLE = False
 
 # Optional Rust-accelerated functions (with Python fallback)
 from .rust_accelerated import (
@@ -73,7 +86,7 @@ from .plugin_system import (
     get_example_plugins,
 )
 
-__version__ = "7.0.0"
+__version__ = "10.0.0"
 __author__ = "Data Analysis Toolkit Contributors"
 __license__ = "MIT"
 
@@ -86,6 +99,8 @@ __all__ = [
     'DataLoader',
     'StatisticalAnalysis',
     'MLModels',
+    'NeuralNetworkModels',
+    'NEURAL_NETWORKS_AVAILABLE',
     'BayesianAnalysis',
     'UncertaintyAnalysis',
     'NonLinearAnalysis',

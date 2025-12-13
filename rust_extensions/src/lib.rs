@@ -681,6 +681,275 @@ fn rolling_statistics(
 }
 
 // ============================================================================
+// NEURAL NETWORK PREPROCESSING
+// ============================================================================
+
+/// Create sliding window sequences for LSTM/RNN from time series data.
+/// 
+/// This is a CPU-intensive operation for large datasets.
+/// Returns a 2D array of shape (n_samples - sequence_length, sequence_length).
+#[pyfunction]
+fn create_sequences(
+    py: Python<'_>,
+    data: PyReadonlyArray1<f64>,
+    sequence_length: usize,
+) -> PyResult<Py<numpy::PyArray2<f64>>> {
+    let data = data.as_slice()?;
+    let n = data.len();
+    
+    if sequence_length >= n {
+        return Err(PyValueError::new_err("Sequence length must be less than data length"));
+    }
+    if sequence_length == 0 {
+        return Err(PyValueError::new_err("Sequence length must be positive"));
+    }
+    
+    let n_sequences = n - sequence_length;
+    
+    // Parallel construction of sequences
+    let sequences: Vec<Vec<f64>> = (0..n_sequences)
+        .into_par_iter()
+        .map(|i| data[i..i + sequence_length].to_vec())
+        .collect();
+    
+    // Convert to 2D array
+    let mut result = Array2::zeros((n_sequences, sequence_length));
+    for (i, seq) in sequences.iter().enumerate() {
+        for (j, &val) in seq.iter().enumerate() {
+            result[[i, j]] = val;
+        }
+    }
+    
+    Ok(result.into_pyarray(py).to_owned())
+}
+
+/// Create sequences with targets for supervised learning (LSTM forecasting).
+/// 
+/// Returns (X, y) where X has shape (n_samples, sequence_length) and 
+/// y has shape (n_samples, forecast_horizon).
+#[pyfunction]
+fn create_sequences_with_targets(
+    py: Python<'_>,
+    data: PyReadonlyArray1<f64>,
+    sequence_length: usize,
+    forecast_horizon: usize,
+) -> PyResult<(Py<numpy::PyArray2<f64>>, Py<numpy::PyArray2<f64>>)> {
+    let data = data.as_slice()?;
+    let n = data.len();
+    
+    let total_window = sequence_length + forecast_horizon;
+    if total_window > n {
+        return Err(PyValueError::new_err(
+            "sequence_length + forecast_horizon must be <= data length"
+        ));
+    }
+    
+    let n_sequences = n - total_window + 1;
+    
+    // Parallel construction
+    let results: Vec<(Vec<f64>, Vec<f64>)> = (0..n_sequences)
+        .into_par_iter()
+        .map(|i| {
+            let x = data[i..i + sequence_length].to_vec();
+            let y = data[i + sequence_length..i + total_window].to_vec();
+            (x, y)
+        })
+        .collect();
+    
+    // Convert to arrays
+    let mut x_arr = Array2::zeros((n_sequences, sequence_length));
+    let mut y_arr = Array2::zeros((n_sequences, forecast_horizon));
+    
+    for (i, (x, y)) in results.iter().enumerate() {
+        for (j, &val) in x.iter().enumerate() {
+            x_arr[[i, j]] = val;
+        }
+        for (j, &val) in y.iter().enumerate() {
+            y_arr[[i, j]] = val;
+        }
+    }
+    
+    Ok((
+        x_arr.into_pyarray(py).to_owned(),
+        y_arr.into_pyarray(py).to_owned(),
+    ))
+}
+
+/// Min-max normalize each column of a 2D array in parallel.
+/// 
+/// Returns (normalized_data, mins, maxs) for inverse transform.
+#[pyfunction]
+fn batch_minmax_normalize(
+    py: Python<'_>,
+    data: PyReadonlyArray2<f64>,
+) -> PyResult<(Py<numpy::PyArray2<f64>>, Py<PyArray1<f64>>, Py<PyArray1<f64>>)> {
+    let data = data.as_array();
+    let (n_rows, n_cols) = (data.nrows(), data.ncols());
+    
+    // Calculate min/max for each column in parallel
+    let stats: Vec<(f64, f64)> = (0..n_cols)
+        .into_par_iter()
+        .map(|j| {
+            let col = data.column(j);
+            let min_val = col.iter().cloned().fold(f64::INFINITY, f64::min);
+            let max_val = col.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+            (min_val, max_val)
+        })
+        .collect();
+    
+    let mins: Vec<f64> = stats.iter().map(|&(m, _)| m).collect();
+    let maxs: Vec<f64> = stats.iter().map(|&(_, m)| m).collect();
+    
+    // Normalize in parallel
+    let mut normalized = Array2::zeros((n_rows, n_cols));
+    
+    // Process columns in parallel
+    let normalized_cols: Vec<Vec<f64>> = (0..n_cols)
+        .into_par_iter()
+        .map(|j| {
+            let range = maxs[j] - mins[j];
+            if range == 0.0 {
+                vec![0.5; n_rows]  // All same value -> center
+            } else {
+                data.column(j).iter().map(|&x| (x - mins[j]) / range).collect()
+            }
+        })
+        .collect();
+    
+    for (j, col) in normalized_cols.iter().enumerate() {
+        for (i, &val) in col.iter().enumerate() {
+            normalized[[i, j]] = val;
+        }
+    }
+    
+    Ok((
+        normalized.into_pyarray(py).to_owned(),
+        Array1::from_vec(mins).into_pyarray(py).to_owned(),
+        Array1::from_vec(maxs).into_pyarray(py).to_owned(),
+    ))
+}
+
+/// Z-score normalize each column of a 2D array in parallel.
+/// 
+/// Returns (normalized_data, means, stds) for inverse transform.
+#[pyfunction]
+fn batch_zscore_normalize(
+    py: Python<'_>,
+    data: PyReadonlyArray2<f64>,
+) -> PyResult<(Py<numpy::PyArray2<f64>>, Py<PyArray1<f64>>, Py<PyArray1<f64>>)> {
+    let data = data.as_array();
+    let (n_rows, n_cols) = (data.nrows(), data.ncols());
+    
+    // Calculate mean/std for each column in parallel
+    let stats: Vec<(f64, f64)> = (0..n_cols)
+        .into_par_iter()
+        .map(|j| {
+            let col = data.column(j);
+            let n = n_rows as f64;
+            let mean = col.sum() / n;
+            let variance = col.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / n;
+            let std = variance.sqrt();
+            (mean, std)
+        })
+        .collect();
+    
+    let means: Vec<f64> = stats.iter().map(|&(m, _)| m).collect();
+    let stds: Vec<f64> = stats.iter().map(|&(_, s)| s).collect();
+    
+    // Normalize in parallel
+    let normalized_cols: Vec<Vec<f64>> = (0..n_cols)
+        .into_par_iter()
+        .map(|j| {
+            if stds[j] == 0.0 {
+                vec![0.0; n_rows]  // All same value -> 0
+            } else {
+                data.column(j).iter().map(|&x| (x - means[j]) / stds[j]).collect()
+            }
+        })
+        .collect();
+    
+    let mut normalized = Array2::zeros((n_rows, n_cols));
+    for (j, col) in normalized_cols.iter().enumerate() {
+        for (i, &val) in col.iter().enumerate() {
+            normalized[[i, j]] = val;
+        }
+    }
+    
+    Ok((
+        normalized.into_pyarray(py).to_owned(),
+        Array1::from_vec(means).into_pyarray(py).to_owned(),
+        Array1::from_vec(stds).into_pyarray(py).to_owned(),
+    ))
+}
+
+/// Calculate per-sample MSE reconstruction errors (for autoencoder).
+/// 
+/// Returns a 1D array of MSE values for each row.
+#[pyfunction]
+fn batch_mse_errors(
+    py: Python<'_>,
+    original: PyReadonlyArray2<f64>,
+    reconstructed: PyReadonlyArray2<f64>,
+) -> PyResult<Py<PyArray1<f64>>> {
+    let original = original.as_array();
+    let reconstructed = reconstructed.as_array();
+    
+    if original.shape() != reconstructed.shape() {
+        return Err(PyValueError::new_err("Arrays must have the same shape"));
+    }
+    
+    let n_rows = original.nrows();
+    let n_cols = original.ncols();
+    
+    // Parallel MSE calculation per row
+    let mse_errors: Vec<f64> = (0..n_rows)
+        .into_par_iter()
+        .map(|i| {
+            let mut sum_sq_error = 0.0;
+            for j in 0..n_cols {
+                let diff = original[[i, j]] - reconstructed[[i, j]];
+                sum_sq_error += diff * diff;
+            }
+            sum_sq_error / n_cols as f64
+        })
+        .collect();
+    
+    Ok(Array1::from_vec(mse_errors).into_pyarray(py).to_owned())
+}
+
+/// Calculate per-sample MAE reconstruction errors.
+#[pyfunction]
+fn batch_mae_errors(
+    py: Python<'_>,
+    original: PyReadonlyArray2<f64>,
+    reconstructed: PyReadonlyArray2<f64>,
+) -> PyResult<Py<PyArray1<f64>>> {
+    let original = original.as_array();
+    let reconstructed = reconstructed.as_array();
+    
+    if original.shape() != reconstructed.shape() {
+        return Err(PyValueError::new_err("Arrays must have the same shape"));
+    }
+    
+    let n_rows = original.nrows();
+    let n_cols = original.ncols();
+    
+    // Parallel MAE calculation per row
+    let mae_errors: Vec<f64> = (0..n_rows)
+        .into_par_iter()
+        .map(|i| {
+            let mut sum_abs_error = 0.0;
+            for j in 0..n_cols {
+                sum_abs_error += (original[[i, j]] - reconstructed[[i, j]]).abs();
+            }
+            sum_abs_error / n_cols as f64
+        })
+        .collect();
+    
+    Ok(Array1::from_vec(mae_errors).into_pyarray(py).to_owned())
+}
+
+// ============================================================================
 // PYTHON MODULE
 // ============================================================================
 
@@ -696,8 +965,15 @@ fn data_toolkit_rust(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(detect_outliers_iqr, m)?)?;
     m.add_function(wrap_pyfunction!(mutual_information, m)?)?;
     m.add_function(wrap_pyfunction!(rolling_statistics, m)?)?;
+    // Neural network preprocessing
+    m.add_function(wrap_pyfunction!(create_sequences, m)?)?;
+    m.add_function(wrap_pyfunction!(create_sequences_with_targets, m)?)?;
+    m.add_function(wrap_pyfunction!(batch_minmax_normalize, m)?)?;
+    m.add_function(wrap_pyfunction!(batch_zscore_normalize, m)?)?;
+    m.add_function(wrap_pyfunction!(batch_mse_errors, m)?)?;
+    m.add_function(wrap_pyfunction!(batch_mae_errors, m)?)?;
     
-    m.add("__version__", "0.1.0")?;
+    m.add("__version__", "0.2.0")?;
     
     Ok(())
 }

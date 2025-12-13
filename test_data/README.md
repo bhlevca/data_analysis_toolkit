@@ -18,6 +18,9 @@ This directory contains synthetic datasets designed to test all features of the 
 | `ml_regression_train.csv` | 200 | 8 | Regression model training (house price prediction) |
 | `ml_regression_predict.csv` | 50 | 8 | Regression predictions with actual values for evaluation |
 | `signal_analysis_sample.csv` | 500 | 2 | Fourier analysis, wavelet analysis |
+| `neural_network_train.csv` | 150 | 7 | Neural network training (MLP, Autoencoder) |
+| `neural_network_predict.csv` | 25 | 5 | Neural network predictions |
+| `timeseries_lstm.csv` | 100 | 4 | LSTM time series forecasting |
 
 ---
 
@@ -369,5 +372,98 @@ Use these datasets to test the example plugins:
 5. Select target: `energy_output`
 6. Choose model (e.g., Random Forest)
 7. Click **Train Model**
+
+---
+
+## Neural Network Test Data
+
+### 12. neural_network_train.csv
+
+**Purpose**: Training neural network models (MLP Regressor, MLP Classifier, Autoencoder)
+
+**Columns**:
+- `timestamp`: Sequential index (0-149)
+- `feature_1`: Normalized feature (0-1 range)
+- `feature_2`: Inversely correlated with feature_1
+- `feature_3`: Correlated with feature_1
+- `feature_4`: Inversely correlated with feature_1
+- `target`: Continuous target (linear combination of features)
+- `category`: 3-class label (A, B, C) based on target value
+
+**Test These Features**:
+- ✅ MLP Regressor (predict `target` from features)
+- ✅ MLP Classifier (predict `category` from features)
+- ✅ Autoencoder anomaly detection
+- ✅ Training/validation loss curves
+
+---
+
+### 13. neural_network_predict.csv
+
+**Purpose**: Making predictions with trained neural network models
+
+**Columns**:
+- `timestamp`: Sequential index (0-24)
+- `feature_1`, `feature_2`, `feature_3`, `feature_4`: Input features
+
+**Usage**:
+1. Train a model on `neural_network_train.csv`
+2. Load `neural_network_predict.csv`
+3. Use the trained model to predict target values
+
+---
+
+### 14. timeseries_lstm.csv
+
+**Purpose**: LSTM time series forecasting
+
+**Columns**:
+- `timestamp`: Sequential index (0-99)
+- `value`: Time series with linear trend + noise (target for forecasting)
+- `trend`: Underlying linear trend component
+- `noise`: Random noise component
+
+**Test These Features**:
+- ✅ LSTM forecast (predict future values of `value`)
+- ✅ Lookback window testing
+- ✅ Multi-step forecasting
+- ✅ Actual vs Predicted visualization
+
+**Expected Results**:
+- LSTM should learn the linear trend
+- Test MSE should be low (<5.0)
+- Forecast should continue the upward trend
+
+---
+
+## Neural Network Testing Workflow
+
+### MLP Regressor Workflow:
+1. **Load** `neural_network_train.csv`
+2. Go to **🧠 Neural Networks** tab
+3. Select **Model Type: MLP Regressor**
+4. Select features: `feature_1`, `feature_2`, `feature_3`, `feature_4`
+5. Select target: `target`
+6. Set epochs (50-100), hidden layers (64,32)
+7. Click **Train Neural Network**
+8. Review R², MSE, MAE metrics and loss curves
+
+### LSTM Forecast Workflow:
+1. **Load** `timeseries_lstm.csv`
+2. Go to **🧠 Neural Networks** tab
+3. Select **Model Type: LSTM Forecast**
+4. Select column: `value`
+5. Set lookback (10), forecast horizon (5)
+6. Click **Train Neural Network**
+7. Review forecast plot and future predictions
+
+### Autoencoder Anomaly Detection Workflow:
+1. **Load** `neural_network_train.csv`
+2. Go to **🧠 Neural Networks** tab
+3. Select **Model Type: Autoencoder Anomaly**
+4. Select features: `feature_1`, `feature_2`, `feature_3`, `feature_4`
+5. Set encoding dimension (8), contamination (0.05)
+6. Click **Train Neural Network**
+7. Review reconstruction errors and detected anomalies
 8. Review R², MAE, MSE metrics
 9. Load `ml_regression_predict.csv` for predictions

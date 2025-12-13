@@ -610,6 +610,235 @@ def _python_rolling_statistics(
 
 
 # ============================================================================
+# NEURAL NETWORK PREPROCESSING
+# ============================================================================
+
+def create_sequences(
+    data: np.ndarray,
+    sequence_length: int
+) -> np.ndarray:
+    """
+    Create sliding window sequences for LSTM/RNN from time series data.
+    
+    This is a CPU-intensive operation for large datasets.
+    
+    Args:
+        data: 1D array of time series values
+        sequence_length: Number of time steps in each sequence
+        
+    Returns:
+        2D array of shape (n_samples - sequence_length, sequence_length)
+    """
+    data = np.asarray(data, dtype=np.float64).ravel()
+    
+    if AccelerationSettings.use_rust():
+        return np.asarray(_rust.create_sequences(data, sequence_length))
+    else:
+        return _python_create_sequences(data, sequence_length)
+
+
+def _python_create_sequences(data: np.ndarray, sequence_length: int) -> np.ndarray:
+    """Pure Python implementation of sequence creation."""
+    n = len(data)
+    if sequence_length >= n:
+        raise ValueError("Sequence length must be less than data length")
+    
+    n_sequences = n - sequence_length
+    sequences = np.zeros((n_sequences, sequence_length))
+    
+    for i in range(n_sequences):
+        sequences[i] = data[i:i + sequence_length]
+    
+    return sequences
+
+
+def create_sequences_with_targets(
+    data: np.ndarray,
+    sequence_length: int,
+    forecast_horizon: int
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Create sequences with targets for supervised learning (LSTM forecasting).
+    
+    Args:
+        data: 1D array of time series values
+        sequence_length: Number of time steps in each input sequence
+        forecast_horizon: Number of time steps to predict
+        
+    Returns:
+        Tuple of (X, y) where:
+        - X has shape (n_samples, sequence_length)
+        - y has shape (n_samples, forecast_horizon)
+    """
+    data = np.asarray(data, dtype=np.float64).ravel()
+    
+    if AccelerationSettings.use_rust():
+        X, y = _rust.create_sequences_with_targets(data, sequence_length, forecast_horizon)
+        return np.asarray(X), np.asarray(y)
+    else:
+        return _python_create_sequences_with_targets(data, sequence_length, forecast_horizon)
+
+
+def _python_create_sequences_with_targets(
+    data: np.ndarray,
+    sequence_length: int,
+    forecast_horizon: int
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Pure Python implementation."""
+    n = len(data)
+    total_window = sequence_length + forecast_horizon
+    
+    if total_window > n:
+        raise ValueError("sequence_length + forecast_horizon must be <= data length")
+    
+    n_sequences = n - total_window + 1
+    X = np.zeros((n_sequences, sequence_length))
+    y = np.zeros((n_sequences, forecast_horizon))
+    
+    for i in range(n_sequences):
+        X[i] = data[i:i + sequence_length]
+        y[i] = data[i + sequence_length:i + total_window]
+    
+    return X, y
+
+
+def batch_minmax_normalize(
+    data: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Min-max normalize each column of a 2D array in parallel.
+    
+    Args:
+        data: 2D array (n_samples, n_features)
+        
+    Returns:
+        Tuple of (normalized_data, mins, maxs) for inverse transform
+    """
+    data = np.asarray(data, dtype=np.float64)
+    if data.ndim == 1:
+        data = data.reshape(-1, 1)
+    
+    if AccelerationSettings.use_rust():
+        norm, mins, maxs = _rust.batch_minmax_normalize(data)
+        return np.asarray(norm), np.asarray(mins), np.asarray(maxs)
+    else:
+        return _python_batch_minmax_normalize(data)
+
+
+def _python_batch_minmax_normalize(data: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Pure Python min-max normalization."""
+    mins = data.min(axis=0)
+    maxs = data.max(axis=0)
+    ranges = maxs - mins
+    
+    # Avoid division by zero
+    ranges[ranges == 0] = 1.0
+    normalized = (data - mins) / ranges
+    
+    # Center columns with zero range
+    zero_range_mask = (maxs == mins)
+    if np.any(zero_range_mask):
+        normalized[:, zero_range_mask] = 0.5
+    
+    return normalized, mins, maxs
+
+
+def batch_zscore_normalize(
+    data: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Z-score normalize each column of a 2D array in parallel.
+    
+    Args:
+        data: 2D array (n_samples, n_features)
+        
+    Returns:
+        Tuple of (normalized_data, means, stds) for inverse transform
+    """
+    data = np.asarray(data, dtype=np.float64)
+    if data.ndim == 1:
+        data = data.reshape(-1, 1)
+    
+    if AccelerationSettings.use_rust():
+        norm, means, stds = _rust.batch_zscore_normalize(data)
+        return np.asarray(norm), np.asarray(means), np.asarray(stds)
+    else:
+        return _python_batch_zscore_normalize(data)
+
+
+def _python_batch_zscore_normalize(data: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Pure Python z-score normalization."""
+    means = data.mean(axis=0)
+    stds = data.std(axis=0)
+    
+    # Avoid division by zero
+    stds_safe = stds.copy()
+    stds_safe[stds_safe == 0] = 1.0
+    normalized = (data - means) / stds_safe
+    
+    # Zero out columns with zero std
+    zero_std_mask = (stds == 0)
+    if np.any(zero_std_mask):
+        normalized[:, zero_std_mask] = 0.0
+    
+    return normalized, means, stds
+
+
+def batch_mse_errors(
+    original: np.ndarray,
+    reconstructed: np.ndarray
+) -> np.ndarray:
+    """
+    Calculate per-sample MSE reconstruction errors (for autoencoder).
+    
+    Args:
+        original: 2D array of original data
+        reconstructed: 2D array of reconstructed data (same shape)
+        
+    Returns:
+        1D array of MSE values for each row
+    """
+    original = np.asarray(original, dtype=np.float64)
+    reconstructed = np.asarray(reconstructed, dtype=np.float64)
+    
+    if original.ndim == 1:
+        original = original.reshape(1, -1)
+        reconstructed = reconstructed.reshape(1, -1)
+    
+    if AccelerationSettings.use_rust():
+        return np.asarray(_rust.batch_mse_errors(original, reconstructed))
+    else:
+        return np.mean((original - reconstructed) ** 2, axis=1)
+
+
+def batch_mae_errors(
+    original: np.ndarray,
+    reconstructed: np.ndarray
+) -> np.ndarray:
+    """
+    Calculate per-sample MAE reconstruction errors.
+    
+    Args:
+        original: 2D array of original data
+        reconstructed: 2D array of reconstructed data (same shape)
+        
+    Returns:
+        1D array of MAE values for each row
+    """
+    original = np.asarray(original, dtype=np.float64)
+    reconstructed = np.asarray(reconstructed, dtype=np.float64)
+    
+    if original.ndim == 1:
+        original = original.reshape(1, -1)
+        reconstructed = reconstructed.reshape(1, -1)
+    
+    if AccelerationSettings.use_rust():
+        return np.asarray(_rust.batch_mae_errors(original, reconstructed))
+    else:
+        return np.mean(np.abs(original - reconstructed), axis=1)
+
+
+# ============================================================================
 # BENCHMARK UTILITY
 # ============================================================================
 
@@ -638,7 +867,7 @@ def benchmark_rust_vs_python(n_samples: int = 10000) -> dict:
     _python_distance_correlation(x, y)
     results['distance_correlation_python'] = time.perf_counter() - start
     
-    if AccelerationSettings.use_rust():
+    if RUST_AVAILABLE:
         start = time.perf_counter()
         _rust.distance_correlation(x, y)
         results['distance_correlation_rust'] = time.perf_counter() - start
@@ -652,7 +881,7 @@ def benchmark_rust_vs_python(n_samples: int = 10000) -> dict:
     _python_bootstrap_linear_regression(X, y, 100, 0.95)
     results['bootstrap_python'] = time.perf_counter() - start
     
-    if AccelerationSettings.use_rust():
+    if RUST_AVAILABLE:
         start = time.perf_counter()
         _rust.bootstrap_linear_regression(X, y, 100, 0.95)
         results['bootstrap_rust'] = time.perf_counter() - start
@@ -665,12 +894,52 @@ def benchmark_rust_vs_python(n_samples: int = 10000) -> dict:
     _python_lead_lag_correlations(x, y, 20)
     results['lead_lag_python'] = time.perf_counter() - start
     
-    if AccelerationSettings.use_rust():
+    if RUST_AVAILABLE:
         start = time.perf_counter()
         _rust.lead_lag_correlations(x, y, 20)
         results['lead_lag_rust'] = time.perf_counter() - start
         results['lead_lag_speedup'] = (
             results['lead_lag_python'] / results['lead_lag_rust']
+        )
+    
+    # Sequence creation (new)
+    start = time.perf_counter()
+    _python_create_sequences(x, 50)
+    results['create_sequences_python'] = time.perf_counter() - start
+    
+    if RUST_AVAILABLE:
+        start = time.perf_counter()
+        _rust.create_sequences(x, 50)
+        results['create_sequences_rust'] = time.perf_counter() - start
+        results['create_sequences_speedup'] = (
+            results['create_sequences_python'] / results['create_sequences_rust']
+        )
+    
+    # Batch normalization (new)
+    start = time.perf_counter()
+    _python_batch_minmax_normalize(X)
+    results['batch_normalize_python'] = time.perf_counter() - start
+    
+    if RUST_AVAILABLE:
+        start = time.perf_counter()
+        _rust.batch_minmax_normalize(X)
+        results['batch_normalize_rust'] = time.perf_counter() - start
+        results['batch_normalize_speedup'] = (
+            results['batch_normalize_python'] / results['batch_normalize_rust']
+        )
+    
+    # Batch MSE errors (new)
+    X2 = X + np.random.randn(*X.shape) * 0.1
+    start = time.perf_counter()
+    np.mean((X - X2) ** 2, axis=1)  # Python baseline
+    results['batch_mse_python'] = time.perf_counter() - start
+    
+    if RUST_AVAILABLE:
+        start = time.perf_counter()
+        _rust.batch_mse_errors(X, X2)
+        results['batch_mse_rust'] = time.perf_counter() - start
+        results['batch_mse_speedup'] = (
+            results['batch_mse_python'] / results['batch_mse_rust']
         )
     
     return results
