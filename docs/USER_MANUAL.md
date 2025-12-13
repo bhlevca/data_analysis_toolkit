@@ -458,7 +458,7 @@ results = nn.autoencoder_anomaly_detection(
 #### 🔄 Bootstrap CI
 **What it does**: Estimates confidence intervals via bootstrap resampling.
 
-**How it works**: 
+**How it works**:
 1. Resample data with replacement
 2. Fit model on each resample
 3. Compute percentiles of coefficient distribution
@@ -540,7 +540,7 @@ results = nn.autoencoder_anomaly_detection(
 
 **Output**: Distance correlation coefficient (0 to 1).
 
-**Key property**: 
+**Key property**:
 - Distance correlation = 0 ⟺ Independence
 - Unlike Pearson, detects non-linear relationships
 
@@ -629,7 +629,7 @@ results = nn.autoencoder_anomaly_detection(
 #### 📈 PACF Plot
 **What it does**: Plots Partial Autocorrelation Function.
 
-**Interpretation**: 
+**Interpretation**:
 - Direct correlation controlling for intermediate lags
 - Cutoff after lag p → AR(p) process
 
@@ -962,7 +962,7 @@ When Rust is enabled, these run faster:
 
 #### Rust toggle is disabled
 **Cause**: Rust extensions not compiled.
-**Solution**: 
+**Solution**:
 ```bash
 cd rust_extensions
 pip install maturin

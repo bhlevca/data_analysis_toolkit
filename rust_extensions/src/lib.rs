@@ -1,5 +1,5 @@
 //! High-performance Rust extensions for the Data Analysis Toolkit
-//! 
+//!
 //! This module provides optimized implementations of computationally
 //! intensive statistical and machine learning operations.
 
@@ -20,7 +20,7 @@ use std::collections::HashMap;
 fn distance_matrix_1d(x: &[f64]) -> Array2<f64> {
     let n = x.len();
     let mut dist = Array2::zeros((n, n));
-    
+
     for i in 0..n {
         for j in i..n {
             let d = (x[i] - x[j]).abs();
@@ -37,7 +37,7 @@ fn double_center(dist: &Array2<f64>) -> Array2<f64> {
     let row_means = dist.mean_axis(Axis(1)).unwrap();
     let col_means = dist.mean_axis(Axis(0)).unwrap();
     let grand_mean = dist.mean().unwrap();
-    
+
     let mut centered = Array2::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
@@ -48,7 +48,7 @@ fn double_center(dist: &Array2<f64>) -> Array2<f64> {
 }
 
 /// Calculate distance correlation between two arrays
-/// 
+///
 /// Distance correlation can detect non-linear relationships, unlike Pearson correlation.
 /// Returns a value between 0 and 1, where 0 indicates independence.
 #[pyfunction]
@@ -59,36 +59,36 @@ fn distance_correlation(
 ) -> PyResult<f64> {
     let x = x.as_slice()?;
     let y = y.as_slice()?;
-    
+
     if x.len() != y.len() {
         return Err(PyValueError::new_err("Arrays must have the same length"));
     }
-    
+
     let n = x.len();
     if n < 2 {
         return Ok(0.0);
     }
-    
+
     // Compute distance matrices
     let a = distance_matrix_1d(x);
     let b = distance_matrix_1d(y);
-    
+
     // Double-center the matrices
     let a_centered = double_center(&a);
     let b_centered = double_center(&b);
-    
+
     // Compute distance covariance and variances
     let n_sq = (n * n) as f64;
     let dcov_xy: f64 = (&a_centered * &b_centered).sum() / n_sq;
     let dcov_xx: f64 = (&a_centered * &a_centered).sum() / n_sq;
     let dcov_yy: f64 = (&b_centered * &b_centered).sum() / n_sq;
-    
+
     // Distance correlation
     let denom = (dcov_xx.sqrt() * dcov_yy.sqrt()).sqrt();
     if denom == 0.0 {
         return Ok(0.0);
     }
-    
+
     Ok(dcov_xy.max(0.0).sqrt() / denom)
 }
 
@@ -101,9 +101,9 @@ fn distance_correlation_matrix(
 ) -> PyResult<Py<PyArray1<f64>>> {
     let features = features.as_array();
     let target = target.as_slice()?;
-    
+
     let n_features = features.ncols();
-    
+
     // Parallel computation across features
     let correlations: Vec<f64> = (0..n_features)
         .into_par_iter()
@@ -113,18 +113,18 @@ fn distance_correlation_matrix(
             let b = distance_matrix_1d(target);
             let a_centered = double_center(&a);
             let b_centered = double_center(&b);
-            
+
             let n = feature.len();
             let n_sq = (n * n) as f64;
             let dcov_xy: f64 = (&a_centered * &b_centered).sum() / n_sq;
             let dcov_xx: f64 = (&a_centered * &a_centered).sum() / n_sq;
             let dcov_yy: f64 = (&b_centered * &b_centered).sum() / n_sq;
-            
+
             let denom = (dcov_xx.sqrt() * dcov_yy.sqrt()).sqrt();
             if denom == 0.0 { 0.0 } else { dcov_xy.max(0.0).sqrt() / denom }
         })
         .collect();
-    
+
     Ok(Array1::from_vec(correlations).into_pyarray(py).to_owned())
 }
 
@@ -133,7 +133,7 @@ fn distance_correlation_matrix(
 // ============================================================================
 
 /// Perform bootstrap resampling for linear regression coefficients
-/// 
+///
 /// Returns (mean_coefficients, ci_lower, ci_upper)
 #[pyfunction]
 fn bootstrap_linear_regression(
@@ -145,56 +145,56 @@ fn bootstrap_linear_regression(
 ) -> PyResult<(Py<PyArray1<f64>>, Py<PyArray1<f64>>, Py<PyArray1<f64>>)> {
     let x_arr = x_data.as_array();
     let y = y.as_array();
-    
+
     let n_samples = x_arr.nrows();
     let n_features = x_arr.ncols();
-    
+
     // Parallel bootstrap iterations
     let bootstrap_coefs: Vec<Vec<f64>> = (0..n_bootstrap)
         .into_par_iter()
         .map(|_| {
             let mut rng = rand::thread_rng();
-            
+
             // Resample with replacement
             let indices: Vec<usize> = (0..n_samples)
                 .map(|_| rng.gen_range(0..n_samples))
                 .collect();
-            
+
             // Build resampled matrices
             let mut x_boot = Array2::zeros((n_samples, n_features));
             let mut y_boot = Array1::zeros(n_samples);
-            
+
             for (i, &idx) in indices.iter().enumerate() {
                 for j in 0..n_features {
                     x_boot[[i, j]] = x_arr[[idx, j]];
                 }
                 y_boot[i] = y[idx];
             }
-            
+
             // Simple OLS: coefficients = (X'X)^(-1) X'y
             // Using normal equations (simplified for demonstration)
             solve_ols(&x_boot, &y_boot)
         })
         .collect();
-    
+
     // Compute statistics
     let alpha = (1.0 - confidence) / 2.0;
     let lower_percentile = (alpha * n_bootstrap as f64) as usize;
     let upper_percentile = ((1.0 - alpha) * n_bootstrap as f64) as usize;
-    
+
     let mut mean_coefs = vec![0.0; n_features];
     let mut ci_lower = vec![0.0; n_features];
     let mut ci_upper = vec![0.0; n_features];
-    
+
     for j in 0..n_features {
         let mut coef_values: Vec<f64> = bootstrap_coefs.iter().map(|c| c[j]).collect();
         coef_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        
+
         mean_coefs[j] = coef_values.iter().sum::<f64>() / n_bootstrap as f64;
         ci_lower[j] = coef_values[lower_percentile.min(n_bootstrap - 1)];
         ci_upper[j] = coef_values[upper_percentile.min(n_bootstrap - 1)];
     }
-    
+
     Ok((
         Array1::from_vec(mean_coefs).into_pyarray(py).to_owned(),
         Array1::from_vec(ci_lower).into_pyarray(py).to_owned(),
@@ -205,7 +205,7 @@ fn bootstrap_linear_regression(
 /// Simple OLS solver using normal equations
 fn solve_ols(x_matrix: &Array2<f64>, y: &Array1<f64>) -> Vec<f64> {
     let n_features = x_matrix.ncols();
-    
+
     // X'X
     let mut xt_x = Array2::zeros((n_features, n_features));
     for i in 0..n_features {
@@ -213,13 +213,13 @@ fn solve_ols(x_matrix: &Array2<f64>, y: &Array1<f64>) -> Vec<f64> {
             xt_x[[i, j]] = x_matrix.column(i).dot(&x_matrix.column(j));
         }
     }
-    
+
     // X'y
     let mut xt_y = Array1::zeros(n_features);
     for i in 0..n_features {
         xt_y[i] = x_matrix.column(i).dot(y);
     }
-    
+
     // Solve using simple Gaussian elimination (for small problems)
     // In production, use a proper linear algebra library
     solve_linear_system(&xt_x, &xt_y)
@@ -228,7 +228,7 @@ fn solve_ols(x_matrix: &Array2<f64>, y: &Array1<f64>) -> Vec<f64> {
 fn solve_linear_system(coef_matrix: &Array2<f64>, rhs: &Array1<f64>) -> Vec<f64> {
     let n = coef_matrix.nrows();
     let mut aug = Array2::zeros((n, n + 1));
-    
+
     // Build augmented matrix
     for i in 0..n {
         for j in 0..n {
@@ -236,7 +236,7 @@ fn solve_linear_system(coef_matrix: &Array2<f64>, rhs: &Array1<f64>) -> Vec<f64>
         }
         aug[[i, n]] = rhs[i];
     }
-    
+
     // Gaussian elimination with partial pivoting
     for k in 0..n {
         // Find pivot
@@ -248,7 +248,7 @@ fn solve_linear_system(coef_matrix: &Array2<f64>, rhs: &Array1<f64>) -> Vec<f64>
                 max_idx = i;
             }
         }
-        
+
         // Swap rows
         if max_idx != k {
             for j in 0..=n {
@@ -257,12 +257,12 @@ fn solve_linear_system(coef_matrix: &Array2<f64>, rhs: &Array1<f64>) -> Vec<f64>
                 aug[[max_idx, j]] = tmp;
             }
         }
-        
+
         // Eliminate
         if aug[[k, k]].abs() < 1e-10 {
             continue;
         }
-        
+
         for i in (k + 1)..n {
             let factor = aug[[i, k]] / aug[[k, k]];
             for j in k..=n {
@@ -270,7 +270,7 @@ fn solve_linear_system(coef_matrix: &Array2<f64>, rhs: &Array1<f64>) -> Vec<f64>
             }
         }
     }
-    
+
     // Back substitution
     let mut x = vec![0.0; n];
     for i in (0..n).rev() {
@@ -284,7 +284,7 @@ fn solve_linear_system(coef_matrix: &Array2<f64>, rhs: &Array1<f64>) -> Vec<f64>
         }
         x[i] /= aug[[i, i]];
     }
-    
+
     x
 }
 
@@ -305,22 +305,22 @@ fn monte_carlo_predictions(
 ) -> PyResult<(Py<PyArray1<f64>>, Py<PyArray1<f64>>, Py<PyArray1<f64>>)> {
     let x_arr = x_data.as_array();
     let coef = coefficients.as_array();
-    
+
     let n_samples = x_arr.nrows();
     let n_features = x_arr.ncols();
-    
+
     // Run parallel simulations
     let predictions: Vec<Vec<f64>> = (0..n_simulations)
         .into_par_iter()
         .map(|_| {
             let mut rng = rand::thread_rng();
-            
+
             // Add noise to coefficients
             let noisy_coef: Vec<f64> = coef.iter()
                 .map(|&c| c + rng.sample::<f64, _>(StandardNormal) * residual_std / 10.0)
                 .collect();
             let noisy_intercept = intercept + rng.sample::<f64, _>(StandardNormal) * residual_std;
-            
+
             // Predict with noise
             let mut preds = Vec::with_capacity(n_samples);
             for i in 0..n_samples {
@@ -334,25 +334,25 @@ fn monte_carlo_predictions(
             preds
         })
         .collect();
-    
+
     // Compute statistics
     let alpha = (1.0 - confidence) / 2.0;
     let lower_idx = (alpha * n_simulations as f64) as usize;
     let upper_idx = ((1.0 - alpha) * n_simulations as f64) as usize;
-    
+
     let mut mean_pred = vec![0.0; n_samples];
     let mut ci_lower = vec![0.0; n_samples];
     let mut ci_upper = vec![0.0; n_samples];
-    
+
     for i in 0..n_samples {
         let mut sample_preds: Vec<f64> = predictions.iter().map(|p| p[i]).collect();
         sample_preds.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        
+
         mean_pred[i] = sample_preds.iter().sum::<f64>() / n_simulations as f64;
         ci_lower[i] = sample_preds[lower_idx.min(n_simulations - 1)];
         ci_upper[i] = sample_preds[upper_idx.min(n_simulations - 1)];
     }
-    
+
     Ok((
         Array1::from_vec(mean_pred).into_pyarray(py).to_owned(),
         Array1::from_vec(ci_lower).into_pyarray(py).to_owned(),
@@ -365,7 +365,7 @@ fn monte_carlo_predictions(
 // ============================================================================
 
 /// Calculate transfer entropy between two time series
-/// 
+///
 /// Transfer entropy measures directed information flow.
 #[pyfunction]
 fn transfer_entropy(
@@ -377,46 +377,46 @@ fn transfer_entropy(
 ) -> PyResult<f64> {
     let source = source.as_slice()?;
     let target = target.as_slice()?;
-    
+
     if source.len() != target.len() {
         return Err(PyValueError::new_err("Arrays must have the same length"));
     }
-    
+
     let n = source.len();
     if n <= lag {
         return Ok(0.0);
     }
-    
+
     // Bin the data
     let source_binned = bin_data(source, n_bins);
     let target_binned = bin_data(target, n_bins);
-    
+
     // Count joint and marginal probabilities
     let mut p_y_ypast_xpast: HashMap<(usize, usize, usize), f64> = HashMap::new();
     let mut p_y_ypast: HashMap<(usize, usize), f64> = HashMap::new();
     let mut p_ypast_xpast: HashMap<(usize, usize), f64> = HashMap::new();
     let mut p_ypast: HashMap<usize, f64> = HashMap::new();
-    
+
     let count = (n - lag) as f64;
-    
+
     for i in lag..n {
         let y = target_binned[i];
         let y_past = target_binned[i - lag];
         let x_past = source_binned[i - lag];
-        
+
         *p_y_ypast_xpast.entry((y, y_past, x_past)).or_insert(0.0) += 1.0 / count;
         *p_y_ypast.entry((y, y_past)).or_insert(0.0) += 1.0 / count;
         *p_ypast_xpast.entry((y_past, x_past)).or_insert(0.0) += 1.0 / count;
         *p_ypast.entry(y_past).or_insert(0.0) += 1.0 / count;
     }
-    
+
     // Calculate transfer entropy
     let mut te = 0.0;
     for ((y, y_past, x_past), p_joint) in &p_y_ypast_xpast {
         let p_yy = p_y_ypast.get(&(*y, *y_past)).unwrap_or(&1e-10);
         let p_yx = p_ypast_xpast.get(&(*y_past, *x_past)).unwrap_or(&1e-10);
         let p_y_only = p_ypast.get(y_past).unwrap_or(&1e-10);
-        
+
         if *p_joint > 0.0 && *p_yy > 0.0 && *p_yx > 0.0 && *p_y_only > 0.0 {
             let ratio = (*p_joint * *p_y_only) / (*p_yy * *p_yx);
             if ratio > 0.0 {
@@ -424,7 +424,7 @@ fn transfer_entropy(
             }
         }
     }
-    
+
     Ok(te.max(0.0))
 }
 
@@ -433,13 +433,13 @@ fn bin_data(data: &[f64], n_bins: usize) -> Vec<usize> {
     let min_val = data.iter().cloned().fold(f64::INFINITY, f64::min);
     let max_val = data.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
     let range = max_val - min_val;
-    
+
     if range == 0.0 {
         return vec![0; data.len()];
     }
-    
+
     let bin_width = range / n_bins as f64;
-    
+
     data.iter()
         .map(|&x| {
             let bin = ((x - min_val) / bin_width) as usize;
@@ -462,11 +462,11 @@ fn lead_lag_correlations(
 ) -> PyResult<(Py<PyArray1<i32>>, Py<PyArray1<f64>>)> {
     let x = x.as_slice()?;
     let y = y.as_slice()?;
-    
+
     let n = x.len().min(y.len());
-    
+
     let lags: Vec<i32> = (-max_lag..=max_lag).collect();
-    
+
     let correlations: Vec<f64> = lags
         .par_iter()
         .map(|&lag| {
@@ -491,7 +491,7 @@ fn lead_lag_correlations(
             }
         })
         .collect();
-    
+
     Ok((
         Array1::from_vec(lags).into_pyarray(py).to_owned(),
         Array1::from_vec(correlations).into_pyarray(py).to_owned(),
@@ -504,14 +504,14 @@ fn pearson_correlation(x: &[f64], y: &[f64]) -> f64 {
     if n < 2 {
         return 0.0;
     }
-    
+
     let mean_x: f64 = x[..n].iter().sum::<f64>() / n as f64;
     let mean_y: f64 = y[..n].iter().sum::<f64>() / n as f64;
-    
+
     let mut cov = 0.0;
     let mut var_x = 0.0;
     let mut var_y = 0.0;
-    
+
     for i in 0..n {
         let dx = x[i] - mean_x;
         let dy = y[i] - mean_y;
@@ -519,7 +519,7 @@ fn pearson_correlation(x: &[f64], y: &[f64]) -> f64 {
         var_x += dx * dx;
         var_y += dy * dy;
     }
-    
+
     let denom = (var_x * var_y).sqrt();
     if denom == 0.0 {
         0.0
@@ -541,7 +541,7 @@ fn detect_outliers_iqr(
 ) -> PyResult<(Py<PyArray1<usize>>, Py<PyArray1<f64>>)> {
     let data = data.as_array();
     let n_cols = data.ncols();
-    
+
     let results: Vec<(usize, f64)> = (0..n_cols)
         .into_par_iter()
         .map(|j| {
@@ -549,36 +549,36 @@ fn detect_outliers_iqr(
                 .filter(|x| !x.is_nan())
                 .cloned()
                 .collect();
-            
+
             if col.len() < 4 {
                 return (0, 0.0);
             }
-            
+
             let mut sorted = col.clone();
             sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
-            
+
             let q1_idx = sorted.len() / 4;
             let q3_idx = (3 * sorted.len()) / 4;
             let q1 = sorted[q1_idx];
             let q3 = sorted[q3_idx];
             let iqr = q3 - q1;
-            
+
             let lower = q1 - multiplier * iqr;
             let upper = q3 + multiplier * iqr;
-            
+
             let n_outliers = col.iter()
                 .filter(|&&x| x < lower || x > upper)
                 .count();
-            
+
             let pct = (n_outliers as f64 / col.len() as f64) * 100.0;
-            
+
             (n_outliers, pct)
         })
         .collect();
-    
+
     let counts: Vec<usize> = results.iter().map(|&(c, _)| c).collect();
     let percentages: Vec<f64> = results.iter().map(|&(_, p)| p).collect();
-    
+
     Ok((
         Array1::from_vec(counts).into_pyarray(py).to_owned(),
         Array1::from_vec(percentages).into_pyarray(py).to_owned(),
@@ -599,39 +599,39 @@ fn mutual_information(
 ) -> PyResult<f64> {
     let x = x.as_slice()?;
     let y = y.as_slice()?;
-    
+
     let n = x.len().min(y.len());
     if n < 2 {
         return Ok(0.0);
     }
-    
+
     let x_binned = bin_data(&x[..n], n_bins);
     let y_binned = bin_data(&y[..n], n_bins);
-    
+
     // Joint and marginal counts
     let mut p_xy: HashMap<(usize, usize), f64> = HashMap::new();
     let mut p_x: HashMap<usize, f64> = HashMap::new();
     let mut p_y: HashMap<usize, f64> = HashMap::new();
-    
+
     let count = n as f64;
-    
+
     for i in 0..n {
         *p_xy.entry((x_binned[i], y_binned[i])).or_insert(0.0) += 1.0 / count;
         *p_x.entry(x_binned[i]).or_insert(0.0) += 1.0 / count;
         *p_y.entry(y_binned[i]).or_insert(0.0) += 1.0 / count;
     }
-    
+
     // Calculate MI
     let mut mi = 0.0;
     for ((xi, yi), p_joint) in &p_xy {
         let px = p_x.get(xi).unwrap_or(&1e-10);
         let py = p_y.get(yi).unwrap_or(&1e-10);
-        
+
         if *p_joint > 0.0 && *px > 0.0 && *py > 0.0 {
             mi += p_joint * (p_joint / (px * py)).ln();
         }
     }
-    
+
     Ok(mi.max(0.0))
 }
 
@@ -648,32 +648,32 @@ fn rolling_statistics(
 ) -> PyResult<(Py<PyArray1<f64>>, Py<PyArray1<f64>>)> {
     let data = data.as_slice()?;
     let n = data.len();
-    
+
     if window > n || window == 0 {
         return Err(PyValueError::new_err("Invalid window size"));
     }
-    
+
     let mut means = vec![f64::NAN; n];
     let mut stds = vec![f64::NAN; n];
-    
+
     // Initial window
     let mut sum: f64 = data[..window].iter().sum();
     let mut sum_sq: f64 = data[..window].iter().map(|x| x * x).sum();
-    
+
     means[window - 1] = sum / window as f64;
     let variance = (sum_sq / window as f64) - (means[window - 1] * means[window - 1]);
     stds[window - 1] = variance.max(0.0).sqrt();
-    
+
     // Slide the window
     for i in window..n {
         sum += data[i] - data[i - window];
         sum_sq += data[i] * data[i] - data[i - window] * data[i - window];
-        
+
         means[i] = sum / window as f64;
         let variance = (sum_sq / window as f64) - (means[i] * means[i]);
         stds[i] = variance.max(0.0).sqrt();
     }
-    
+
     Ok((
         Array1::from_vec(means).into_pyarray(py).to_owned(),
         Array1::from_vec(stds).into_pyarray(py).to_owned(),
@@ -685,7 +685,7 @@ fn rolling_statistics(
 // ============================================================================
 
 /// Create sliding window sequences for LSTM/RNN from time series data.
-/// 
+///
 /// This is a CPU-intensive operation for large datasets.
 /// Returns a 2D array of shape (n_samples - sequence_length, sequence_length).
 #[pyfunction]
@@ -696,22 +696,22 @@ fn create_sequences(
 ) -> PyResult<Py<numpy::PyArray2<f64>>> {
     let data = data.as_slice()?;
     let n = data.len();
-    
+
     if sequence_length >= n {
         return Err(PyValueError::new_err("Sequence length must be less than data length"));
     }
     if sequence_length == 0 {
         return Err(PyValueError::new_err("Sequence length must be positive"));
     }
-    
+
     let n_sequences = n - sequence_length;
-    
+
     // Parallel construction of sequences
     let sequences: Vec<Vec<f64>> = (0..n_sequences)
         .into_par_iter()
         .map(|i| data[i..i + sequence_length].to_vec())
         .collect();
-    
+
     // Convert to 2D array
     let mut result = Array2::zeros((n_sequences, sequence_length));
     for (i, seq) in sequences.iter().enumerate() {
@@ -719,13 +719,13 @@ fn create_sequences(
             result[[i, j]] = val;
         }
     }
-    
+
     Ok(result.into_pyarray(py).to_owned())
 }
 
 /// Create sequences with targets for supervised learning (LSTM forecasting).
-/// 
-/// Returns (X, y) where X has shape (n_samples, sequence_length) and 
+///
+/// Returns (X, y) where X has shape (n_samples, sequence_length) and
 /// y has shape (n_samples, forecast_horizon).
 #[pyfunction]
 fn create_sequences_with_targets(
@@ -736,16 +736,16 @@ fn create_sequences_with_targets(
 ) -> PyResult<(Py<numpy::PyArray2<f64>>, Py<numpy::PyArray2<f64>>)> {
     let data = data.as_slice()?;
     let n = data.len();
-    
+
     let total_window = sequence_length + forecast_horizon;
     if total_window > n {
         return Err(PyValueError::new_err(
             "sequence_length + forecast_horizon must be <= data length"
         ));
     }
-    
+
     let n_sequences = n - total_window + 1;
-    
+
     // Parallel construction
     let results: Vec<(Vec<f64>, Vec<f64>)> = (0..n_sequences)
         .into_par_iter()
@@ -755,11 +755,11 @@ fn create_sequences_with_targets(
             (x, y)
         })
         .collect();
-    
+
     // Convert to arrays
     let mut x_arr = Array2::zeros((n_sequences, sequence_length));
     let mut y_arr = Array2::zeros((n_sequences, forecast_horizon));
-    
+
     for (i, (x, y)) in results.iter().enumerate() {
         for (j, &val) in x.iter().enumerate() {
             x_arr[[i, j]] = val;
@@ -768,7 +768,7 @@ fn create_sequences_with_targets(
             y_arr[[i, j]] = val;
         }
     }
-    
+
     Ok((
         x_arr.into_pyarray(py).to_owned(),
         y_arr.into_pyarray(py).to_owned(),
@@ -776,7 +776,7 @@ fn create_sequences_with_targets(
 }
 
 /// Min-max normalize each column of a 2D array in parallel.
-/// 
+///
 /// Returns (normalized_data, mins, maxs) for inverse transform.
 #[pyfunction]
 fn batch_minmax_normalize(
@@ -785,7 +785,7 @@ fn batch_minmax_normalize(
 ) -> PyResult<(Py<numpy::PyArray2<f64>>, Py<PyArray1<f64>>, Py<PyArray1<f64>>)> {
     let data = data.as_array();
     let (n_rows, n_cols) = (data.nrows(), data.ncols());
-    
+
     // Calculate min/max for each column in parallel
     let stats: Vec<(f64, f64)> = (0..n_cols)
         .into_par_iter()
@@ -796,13 +796,13 @@ fn batch_minmax_normalize(
             (min_val, max_val)
         })
         .collect();
-    
+
     let mins: Vec<f64> = stats.iter().map(|&(m, _)| m).collect();
     let maxs: Vec<f64> = stats.iter().map(|&(_, m)| m).collect();
-    
+
     // Normalize in parallel
     let mut normalized = Array2::zeros((n_rows, n_cols));
-    
+
     // Process columns in parallel
     let normalized_cols: Vec<Vec<f64>> = (0..n_cols)
         .into_par_iter()
@@ -815,13 +815,13 @@ fn batch_minmax_normalize(
             }
         })
         .collect();
-    
+
     for (j, col) in normalized_cols.iter().enumerate() {
         for (i, &val) in col.iter().enumerate() {
             normalized[[i, j]] = val;
         }
     }
-    
+
     Ok((
         normalized.into_pyarray(py).to_owned(),
         Array1::from_vec(mins).into_pyarray(py).to_owned(),
@@ -830,7 +830,7 @@ fn batch_minmax_normalize(
 }
 
 /// Z-score normalize each column of a 2D array in parallel.
-/// 
+///
 /// Returns (normalized_data, means, stds) for inverse transform.
 #[pyfunction]
 fn batch_zscore_normalize(
@@ -839,7 +839,7 @@ fn batch_zscore_normalize(
 ) -> PyResult<(Py<numpy::PyArray2<f64>>, Py<PyArray1<f64>>, Py<PyArray1<f64>>)> {
     let data = data.as_array();
     let (n_rows, n_cols) = (data.nrows(), data.ncols());
-    
+
     // Calculate mean/std for each column in parallel
     let stats: Vec<(f64, f64)> = (0..n_cols)
         .into_par_iter()
@@ -852,10 +852,10 @@ fn batch_zscore_normalize(
             (mean, std)
         })
         .collect();
-    
+
     let means: Vec<f64> = stats.iter().map(|&(m, _)| m).collect();
     let stds: Vec<f64> = stats.iter().map(|&(_, s)| s).collect();
-    
+
     // Normalize in parallel
     let normalized_cols: Vec<Vec<f64>> = (0..n_cols)
         .into_par_iter()
@@ -867,14 +867,14 @@ fn batch_zscore_normalize(
             }
         })
         .collect();
-    
+
     let mut normalized = Array2::zeros((n_rows, n_cols));
     for (j, col) in normalized_cols.iter().enumerate() {
         for (i, &val) in col.iter().enumerate() {
             normalized[[i, j]] = val;
         }
     }
-    
+
     Ok((
         normalized.into_pyarray(py).to_owned(),
         Array1::from_vec(means).into_pyarray(py).to_owned(),
@@ -883,7 +883,7 @@ fn batch_zscore_normalize(
 }
 
 /// Calculate per-sample MSE reconstruction errors (for autoencoder).
-/// 
+///
 /// Returns a 1D array of MSE values for each row.
 #[pyfunction]
 fn batch_mse_errors(
@@ -893,14 +893,14 @@ fn batch_mse_errors(
 ) -> PyResult<Py<PyArray1<f64>>> {
     let original = original.as_array();
     let reconstructed = reconstructed.as_array();
-    
+
     if original.shape() != reconstructed.shape() {
         return Err(PyValueError::new_err("Arrays must have the same shape"));
     }
-    
+
     let n_rows = original.nrows();
     let n_cols = original.ncols();
-    
+
     // Parallel MSE calculation per row
     let mse_errors: Vec<f64> = (0..n_rows)
         .into_par_iter()
@@ -913,7 +913,7 @@ fn batch_mse_errors(
             sum_sq_error / n_cols as f64
         })
         .collect();
-    
+
     Ok(Array1::from_vec(mse_errors).into_pyarray(py).to_owned())
 }
 
@@ -926,14 +926,14 @@ fn batch_mae_errors(
 ) -> PyResult<Py<PyArray1<f64>>> {
     let original = original.as_array();
     let reconstructed = reconstructed.as_array();
-    
+
     if original.shape() != reconstructed.shape() {
         return Err(PyValueError::new_err("Arrays must have the same shape"));
     }
-    
+
     let n_rows = original.nrows();
     let n_cols = original.ncols();
-    
+
     // Parallel MAE calculation per row
     let mae_errors: Vec<f64> = (0..n_rows)
         .into_par_iter()
@@ -945,7 +945,7 @@ fn batch_mae_errors(
             sum_abs_error / n_cols as f64
         })
         .collect();
-    
+
     Ok(Array1::from_vec(mae_errors).into_pyarray(py).to_owned())
 }
 
@@ -972,8 +972,8 @@ fn data_toolkit_rust(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(batch_zscore_normalize, m)?)?;
     m.add_function(wrap_pyfunction!(batch_mse_errors, m)?)?;
     m.add_function(wrap_pyfunction!(batch_mae_errors, m)?)?;
-    
+
     m.add("__version__", "0.2.0")?;
-    
+
     Ok(())
 }

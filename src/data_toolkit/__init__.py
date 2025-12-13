@@ -27,26 +27,26 @@ GUI Application::
 Or use as a library::
 
     from data_toolkit import DataLoader, StatisticalAnalysis, NeuralNetworkModels
-    
+
     loader = DataLoader()
     loader.load_csv('data.csv')
-    
+
     stats = StatisticalAnalysis(loader.df)
     results = stats.descriptive_stats(['col1', 'col2'])
-    
+
     # Neural Networks
     nn = NeuralNetworkModels(loader.df)
     lstm_results = nn.lstm_forecast('price', sequence_length=30)
 """
 
-from .data_loading_methods import DataLoader
-from .statistical_analysis import StatisticalAnalysis
-from .ml_models import MLModels
 from .bayesian_analysis import BayesianAnalysis
-from .uncertainty_analysis import UncertaintyAnalysis
-from .nonlinear_analysis import NonLinearAnalysis
-from .timeseries_analysis import TimeSeriesAnalysis
 from .causality_analysis import CausalityAnalysis
+from .data_loading_methods import DataLoader
+from .ml_models import MLModels
+from .nonlinear_analysis import NonLinearAnalysis
+from .statistical_analysis import StatisticalAnalysis
+from .timeseries_analysis import TimeSeriesAnalysis
+from .uncertainty_analysis import UncertaintyAnalysis
 from .visualization_methods import VisualizationMethods
 
 # Neural Networks (optional - requires TensorFlow)
@@ -57,34 +57,15 @@ except ImportError:
     NeuralNetworkModels = None
     NEURAL_NETWORKS_AVAILABLE = False
 
-# Optional Rust-accelerated functions (with Python fallback)
-from .rust_accelerated import (
-    # Settings and status
-    AccelerationSettings,
-    is_rust_available,
-    is_rust_enabled,
-    set_rust_enabled,
-    get_backend_name,
-    # Accelerated functions
-    distance_correlation,
-    bootstrap_linear_regression,
-    monte_carlo_predictions,
-    transfer_entropy,
-    lead_lag_correlations,
-    detect_outliers_iqr,
-    mutual_information,
-    rolling_statistics,
-)
-
 # Plugin system
-from .plugin_system import (
-    PluginManager,
-    Plugin,
-    PluginInfo,
-    PluginParameter,
-    get_plugin_template,
-    get_example_plugins,
-)
+from .plugin_system import (Plugin, PluginInfo, PluginManager, PluginParameter,
+                            get_example_plugins, get_plugin_template)
+# Optional Rust-accelerated functions (with Python fallback)
+from .rust_accelerated import (  # Settings and status; Accelerated functions
+    AccelerationSettings, bootstrap_linear_regression, detect_outliers_iqr,
+    distance_correlation, get_backend_name, is_rust_available, is_rust_enabled,
+    lead_lag_correlations, monte_carlo_predictions, mutual_information,
+    rolling_statistics, set_rust_enabled, transfer_entropy)
 
 __version__ = "10.0.0"
 __author__ = "Data Analysis Toolkit Contributors"

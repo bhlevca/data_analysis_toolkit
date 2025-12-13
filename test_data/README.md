@@ -299,7 +299,7 @@ Use these datasets to test the example plugins:
 
 **Usage**:
 1. Train a model on `ml_classification_train.csv`
-2. Load `ml_classification_predict.csv` 
+2. Load `ml_classification_predict.csv`
 3. Use the trained model to predict species/is_setosa
 
 ---

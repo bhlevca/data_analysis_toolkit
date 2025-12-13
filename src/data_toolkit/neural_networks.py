@@ -9,44 +9,44 @@ Provides deep learning models for:
 Uses TensorFlow/Keras backend with optional GPU acceleration.
 """
 
+import warnings
+from typing import Any, Dict, List, Optional, Tuple, Union
+
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Any, Optional, Tuple, Union
-import warnings
+
 warnings.filterwarnings('ignore')
 
 # TensorFlow imports with graceful fallback
 try:
     import tensorflow as tf
     from tensorflow import keras
-    from tensorflow.keras.models import Sequential, Model
-    from tensorflow.keras.layers import (
-        Dense, LSTM, GRU, Dropout, BatchNormalization,
-        Input, RepeatVector, TimeDistributed
-    )
-    from tensorflow.keras.optimizers import Adam
     from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
+    from tensorflow.keras.layers import (GRU, LSTM, BatchNormalization, Dense,
+                                         Dropout, Input, RepeatVector,
+                                         TimeDistributed)
+    from tensorflow.keras.models import Model, Sequential
+    from tensorflow.keras.optimizers import Adam
     from tensorflow.keras.utils import to_categorical
     TF_AVAILABLE = True
 except ImportError:
     TF_AVAILABLE = False
     print("⚠️ TensorFlow not available. Neural network features disabled.")
 
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder
+from sklearn.metrics import (accuracy_score, classification_report,
+                             confusion_matrix, f1_score, mean_absolute_error,
+                             mean_squared_error, precision_score, r2_score,
+                             recall_score)
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import (
-    mean_squared_error, mean_absolute_error, r2_score,
-    accuracy_score, precision_score, recall_score, f1_score,
-    confusion_matrix, classification_report
-)
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler, StandardScaler
 
 
 class NeuralNetworkModels:
     """
     Neural Network Models for Data Analysis
-    
+
     Provides MLP, LSTM, and Autoencoder models with easy-to-use interface.
-    
+
     Example:
         >>> nn = NeuralNetworkModels(df)
         >>> # MLP Regression
@@ -56,7 +56,7 @@ class NeuralNetworkModels:
         >>> # Autoencoder Anomaly Detection
         >>> anomalies = nn.autoencoder_anomaly_detection(features, contamination=0.05)
     """
-    
+
     def __init__(self, df: pd.DataFrame = None):
         """Initialize with optional DataFrame."""
         self.df = df
@@ -64,21 +64,21 @@ class NeuralNetworkModels:
         self.scalers = {}
         self.history = {}
         self.label_encoders = {}
-        
+
         if not TF_AVAILABLE:
             raise ImportError(
                 "TensorFlow is required for neural networks. "
                 "Install with: pip install tensorflow"
             )
-    
+
     def set_data(self, df: pd.DataFrame):
         """Set or update the DataFrame."""
         self.df = df
-    
+
     # =========================================================================
     # MLP (Multi-Layer Perceptron)
     # =========================================================================
-    
+
     def mlp_regressor(
         self,
         features: List[str],
@@ -97,7 +97,7 @@ class NeuralNetworkModels:
     ) -> Dict[str, Any]:
         """
         Train MLP for regression tasks.
-        
+
         Args:
             features: List of feature column names
             target: Target column name
@@ -112,46 +112,46 @@ class NeuralNetworkModels:
             early_stopping: Whether to use early stopping
             patience: Early stopping patience
             verbose: Training verbosity (0=silent, 1=progress, 2=detailed)
-            
+
         Returns:
             Dictionary with model, metrics, predictions, and training history
         """
         if self.df is None:
             return {'error': 'No data loaded'}
-        
+
         # Prepare data
         X = self.df[features].values
         y = self.df[target].values
-        
+
         # Scale features
         scaler_X = StandardScaler()
         scaler_y = StandardScaler()
         X_scaled = scaler_X.fit_transform(X)
         y_scaled = scaler_y.fit_transform(y.reshape(-1, 1)).ravel()
-        
+
         # Train/test split
         X_train, X_test, y_train, y_test = train_test_split(
             X_scaled, y_scaled, test_size=test_size, random_state=42
         )
-        
+
         # Build model
         model = Sequential()
         model.add(Input(shape=(len(features),)))
-        
+
         for i, units in enumerate(hidden_layers):
             model.add(Dense(units, activation=activation))
             model.add(BatchNormalization())
             if dropout_rate > 0:
                 model.add(Dropout(dropout_rate))
-        
+
         model.add(Dense(1))  # Output layer
-        
+
         model.compile(
             optimizer=Adam(learning_rate=learning_rate),
             loss='mse',
             metrics=['mae']
         )
-        
+
         # Callbacks
         callbacks = []
         if early_stopping:
@@ -161,7 +161,7 @@ class NeuralNetworkModels:
             callbacks.append(ReduceLROnPlateau(
                 monitor='val_loss', factor=0.5, patience=patience//2, min_lr=1e-6
             ))
-        
+
         # Train
         history = model.fit(
             X_train, y_train,
@@ -171,23 +171,23 @@ class NeuralNetworkModels:
             callbacks=callbacks,
             verbose=verbose
         )
-        
+
         # Evaluate
         y_pred_scaled = model.predict(X_test, verbose=0).ravel()
         y_pred = scaler_y.inverse_transform(y_pred_scaled.reshape(-1, 1)).ravel()
         y_test_original = scaler_y.inverse_transform(y_test.reshape(-1, 1)).ravel()
-        
+
         # Metrics
         mse = mean_squared_error(y_test_original, y_pred)
         rmse = np.sqrt(mse)
         mae = mean_absolute_error(y_test_original, y_pred)
         r2 = r2_score(y_test_original, y_pred)
-        
+
         # Store model
         self.models['mlp_regressor'] = model
         self.scalers['mlp_regressor'] = {'X': scaler_X, 'y': scaler_y}
         self.history['mlp_regressor'] = history.history
-        
+
         return {
             'model': model,
             'r2': r2,
@@ -202,7 +202,7 @@ class NeuralNetworkModels:
             'features': features,
             'target': target
         }
-    
+
     def mlp_classifier(
         self,
         features: List[str],
@@ -221,7 +221,7 @@ class NeuralNetworkModels:
     ) -> Dict[str, Any]:
         """
         Train MLP for classification tasks.
-        
+
         Args:
             features: List of feature column names
             target: Target column name (categorical)
@@ -236,26 +236,26 @@ class NeuralNetworkModels:
             early_stopping: Whether to use early stopping
             patience: Early stopping patience
             verbose: Training verbosity
-            
+
         Returns:
             Dictionary with model, metrics, predictions, and confusion matrix
         """
         if self.df is None:
             return {'error': 'No data loaded'}
-        
+
         # Prepare data
         X = self.df[features].values
         y = self.df[target].values
-        
+
         # Encode labels
         le = LabelEncoder()
         y_encoded = le.fit_transform(y)
         n_classes = len(le.classes_)
-        
+
         # Scale features
         scaler_X = StandardScaler()
         X_scaled = scaler_X.fit_transform(X)
-        
+
         # One-hot encode for multi-class
         if n_classes > 2:
             y_onehot = to_categorical(y_encoded)
@@ -267,7 +267,7 @@ class NeuralNetworkModels:
             loss = 'binary_crossentropy'
             output_activation = 'sigmoid'
             output_units = 1
-        
+
         # Train/test split
         X_train, X_test, y_train, y_test = train_test_split(
             X_scaled, y_onehot, test_size=test_size, random_state=42, stratify=y_encoded
@@ -275,32 +275,32 @@ class NeuralNetworkModels:
         y_test_labels = le.inverse_transform(
             np.argmax(y_test, axis=1) if n_classes > 2 else y_test.astype(int)
         )
-        
+
         # Build model
         model = Sequential()
         model.add(Input(shape=(len(features),)))
-        
+
         for units in hidden_layers:
             model.add(Dense(units, activation=activation))
             model.add(BatchNormalization())
             if dropout_rate > 0:
                 model.add(Dropout(dropout_rate))
-        
+
         model.add(Dense(output_units, activation=output_activation))
-        
+
         model.compile(
             optimizer=Adam(learning_rate=learning_rate),
             loss=loss,
             metrics=['accuracy']
         )
-        
+
         # Callbacks
         callbacks = []
         if early_stopping:
             callbacks.append(EarlyStopping(
                 monitor='val_loss', patience=patience, restore_best_weights=True
             ))
-        
+
         # Train
         history = model.fit(
             X_train, y_train,
@@ -310,7 +310,7 @@ class NeuralNetworkModels:
             callbacks=callbacks,
             verbose=verbose
         )
-        
+
         # Predict
         y_pred_proba = model.predict(X_test, verbose=0)
         if n_classes > 2:
@@ -318,24 +318,24 @@ class NeuralNetworkModels:
         else:
             y_pred_encoded = (y_pred_proba.ravel() > 0.5).astype(int)
         y_pred_labels = le.inverse_transform(y_pred_encoded)
-        
+
         # Metrics
         accuracy = accuracy_score(y_test_labels, y_pred_labels)
-        
+
         # Handle binary vs multi-class metrics
         avg = 'binary' if n_classes == 2 else 'weighted'
         precision = precision_score(y_test_labels, y_pred_labels, average=avg, zero_division=0)
         recall = recall_score(y_test_labels, y_pred_labels, average=avg, zero_division=0)
         f1 = f1_score(y_test_labels, y_pred_labels, average=avg, zero_division=0)
-        
+
         cm = confusion_matrix(y_test_labels, y_pred_labels)
-        
+
         # Store
         self.models['mlp_classifier'] = model
         self.scalers['mlp_classifier'] = {'X': scaler_X}
         self.label_encoders['mlp_classifier'] = le
         self.history['mlp_classifier'] = history.history
-        
+
         return {
             'model': model,
             'accuracy': accuracy,
@@ -351,7 +351,7 @@ class NeuralNetworkModels:
             'epochs_trained': len(history.history['loss']),
             'architecture': hidden_layers
         }
-    
+
     def mlp_predict(
         self,
         new_data: pd.DataFrame,
@@ -360,35 +360,35 @@ class NeuralNetworkModels:
     ) -> Dict[str, Any]:
         """
         Make predictions on new data using trained MLP model.
-        
+
         Args:
             new_data: DataFrame with new samples to predict
             features: Feature column names (must match training features)
             model_type: 'regressor' or 'classifier'
-            
+
         Returns:
             Dictionary with predictions and optional probabilities
         """
         model_key = f'mlp_{model_type}'
-        
+
         if model_key not in self.models:
             return {'error': f'No trained {model_type} model found. Train a model first.'}
-        
+
         model = self.models[model_key]
         scalers = self.scalers[model_key]
-        
+
         # Check features exist
         missing_features = [f for f in features if f not in new_data.columns]
         if missing_features:
             return {'error': f'Missing features in new data: {missing_features}'}
-        
+
         # Prepare data
         X_new = new_data[features].values
         X_scaled = scalers['X'].transform(X_new)
-        
+
         # Predict
         predictions_raw = model.predict(X_scaled, verbose=0)
-        
+
         if model_type == 'regressor':
             # Inverse transform for regression
             predictions = scalers['y'].inverse_transform(predictions_raw).ravel()
@@ -401,14 +401,14 @@ class NeuralNetworkModels:
             # Classification
             le = self.label_encoders[model_key]
             n_classes = len(le.classes_)
-            
+
             if n_classes > 2:
                 predicted_classes = np.argmax(predictions_raw, axis=1)
             else:
                 predicted_classes = (predictions_raw.ravel() > 0.5).astype(int)
-            
+
             predicted_labels = le.inverse_transform(predicted_classes)
-            
+
             return {
                 'predictions': predicted_labels,
                 'probabilities': predictions_raw,
@@ -416,11 +416,11 @@ class NeuralNetworkModels:
                 'n_samples': len(predicted_labels),
                 'model_type': 'classifier'
             }
-    
+
     # =========================================================================
     # LSTM (Long Short-Term Memory) for Time Series
     # =========================================================================
-    
+
     def lstm_forecast(
         self,
         column: str,
@@ -438,9 +438,9 @@ class NeuralNetworkModels:
     ) -> Dict[str, Any]:
         """
         LSTM model for time series forecasting.
-        
+
         Uses past 'sequence_length' values to predict next 'forecast_horizon' values.
-        
+
         Args:
             column: Column name to forecast
             sequence_length: Number of past time steps to use as input
@@ -454,37 +454,37 @@ class NeuralNetworkModels:
             early_stopping: Whether to use early stopping
             patience: Early stopping patience
             verbose: Training verbosity
-            
+
         Returns:
             Dictionary with model, metrics, forecasts, and history
         """
         if self.df is None:
             return {'error': 'No data loaded'}
-        
+
         # Get data
         data = self.df[column].dropna().values.reshape(-1, 1)
-        
+
         # Scale
         scaler = MinMaxScaler(feature_range=(0, 1))
         data_scaled = scaler.fit_transform(data)
-        
+
         # Create sequences
         X, y = [], []
         for i in range(len(data_scaled) - sequence_length - forecast_horizon + 1):
             X.append(data_scaled[i:i + sequence_length])
             y.append(data_scaled[i + sequence_length:i + sequence_length + forecast_horizon].ravel())
-        
+
         X = np.array(X)
         y = np.array(y)
-        
+
         # Train/test split (keep temporal order)
         split_idx = int(len(X) * (1 - validation_split))
         X_train, X_test = X[:split_idx], X[split_idx:]
         y_train, y_test = y[:split_idx], y[split_idx:]
-        
+
         # Build model
         model = Sequential()
-        
+
         for i, units in enumerate(lstm_units):
             return_sequences = i < len(lstm_units) - 1
             if i == 0:
@@ -494,15 +494,15 @@ class NeuralNetworkModels:
                 model.add(LSTM(units, return_sequences=return_sequences))
             if dropout_rate > 0:
                 model.add(Dropout(dropout_rate))
-        
+
         model.add(Dense(forecast_horizon))
-        
+
         model.compile(
             optimizer=Adam(learning_rate=learning_rate),
             loss='mse',
             metrics=['mae']
         )
-        
+
         # Callbacks
         callbacks = []
         if early_stopping:
@@ -512,7 +512,7 @@ class NeuralNetworkModels:
             callbacks.append(ReduceLROnPlateau(
                 monitor='val_loss', factor=0.5, patience=patience//2, min_lr=1e-6
             ))
-        
+
         # Train
         history = model.fit(
             X_train, y_train,
@@ -522,24 +522,24 @@ class NeuralNetworkModels:
             callbacks=callbacks,
             verbose=verbose
         )
-        
+
         # Evaluate
         y_pred_scaled = model.predict(X_test, verbose=0)
-        
+
         # Inverse transform
         y_test_original = scaler.inverse_transform(y_test)
         y_pred_original = scaler.inverse_transform(y_pred_scaled)
-        
+
         # Metrics (average over forecast horizon)
         mse = mean_squared_error(y_test_original.ravel(), y_pred_original.ravel())
         rmse = np.sqrt(mse)
         mae = mean_absolute_error(y_test_original.ravel(), y_pred_original.ravel())
-        
+
         # Generate future forecast
         last_sequence = data_scaled[-sequence_length:].reshape(1, sequence_length, 1)
         future_forecast_scaled = model.predict(last_sequence, verbose=0)
         future_forecast = scaler.inverse_transform(future_forecast_scaled).ravel()
-        
+
         # Store model and parameters
         self.models['lstm_forecast'] = model
         self.scalers['lstm_forecast'] = scaler
@@ -547,7 +547,7 @@ class NeuralNetworkModels:
         self.history['lstm_sequence_length'] = sequence_length
         self.history['lstm_forecast_horizon'] = forecast_horizon
         self.history['lstm_column'] = column
-        
+
         return {
             'model': model,
             'rmse': rmse,
@@ -563,7 +563,7 @@ class NeuralNetworkModels:
             'column': column,
             'last_values': data[-sequence_length:].ravel()
         }
-    
+
     def lstm_predict(
         self,
         new_data: pd.DataFrame,
@@ -571,55 +571,55 @@ class NeuralNetworkModels:
     ) -> Dict[str, Any]:
         """
         Forecast using a trained LSTM model on new time series data.
-        
+
         Args:
             new_data: DataFrame with the time series column
             column: Column name (must match training column)
-            
+
         Returns:
             Dictionary with forecasts and metrics
         """
         if not TF_AVAILABLE:
             return {'error': 'TensorFlow not available'}
-            
+
         if 'lstm_forecast' not in self.models:
             return {'error': 'No trained LSTM model. Train first using lstm_forecast()'}
-        
+
         model = self.models['lstm_forecast']
         scaler = self.scalers['lstm_forecast']
-        
+
         # Get sequence_length and forecast_horizon from the stored history or defaults
         # These should match the training configuration
         sequence_length = self.history.get('lstm_sequence_length', 20)
         forecast_horizon = self.history.get('lstm_forecast_horizon', 10)
-        
+
         if column not in new_data.columns:
             return {'error': f"Column '{column}' not found in new data"}
-        
+
         # Get the time series data
         data = new_data[column].values.reshape(-1, 1)
-        
+
         if len(data) < sequence_length:
             return {'error': f'Need at least {sequence_length} values (sequence_length), got {len(data)}'}
-        
+
         # Scale the data using the training scaler
         data_scaled = scaler.transform(data)
-        
+
         # Create sequences for prediction
         X = []
         for i in range(len(data_scaled) - sequence_length + 1):
             X.append(data_scaled[i:i + sequence_length])
         X = np.array(X)
-        
+
         # Make predictions
         predictions_scaled = model.predict(X, verbose=0)
         predictions = scaler.inverse_transform(predictions_scaled)
-        
+
         # Generate future forecast from the last sequence
         last_sequence = data_scaled[-sequence_length:].reshape(1, sequence_length, 1)
         future_forecast_scaled = model.predict(last_sequence, verbose=0)
         future_forecast = scaler.inverse_transform(future_forecast_scaled).ravel()
-        
+
         return {
             'predictions': predictions,
             'future_forecast': future_forecast,
@@ -628,7 +628,7 @@ class NeuralNetworkModels:
             'forecast_horizon': forecast_horizon,
             'column': column
         }
-    
+
     def lstm_multivariate_forecast(
         self,
         features: List[str],
@@ -647,7 +647,7 @@ class NeuralNetworkModels:
     ) -> Dict[str, Any]:
         """
         Multivariate LSTM: Use multiple features to forecast target.
-        
+
         Args:
             features: List of feature columns (including target if desired)
             target: Target column to forecast
@@ -662,39 +662,39 @@ class NeuralNetworkModels:
             early_stopping: Use early stopping
             patience: Patience for early stopping
             verbose: Verbosity level
-            
+
         Returns:
             Dictionary with model, metrics, and forecasts
         """
         if self.df is None:
             return {'error': 'No data loaded'}
-        
+
         # Prepare data
         all_cols = features if target in features else features + [target]
         data = self.df[all_cols].dropna().values
         target_idx = all_cols.index(target)
-        
+
         # Scale
         scaler = MinMaxScaler(feature_range=(0, 1))
         data_scaled = scaler.fit_transform(data)
-        
+
         # Create sequences
         X, y = [], []
         for i in range(len(data_scaled) - sequence_length - forecast_horizon + 1):
             X.append(data_scaled[i:i + sequence_length])
             y.append(data_scaled[i + sequence_length:i + sequence_length + forecast_horizon, target_idx])
-        
+
         X = np.array(X)
         y = np.array(y)
-        
+
         # Split
         split_idx = int(len(X) * (1 - validation_split))
         X_train, X_test = X[:split_idx], X[split_idx:]
         y_train, y_test = y[:split_idx], y[split_idx:]
-        
+
         # Build model
         model = Sequential()
-        
+
         for i, units in enumerate(lstm_units):
             return_sequences = i < len(lstm_units) - 1
             if i == 0:
@@ -704,15 +704,15 @@ class NeuralNetworkModels:
                 model.add(LSTM(units, return_sequences=return_sequences))
             if dropout_rate > 0:
                 model.add(Dropout(dropout_rate))
-        
+
         model.add(Dense(forecast_horizon))
-        
+
         model.compile(optimizer=Adam(learning_rate=learning_rate), loss='mse', metrics=['mae'])
-        
+
         callbacks = []
         if early_stopping:
             callbacks.append(EarlyStopping(monitor='val_loss', patience=patience, restore_best_weights=True))
-        
+
         history = model.fit(
             X_train, y_train,
             epochs=epochs,
@@ -721,26 +721,26 @@ class NeuralNetworkModels:
             callbacks=callbacks,
             verbose=verbose
         )
-        
+
         # Evaluate
         y_pred = model.predict(X_test, verbose=0)
-        
+
         # Inverse transform for target column
         # Create dummy array to inverse transform just the target
         dummy = np.zeros((len(y_test.ravel()), len(all_cols)))
         dummy[:, target_idx] = y_test.ravel()
         y_test_inv = scaler.inverse_transform(dummy)[:, target_idx]
-        
+
         dummy[:, target_idx] = y_pred.ravel()
         y_pred_inv = scaler.inverse_transform(dummy)[:, target_idx]
-        
+
         mse = mean_squared_error(y_test_inv, y_pred_inv)
         rmse = np.sqrt(mse)
         mae = mean_absolute_error(y_test_inv, y_pred_inv)
-        
+
         self.models['lstm_multivariate'] = model
         self.scalers['lstm_multivariate'] = scaler
-        
+
         return {
             'model': model,
             'rmse': rmse,
@@ -752,11 +752,11 @@ class NeuralNetworkModels:
             'features': all_cols,
             'target': target
         }
-    
+
     # =========================================================================
     # Autoencoder for Anomaly Detection
     # =========================================================================
-    
+
     def autoencoder_anomaly_detection(
         self,
         features: List[str],
@@ -775,10 +775,10 @@ class NeuralNetworkModels:
     ) -> Dict[str, Any]:
         """
         Autoencoder-based anomaly detection.
-        
+
         Trains autoencoder to reconstruct normal patterns. Points with high
         reconstruction error are flagged as anomalies.
-        
+
         Args:
             features: List of feature columns
             encoding_dim: Dimension of the encoding layer (default: n_features // 2)
@@ -793,66 +793,66 @@ class NeuralNetworkModels:
             early_stopping: Use early stopping
             patience: Patience for early stopping
             verbose: Verbosity level
-            
+
         Returns:
             Dictionary with anomaly indices, scores, threshold, and model
         """
         if self.df is None:
             return {'error': 'No data loaded'}
-        
+
         # Prepare data
         X = self.df[features].dropna().values
         n_features = X.shape[1]
-        
+
         # Default architecture
         if encoding_dim is None:
             encoding_dim = max(2, n_features // 3)
-        
+
         if hidden_layers is None:
             # Auto-generate symmetric architecture
             hidden_layers = [n_features * 2, n_features, encoding_dim]
-        
+
         # Scale
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
-        
+
         # Build autoencoder
         # Encoder
         input_layer = Input(shape=(n_features,))
         encoded = input_layer
-        
+
         for units in hidden_layers:
             encoded = Dense(units, activation=activation)(encoded)
             encoded = BatchNormalization()(encoded)
             if dropout_rate > 0:
                 encoded = Dropout(dropout_rate)(encoded)
-        
+
         # Decoder (mirror architecture)
         decoded = encoded
         for units in reversed(hidden_layers[:-1]):
             decoded = Dense(units, activation=activation)(decoded)
             decoded = BatchNormalization()(decoded)
-        
+
         # Output layer
         output_layer = Dense(n_features, activation='linear')(decoded)
-        
+
         # Model
         autoencoder = Model(input_layer, output_layer)
         autoencoder.compile(
             optimizer=Adam(learning_rate=learning_rate),
             loss='mse'
         )
-        
+
         # Encoder model for embeddings
         encoder = Model(input_layer, encoded)
-        
+
         # Callbacks
         callbacks = []
         if early_stopping:
             callbacks.append(EarlyStopping(
                 monitor='val_loss', patience=patience, restore_best_weights=True
             ))
-        
+
         # Train
         history = autoencoder.fit(
             X_scaled, X_scaled,
@@ -862,27 +862,27 @@ class NeuralNetworkModels:
             callbacks=callbacks,
             verbose=verbose
         )
-        
+
         # Compute reconstruction error
         X_reconstructed = autoencoder.predict(X_scaled, verbose=0)
         reconstruction_error = np.mean((X_scaled - X_reconstructed) ** 2, axis=1)
-        
+
         # Determine threshold based on contamination
         threshold = np.percentile(reconstruction_error, 100 * (1 - contamination))
-        
+
         # Identify anomalies
         is_anomaly = reconstruction_error > threshold
         anomaly_indices = np.where(is_anomaly)[0].tolist()
-        
+
         # Get encodings
         encodings = encoder.predict(X_scaled, verbose=0)
-        
+
         # Store
         self.models['autoencoder'] = autoencoder
         self.models['encoder'] = encoder
         self.scalers['autoencoder'] = scaler
         self.history['autoencoder'] = history.history
-        
+
         return {
             'autoencoder': autoencoder,
             'encoder': encoder,
@@ -899,65 +899,65 @@ class NeuralNetworkModels:
             'features': features,
             'contamination': contamination
         }
-    
+
     def predict_anomaly(self, new_data: pd.DataFrame, features: List[str]) -> Dict[str, Any]:
         """
         Predict anomalies on new data using trained autoencoder.
-        
+
         Args:
             new_data: New DataFrame to check for anomalies
             features: Feature columns (must match training features)
-            
+
         Returns:
             Dictionary with anomaly predictions and scores
         """
         if 'autoencoder' not in self.models:
             return {'error': 'No autoencoder model trained. Run autoencoder_anomaly_detection first.'}
-        
+
         autoencoder = self.models['autoencoder']
         scaler = self.scalers['autoencoder']
-        
+
         X = new_data[features].values
         X_scaled = scaler.transform(X)
-        
+
         X_reconstructed = autoencoder.predict(X_scaled, verbose=0)
         reconstruction_error = np.mean((X_scaled - X_reconstructed) ** 2, axis=1)
-        
+
         # Use stored threshold or compute new one
         threshold = getattr(self, '_anomaly_threshold', np.percentile(reconstruction_error, 95))
         is_anomaly = reconstruction_error > threshold
-        
+
         return {
             'is_anomaly': is_anomaly,
             'reconstruction_errors': reconstruction_error,
             'anomaly_indices': np.where(is_anomaly)[0].tolist(),
             'threshold': threshold
         }
-    
+
     # =========================================================================
     # Utility Methods
     # =========================================================================
-    
+
     def get_model_summary(self, model_name: str) -> str:
         """Get summary of a trained model."""
         if model_name not in self.models:
             return f"Model '{model_name}' not found."
-        
+
         model = self.models[model_name]
         summary_list = []
         model.summary(print_fn=lambda x: summary_list.append(x))
         return '\n'.join(summary_list)
-    
+
     def save_model(self, model_name: str, filepath: str):
         """Save a trained model to file."""
         if model_name not in self.models:
             raise ValueError(f"Model '{model_name}' not found.")
         self.models[model_name].save(filepath)
-    
+
     def load_model(self, model_name: str, filepath: str):
         """Load a model from file."""
         self.models[model_name] = keras.models.load_model(filepath)
-    
+
     def list_models(self) -> List[str]:
         """List all trained models."""
         return list(self.models.keys())
