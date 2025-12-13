@@ -8,18 +8,20 @@ Uses Plotly for interactive, zoomable charts.
 Version: 9.1
 """
 
-import streamlit as st
-import pandas as pd
+import os
+import sys
+import warnings
+from io import StringIO
+
+import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import streamlit as st
 from plotly.subplots import make_subplots
-from io import StringIO
-import sys
-import os
-import warnings
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
+
 warnings.filterwarnings('ignore')
 
 # Page configuration - MUST be first Streamlit command
@@ -35,19 +37,21 @@ _current_dir = os.path.dirname(os.path.abspath(__file__))
 if _current_dir not in sys.path:
     sys.path.insert(0, _current_dir)
 
+from bayesian_analysis import BayesianAnalysis
+from causality_analysis import CausalityAnalysis
 # Import analysis modules
 from data_loading_methods import DataLoader
-from statistical_analysis import StatisticalAnalysis
 from ml_models import MLModels
-from bayesian_analysis import BayesianAnalysis
-from uncertainty_analysis import UncertaintyAnalysis
+from neural_networks import NeuralNetworkModels, TF_AVAILABLE
 from nonlinear_analysis import NonLinearAnalysis
+from pca_visualization import (create_pca_biplot_with_vectors,
+                               generate_pca_insights, interpret_vectors)
+from rust_accelerated import (AccelerationSettings, get_backend_name,
+                              is_rust_available)
+from statistical_analysis import StatisticalAnalysis
 from timeseries_analysis import TimeSeriesAnalysis
-from causality_analysis import CausalityAnalysis
+from uncertainty_analysis import UncertaintyAnalysis
 from visualization_methods import VisualizationMethods
-from rust_accelerated import AccelerationSettings, is_rust_available, get_backend_name
-from pca_visualization import create_pca_biplot_with_vectors, interpret_vectors, generate_pca_insights
-
 
 # =============================================================================
 # PLOTLY THEME CONFIGURATION
@@ -65,15 +69,15 @@ def detect_and_convert_datetime_columns(df: pd.DataFrame) -> pd.DataFrame:
     - MM/DD/YYYY, DD/MM/YYYY, YYYY-MM-DD
     - HH:MM, HH:MM:SS (24h and 12h with AM/PM)
     - Combined datetime formats
-    
+
     Args:
         df: Input DataFrame
-        
+
     Returns:
         DataFrame with datetime columns converted to numeric timestamps
     """
     df_copy = df.copy()
-    
+
     # Common date/time format patterns to try
     date_formats = [
         '%Y-%m-%d',           # YYYY-MM-DD
@@ -94,26 +98,26 @@ def detect_and_convert_datetime_columns(df: pd.DataFrame) -> pd.DataFrame:
         '%I:%M:%S %p',        # HH:MM:SS AM/PM
         '%I:%M %p',           # HH:MM AM/PM
     ]
-    
+
     converted_cols = []
-    
+
     for col in df_copy.columns:
         # Skip if already numeric
         if pd.api.types.is_numeric_dtype(df_copy[col]):
             continue
-            
+
         # Skip if column has too many nulls (>50%)
         if df_copy[col].isnull().sum() / len(df_copy) > 0.5:
             continue
-        
+
         # Try to convert with pandas auto-detection first
         try:
             # Attempt automatic datetime parsing
             temp_series = pd.to_datetime(df_copy[col], errors='coerce', infer_datetime_format=True)
-            
+
             # Check if conversion was successful for most values (>70%)
             success_rate = temp_series.notna().sum() / len(temp_series)
-            
+
             if success_rate > 0.7:
                 # Convert to Unix timestamp (seconds since epoch) for numeric analysis
                 df_copy[col] = temp_series.astype('int64') / 10**9  # Convert nanoseconds to seconds
@@ -121,14 +125,14 @@ def detect_and_convert_datetime_columns(df: pd.DataFrame) -> pd.DataFrame:
                 continue
         except:
             pass
-        
+
         # If auto-detection failed, try specific formats
         converted = False
         for fmt in date_formats:
             try:
                 temp_series = pd.to_datetime(df_copy[col], format=fmt, errors='coerce')
                 success_rate = temp_series.notna().sum() / len(temp_series)
-                
+
                 if success_rate > 0.7:
                     # Convert to Unix timestamp
                     df_copy[col] = temp_series.astype('int64') / 10**9
@@ -137,7 +141,7 @@ def detect_and_convert_datetime_columns(df: pd.DataFrame) -> pd.DataFrame:
                     break
             except:
                 continue
-        
+
         # If still not converted, check for time-only formats
         if not converted:
             try:
@@ -150,11 +154,11 @@ def detect_and_convert_datetime_columns(df: pd.DataFrame) -> pd.DataFrame:
                     converted_cols.append(col)
             except:
                 pass
-    
+
     # Log conversion info if any columns were converted
     if converted_cols:
         st.info(f"📅 Detected and converted {len(converted_cols)} date/time column(s) to numeric: {', '.join(converted_cols)}")
-    
+
     return df_copy
 
 
@@ -308,7 +312,7 @@ Shows: Mean, Median, Std, Min, Max, Skewness, Kurtosis
 
 **Reading values:**
 - **|r| > 0.7**: Strong
-- **|r| 0.3-0.7**: Moderate  
+- **|r| 0.3-0.7**: Moderate
 - **|r| < 0.3**: Weak
 
 ---
@@ -334,7 +338,7 @@ Shows: Mean, Median, Std, Min, Max, Skewness, Kurtosis
 
 ### Buttons Available:
 1. **🎯 Train Model** - Train on current data
-2. **🔄 Cross-Validation** - Test model robustness  
+2. **🔄 Cross-Validation** - Test model robustness
 3. **📊 Feature Importance** - See which features matter
 4. **🔮 Predict** - Apply model to new data
 
@@ -1017,10 +1021,10 @@ def render_tutorial_sidebar():
 
         if st.session_state.show_tutorial:
             st.markdown("---")
-            
+
             # Match the exact tab/subtab structure
             st.markdown("**Select a topic:**")
-            
+
             tutorial_topics = {
                 # Getting started
                 "getting_started": "🚀 Getting Started",
@@ -1105,10 +1109,10 @@ def render_data_tab():
                     st.session_state.df = pd.read_csv(uploaded_file)
                 else:
                     st.session_state.df = pd.read_excel(uploaded_file)
-                
+
                 # Detect and convert date/time columns to numeric
                 st.session_state.df = detect_and_convert_datetime_columns(st.session_state.df)
-                
+
                 st.success(f"✅ Loaded: {uploaded_file.name}")
             except Exception as e:
                 st.error(f"Error loading file: {e}")
@@ -1129,10 +1133,10 @@ def render_data_tab():
                 'feature_3': x3,
                 'target': target
             })
-            
+
             # Detect and convert any date/time columns in sample data
             st.session_state.df = detect_and_convert_datetime_columns(st.session_state.df)
-            
+
             st.success("✅ Sample data generated!")
 
     if st.session_state.df is not None:
@@ -1154,7 +1158,7 @@ def render_data_tab():
 
         with col1:
             numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-            
+
             # Initialize feature_cols in session state if not set or if columns changed
             if 'feature_cols_widget' not in st.session_state:
                 # Set initial default
@@ -1177,7 +1181,7 @@ def render_data_tab():
 
         with col2:
             target_options = ['None'] + numeric_cols
-            
+
             # Initialize target_col widget state if needed
             if 'target_col_widget' not in st.session_state:
                 st.session_state.target_col_widget = 'None'
@@ -1192,23 +1196,23 @@ def render_data_tab():
             )
             # Sync to main session state
             st.session_state.target_col = st.session_state.target_col_widget if st.session_state.target_col_widget != 'None' else None
-        
+
         # Validation: Check for overlap between features and target
         validation_errors = []
         validation_warnings = []
-        
+
         if st.session_state.target_col and st.session_state.target_col in st.session_state.feature_cols:
             validation_errors.append(
                 f"⚠️ **Column Overlap Detected**: '{st.session_state.target_col}' is selected as BOTH a feature AND the target. "
                 "Please remove it from features or choose a different target column."
             )
-        
+
         if len(st.session_state.feature_cols) == 0:
             validation_warnings.append("💡 No feature columns selected. Select at least one feature column for analysis.")
-        
+
         if st.session_state.target_col is None:
             validation_warnings.append("💡 No target column selected. Some analyses (regression, classification) require a target.")
-        
+
         # Display validation messages
         for error in validation_errors:
             st.error(error)
@@ -1222,25 +1226,25 @@ def render_data_tab():
         # Quick plot with Plotly - only if valid selection
         if len(st.session_state.feature_cols) >= 1:
             st.markdown("### Quick Visualization (Interactive!)")
-            
+
             col1, col2, col3 = st.columns([1, 1, 2])
-            
+
             with col1:
                 all_numeric = numeric_cols
-                x_col = st.selectbox("X-axis", all_numeric, 
+                x_col = st.selectbox("X-axis", all_numeric,
                                     index=0 if len(all_numeric) > 0 else 0,
                                     key="quick_viz_x")
-            
+
             with col2:
                 default_y_idx = 1 if len(all_numeric) > 1 else 0
                 # If target is set, use it as default
                 if st.session_state.target_col and st.session_state.target_col in all_numeric:
                     default_y_idx = all_numeric.index(st.session_state.target_col)
-                
+
                 y_col = st.selectbox("Y-axis", all_numeric,
                                     index=default_y_idx,
                                     key="quick_viz_y")
-            
+
             if x_col and y_col:
                 try:
                     fig = px.scatter(
@@ -1249,7 +1253,7 @@ def render_data_tab():
                         title=f'{y_col} vs {x_col}',
                         template=PLOTLY_TEMPLATE
                     )
-                    fig.update_layout(height=500, 
+                    fig.update_layout(height=500,
                                     xaxis_title=x_col,
                                     yaxis_title=y_col)
                     st.plotly_chart(fig, use_container_width=True)
@@ -1292,21 +1296,9 @@ def render_statistical_tab():
 
     with col3:
         outlier_method = st.selectbox("Outlier Method", ['iqr', 'zscore'])
-        # Add threshold controls based on method
-        if outlier_method == 'iqr':
-            iqr_mult = st.slider("IQR Multiplier", 1.0, 3.0, 1.5, 0.1, 
-                                 help="1.5=standard, 3.0=far outliers only")
-            zscore_thresh = 3.0  # not used
-        else:
-            zscore_thresh = st.slider("Z-score Threshold", 2.0, 4.0, 3.0, 0.1,
-                                      help="2.0=stricter, 3.0=standard, 4.0=lenient")
-            iqr_mult = 1.5  # not used
         if st.button("🎯 Outlier Detection", use_container_width=True):
             # Correct method name: outlier_detection
-            st.session_state.analysis_results['outliers'] = stats.outlier_detection(
-                features, method=outlier_method, 
-                iqr_multiplier=iqr_mult, zscore_threshold=zscore_thresh
-            )
+            st.session_state.analysis_results['outliers'] = stats.outlier_detection(features, method=outlier_method)
 
     st.markdown("---")
 
@@ -1334,116 +1326,22 @@ def render_statistical_tab():
         st.subheader("🎯 Outlier Detection Results")
         outlier_data = st.session_state.analysis_results['outliers']
 
-        # Create scatter plot with outliers highlighted using the ACTUAL detected indices
-        from plotly.subplots import make_subplots
-        n_features = len(features)
-        n_cols = min(2, n_features)
-        n_rows = (n_features + n_cols - 1) // n_cols
-        
-        fig = make_subplots(rows=n_rows, cols=n_cols, 
-                           subplot_titles=[f"{col}" for col in features])
-        
-        for idx, col in enumerate(features):
-            row = idx // n_cols + 1
-            col_pos = idx % n_cols + 1
-            
-            info = outlier_data.get(col, {})
-            outlier_indices = info.get('outlier_indices', [])
-            
-            # All points
-            all_values = df[col].values
-            all_indices = list(range(len(all_values)))
-            
-            # Create mask for outliers
-            is_outlier = df.index.isin(outlier_indices)
-            normal_mask = ~is_outlier
-            outlier_mask = is_outlier
-            
-            # Plot normal points (blue)
-            fig.add_trace(
-                go.Scatter(
-                    x=df.index[normal_mask].tolist(),
-                    y=df.loc[normal_mask, col].tolist(),
-                    mode='markers',
-                    marker=dict(color='steelblue', size=5, opacity=0.6),
-                    name=f'{col} (normal)',
-                    showlegend=(idx == 0)
-                ),
-                row=row, col=col_pos
-            )
-            
-            # Plot outlier points (red)
-            if outlier_mask.any():
-                fig.add_trace(
-                    go.Scatter(
-                        x=df.index[outlier_mask].tolist(),
-                        y=df.loc[outlier_mask, col].tolist(),
-                        mode='markers',
-                        marker=dict(color='red', size=8, symbol='x'),
-                        name=f'{col} (outliers)',
-                        showlegend=(idx == 0)
-                    ),
-                    row=row, col=col_pos
-                )
-            
-            # Add bounds as horizontal lines if available (IQR method)
-            if 'lower_bound' in info:
-                fig.add_hline(y=info['lower_bound'], line_dash='dash', line_color='orange',
-                             annotation_text='lower', row=row, col=col_pos)
-            if 'upper_bound' in info:
-                fig.add_hline(y=info['upper_bound'], line_dash='dash', line_color='orange',
-                             annotation_text='upper', row=row, col=col_pos)
-        
-        fig.update_layout(
-            height=300 * n_rows,
-            title='Outlier Detection: Blue = Normal, Red X = Outliers, Orange = Bounds',
-            template=PLOTLY_TEMPLATE,
-            showlegend=True
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Also show box plots for reference (without Plotly's own outlier detection)
+        # Box plots
+        # Use unique column names to avoid conflicts with existing DataFrame columns
         box_data = df[features].melt(var_name='_Feature_', value_name='_Value_')
-        fig_box = px.box(box_data, x='_Feature_', y='_Value_', title='Box Plots (for distribution reference)',
-                    template=PLOTLY_TEMPLATE, points=False)  # Don't show Plotly's outlier points
-        fig_box.update_layout(height=400)
-        st.plotly_chart(fig_box, use_container_width=True)
+        fig = px.box(box_data, x='_Feature_', y='_Value_', title='Box Plots with Outliers',
+                    template=PLOTLY_TEMPLATE, points='outliers')
+        fig.update_layout(height=500)
+        st.plotly_chart(fig, use_container_width=True)
 
-        # Summary table
-        summary_data = []
         for col, info in outlier_data.items():
             n_outliers = info.get('n_outliers', 0)
             pct = info.get('percentage', 0)
-            lower = info.get('lower_bound', 'N/A')
-            upper = info.get('upper_bound', 'N/A')
-            summary_data.append({
-                'Feature': col,
-                'Outliers': n_outliers,
-                'Percentage': f"{pct:.2f}%",
-                'Lower Bound': f"{lower:.4f}" if isinstance(lower, float) else lower,
-                'Upper Bound': f"{upper:.4f}" if isinstance(upper, float) else upper
-            })
-        
-        st.dataframe(pd.DataFrame(summary_data), use_container_width=True)
-        
-        # Expandable details with actual outlier values
-        for col, info in outlier_data.items():
-            n_outliers = info.get('n_outliers', 0)
-            pct = info.get('percentage', 0)
-            method_str = info.get('method', 'IQR')
-            with st.expander(f"**{col}** [{method_str}]: {n_outliers} outliers ({pct:.1f}%) - Click to see values"):
-                outlier_indices = info.get('outlier_indices', [])
-                if outlier_indices and len(outlier_indices) > 0:
-                    # Filter to only valid indices that exist in the dataframe
-                    valid_indices = [idx for idx in outlier_indices if idx in df.index]
-                    if valid_indices:
-                        outlier_values = df.loc[valid_indices, col]
-                        st.write("Outlier indices and values:")
-                        st.dataframe(outlier_values.to_frame(), use_container_width=True)
-                    else:
-                        st.write("No valid outlier indices found.")
-                else:
-                    st.write("✅ No outliers detected.")
+            with st.expander(f"**{col}**: {n_outliers} outliers ({pct:.1f}%)"):
+                if 'lower_bound' in info:
+                    st.write(f"Lower bound: {info['lower_bound']:.4f}")
+                if 'upper_bound' in info:
+                    st.write(f"Upper bound: {info['upper_bound']:.4f}")
 
 
 # =============================================================================
@@ -1465,7 +1363,7 @@ def render_ml_tab():
     df = st.session_state.df
     features = st.session_state.feature_cols
     target = st.session_state.target_col
-    
+
     # Check for duplicate column selection (feature also selected as target)
     if target in features:
         st.error(f"⚠️ Target column '{target}' is also selected as a feature. Please remove it from features or choose a different target.")
@@ -1473,7 +1371,7 @@ def render_ml_tab():
 
     # Initialize with dataframe
     ml = MLModels(df)
-    
+
     # Track if classification data is valid (will be set below)
     classification_data_invalid = False
 
@@ -1481,10 +1379,10 @@ def render_ml_tab():
 
     with col1:
         st.subheader("Model Selection")
-        
+
         # Choose between Regression and Classification
         task_type = st.radio("Task Type", ["Regression", "Classification"], horizontal=True)
-        
+
         if task_type == "Regression":
             model_type = st.selectbox(
                 "Choose Regression Model",
@@ -1497,7 +1395,7 @@ def render_ml_tab():
             model_type = st.selectbox(
                 "Choose Classification Model",
                 ["Logistic Regression", "Random Forest Classifier", "Gradient Boosting Classifier",
-                 "Decision Tree Classifier", "K-Nearest Neighbors (KNN)", 
+                 "Decision Tree Classifier", "K-Nearest Neighbors (KNN)",
                  "Support Vector Machine (SVM)", "Naive Bayes (Gaussian)"],
                 help="Classification models predict categorical labels/classes"
             )
@@ -1505,7 +1403,7 @@ def render_ml_tab():
             unique_values = df[target].nunique()
             is_float_target = df[target].dtype in ['float64', 'float32']
             has_decimals = is_float_target and (df[target] % 1 != 0).any()
-            
+
             if has_decimals:
                 classification_data_invalid = True
                 st.error(f"⚠️ Target '{target}' contains continuous (decimal) values. Classification requires discrete classes. Switch to Regression or use a target with discrete categories.")
@@ -1514,7 +1412,7 @@ def render_ml_tab():
 
         cv_folds = st.slider("Cross-validation folds", 2, 10, 5)
         test_size = st.slider("Test size (fraction)", 0.1, 0.4, 0.2)
-        
+
         # Show data info
         st.info(f"📊 Training data: {len(df)} samples, {len(features)} features")
 
@@ -1566,23 +1464,23 @@ def render_ml_tab():
             st.error(results['error'])
         else:
             is_classifier = results.get('is_classifier', False)
-            
+
             if is_classifier:
                 # Classification results
                 st.subheader("📈 Classification Results")
-                
+
                 col1, col2, col3, col4 = st.columns(4)
                 col1.metric("Accuracy", f"{results.get('accuracy', 0):.4f}")
                 col2.metric("Precision", f"{results.get('precision', 0):.4f}")
                 col3.metric("Recall", f"{results.get('recall', 0):.4f}")
                 col4.metric("F1 Score", f"{results.get('f1_score', 0):.4f}")
-                
+
                 # Confusion Matrix
                 if 'confusion_matrix' in results:
                     st.markdown("**Confusion Matrix:**")
                     cm = np.array(results['confusion_matrix'])
                     classes = results.get('classes', list(range(len(cm))))
-                    
+
                     fig_cm = go.Figure(data=go.Heatmap(
                         z=cm,
                         x=[f'Pred: {c}' for c in classes],
@@ -1601,7 +1499,7 @@ def render_ml_tab():
                         height=400
                     )
                     st.plotly_chart(fig_cm, use_container_width=True)
-                
+
                 # Classification Report
                 if 'classification_report' in results:
                     with st.expander("📋 Detailed Classification Report"):
@@ -1611,7 +1509,7 @@ def render_ml_tab():
                 st.subheader("📈 Regression Results")
 
                 col1, col2, col3, col4 = st.columns(4)
-                col1.metric("R² Score", f"{results.get('r2', 0):.4f}", 
+                col1.metric("R² Score", f"{results.get('r2', 0):.4f}",
                            help="Coefficient of determination: 1.0 = perfect fit, 0 = no predictive power")
                 col2.metric("RMSE", f"{results.get('rmse', 0):.4f}",
                            help="Root Mean Square Error: average prediction error in target units")
@@ -1637,12 +1535,12 @@ def render_ml_tab():
                 # PLOT 1: Training Data - Actual vs Model Predictions (Test Set)
                 # ═══════════════════════════════════════════════════════════════
                 st.markdown("### 📊 Plot 1: Model Evaluation on Test Set")
-                
+
                 if 'y_test' in results and 'predictions' in results:
                     try:
                         y_test = results['y_test']
                         y_pred = results['predictions']
-                        
+
                         # Convert to numpy arrays, handling pandas Series
                         if hasattr(y_test, 'values'):
                             y_test = y_test.values
@@ -1650,9 +1548,9 @@ def render_ml_tab():
                         y_pred = np.array(y_pred).flatten()
 
                         st.caption(f"Showing {len(y_test)} test samples. Blue = Actual values, Orange = Model predictions.")
-                        
+
                         fig_train = go.Figure()
-                        
+
                         # Get X_test for x-axis if available
                         result_features = results.get('features', features)
                         if 'X_test' in results and len(result_features) > 0:
@@ -1663,7 +1561,7 @@ def render_ml_tab():
                             else:
                                 x_vals = np.array(X_test[x_feature])
                             x_label = x_feature
-                            
+
                             # Sort by x for cleaner visualization
                             sort_idx = np.argsort(x_vals)
                             x_sorted = x_vals[sort_idx]
@@ -1674,45 +1572,45 @@ def render_ml_tab():
                             y_test_sorted = y_test
                             y_pred_sorted = y_pred
                             x_label = "Sample Index"
-                        
+
                         # Actual values (blue circles)
                         fig_train.add_trace(go.Scatter(
-                            x=x_sorted, 
-                            y=y_test_sorted, 
+                            x=x_sorted,
+                            y=y_test_sorted,
                             mode='markers',
-                            name='Actual (Test Set)', 
+                            name='Actual (Test Set)',
                             marker=dict(opacity=0.7, color='steelblue', size=10, symbol='circle')
                         ))
-                        
+
                         # Model predictions (orange diamonds)
                         fig_train.add_trace(go.Scatter(
-                            x=x_sorted, 
-                            y=y_pred_sorted, 
+                            x=x_sorted,
+                            y=y_pred_sorted,
                             mode='markers',
-                            name='Model Prediction', 
+                            name='Model Prediction',
                             marker=dict(opacity=0.8, color='darkorange', size=8, symbol='diamond')
                         ))
-                        
+
                         # Add trend line through predictions (sorted)
                         fig_train.add_trace(go.Scatter(
-                            x=x_sorted, 
-                            y=y_pred_sorted, 
+                            x=x_sorted,
+                            y=y_pred_sorted,
                             mode='lines',
-                            name='Prediction Trend', 
+                            name='Prediction Trend',
                             line=dict(color='darkorange', width=2, dash='dash'),
                             showlegend=False
                         ))
-                        
+
                         fig_train.update_layout(
                             title=f'Model Evaluation: Actual vs Predicted ({target})',
                             xaxis_title=x_label,
-                            yaxis_title=f'{target}', 
-                            template=PLOTLY_TEMPLATE, 
+                            yaxis_title=f'{target}',
+                            template=PLOTLY_TEMPLATE,
                             height=500,
                             legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.99)
                         )
                         st.plotly_chart(fig_train, use_container_width=True)
-                        
+
                         # Residual info
                         residuals = y_test_sorted - y_pred_sorted
                         with st.expander("📉 Residual Analysis"):
@@ -1750,7 +1648,7 @@ def render_ml_tab():
 
     if trained_model is None:
         st.info("💡 Train a model above first, then click Predict to make predictions on this data.")
-    
+
     # Always show predict button (disabled state handled by logic)
     predict_disabled = trained_model is None
     if st.button("🔮 Predict", use_container_width=True, disabled=predict_disabled):
@@ -1777,139 +1675,260 @@ def render_ml_tab():
             # PLOT 2: New Data Predictions
             # ═══════════════════════════════════════════════════════════════
             st.markdown("### 📊 Plot 2: Predictions on New Data")
-            
+
             base_df = st.session_state.get('ml_prediction_df')
             full_df = st.session_state.get('ml_prediction_full_df')  # Full df with target column
             plot_features = st.session_state.get('trained_features', [])
             trained_target = st.session_state.get('trained_target', 'target')
-            
+            trained_task_type = st.session_state.get('trained_task_type', 'Regression')
+            is_classification = trained_task_type == "Classification"
+
             if base_df is not None:
                 try:
                     preview_df = base_df.iloc[:len(preds['predictions'])].copy()
                     preview_df['prediction'] = preds['predictions']
-                    
+
                     # Check if new data has actual target values for comparison
                     has_actual = False
                     if full_df is not None and trained_target in full_df.columns:
                         has_actual = True
                         actual_values = full_df[trained_target].iloc[:len(preds['predictions'])].values
                         preview_df['actual'] = actual_values
-                    
+
                     # Prediction metrics (if actual values available)
                     if has_actual:
                         pred_vals = np.array(preds['predictions'])
                         actual_vals = np.array(actual_values)
-                        
-                        # Filter out NaN values
-                        mask = ~(np.isnan(pred_vals) | np.isnan(actual_vals))
-                        if mask.sum() > 0:
-                            pred_clean = pred_vals[mask]
-                            actual_clean = actual_vals[mask]
-                            
-                            pred_r2 = 1 - np.sum((actual_clean - pred_clean)**2) / np.sum((actual_clean - np.mean(actual_clean))**2)
-                            pred_rmse = np.sqrt(np.mean((actual_clean - pred_clean)**2))
-                            pred_mae = np.mean(np.abs(actual_clean - pred_clean))
-                            
-                            st.markdown("**📈 Prediction Quality Metrics (comparing to actual values in new data):**")
-                            col1, col2, col3, col4 = st.columns(4)
-                            col1.metric("R² Score", f"{pred_r2:.4f}",
-                                       help="How well predictions match actuals: 1.0 = perfect")
-                            col2.metric("RMSE", f"{pred_rmse:.4f}",
-                                       help="Root Mean Square Error")
-                            col3.metric("MAE", f"{pred_mae:.4f}",
-                                       help="Mean Absolute Error")
-                            col4.metric("N Samples", f"{len(pred_clean)}",
-                                       help="Number of samples compared")
-                    
-                    # Summary stats for predictions
-                    st.markdown("**📊 Prediction Summary:**")
-                    col1, col2, col3, col4 = st.columns(4)
-                    col1.metric("Min Prediction", f"{np.min(preds['predictions']):.4f}")
-                    col2.metric("Max Prediction", f"{np.max(preds['predictions']):.4f}")
-                    col3.metric("Mean Prediction", f"{np.mean(preds['predictions']):.4f}")
-                    col4.metric("Std Prediction", f"{np.std(preds['predictions']):.4f}")
-                    
-                    # Create visualization
-                    if len(plot_features) >= 1:
-                        x_feature = plot_features[0]
-                        has_x_feature = x_feature in preview_df.columns
-                        
-                        if has_x_feature:
-                            # Sort by x for cleaner visualization
-                            sort_idx = np.argsort(preview_df[x_feature].values)
-                            x_sorted = preview_df[x_feature].values[sort_idx]
-                            pred_sorted = preview_df['prediction'].values[sort_idx]
-                            
-                            fig_pred = go.Figure()
-                            
-                            # If we have actual values, show them
-                            if has_actual:
-                                actual_sorted = preview_df['actual'].values[sort_idx]
-                                st.caption("🔵 Blue = Actual values (from new data) | 🔴 Red = Model predictions")
+
+                        if is_classification:
+                            # ═══════════════════════════════════════════════════════════════
+                            # CLASSIFICATION METRICS
+                            # ═══════════════════════════════════════════════════════════════
+                            from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix as sk_confusion_matrix
+                            try:
+                                # Convert predictions to same type as actuals if needed
+                                if actual_vals.dtype != pred_vals.dtype:
+                                    pred_vals = pred_vals.astype(actual_vals.dtype)
                                 
+                                accuracy = accuracy_score(actual_vals, pred_vals)
+                                # Use average='weighted' for multi-class
+                                precision = precision_score(actual_vals, pred_vals, average='weighted', zero_division=0)
+                                recall = recall_score(actual_vals, pred_vals, average='weighted', zero_division=0)
+                                f1 = f1_score(actual_vals, pred_vals, average='weighted', zero_division=0)
+                                
+                                st.markdown("**📈 Classification Metrics (comparing to actual labels in new data):**")
+                                col1, col2, col3, col4 = st.columns(4)
+                                col1.metric("Accuracy", f"{accuracy:.4f}",
+                                           help="Proportion of correct predictions")
+                                col2.metric("Precision", f"{precision:.4f}",
+                                           help="Weighted precision across classes")
+                                col3.metric("Recall", f"{recall:.4f}",
+                                           help="Weighted recall across classes")
+                                col4.metric("F1 Score", f"{f1:.4f}",
+                                           help="Weighted F1 score")
+                                
+                                # Confusion Matrix
+                                cm = sk_confusion_matrix(actual_vals, pred_vals)
+                                classes = np.unique(np.concatenate([actual_vals, pred_vals]))
+                                
+                                st.markdown("**🔲 Confusion Matrix (Predictions vs Actual):**")
+                                fig_cm = go.Figure(data=go.Heatmap(
+                                    z=cm,
+                                    x=[f'Pred: {c}' for c in classes],
+                                    y=[f'Actual: {c}' for c in classes],
+                                    colorscale='Blues',
+                                    showscale=True,
+                                    text=cm,
+                                    texttemplate='%{text}',
+                                    textfont={"size": 14}
+                                ))
+                                fig_cm.update_layout(
+                                    title='Confusion Matrix: New Data Predictions',
+                                    xaxis_title='Predicted',
+                                    yaxis_title='Actual',
+                                    template=PLOTLY_TEMPLATE,
+                                    height=400
+                                )
+                                st.plotly_chart(fig_cm, use_container_width=True)
+                                
+                            except Exception as e:
+                                st.error(f"Error computing classification metrics: {e}")
+                        else:
+                            # ═══════════════════════════════════════════════════════════════
+                            # REGRESSION METRICS
+                            # ═══════════════════════════════════════════════════════════════
+                            # Filter out NaN values
+                            mask = ~(np.isnan(pred_vals.astype(float)) | np.isnan(actual_vals.astype(float)))
+                            if mask.sum() > 0:
+                                pred_clean = pred_vals[mask].astype(float)
+                                actual_clean = actual_vals[mask].astype(float)
+
+                                pred_r2 = 1 - np.sum((actual_clean - pred_clean)**2) / np.sum((actual_clean - np.mean(actual_clean))**2)
+                                pred_rmse = np.sqrt(np.mean((actual_clean - pred_clean)**2))
+                                pred_mae = np.mean(np.abs(actual_clean - pred_clean))
+
+                                st.markdown("**📈 Regression Metrics (comparing to actual values in new data):**")
+                                col1, col2, col3, col4 = st.columns(4)
+                                col1.metric("R² Score", f"{pred_r2:.4f}",
+                                           help="How well predictions match actuals: 1.0 = perfect")
+                                col2.metric("RMSE", f"{pred_rmse:.4f}",
+                                           help="Root Mean Square Error")
+                                col3.metric("MAE", f"{pred_mae:.4f}",
+                                           help="Mean Absolute Error")
+                                col4.metric("N Samples", f"{len(pred_clean)}",
+                                           help="Number of samples compared")
+
+                    # Summary stats and visualization - handle classification vs regression differently
+                    if is_classification:
+                        # ═══════════════════════════════════════════════════════════════
+                        # CLASSIFICATION VISUALIZATION
+                        # ═══════════════════════════════════════════════════════════════
+                        st.markdown("**📊 Prediction Distribution by Class:**")
+                        
+                        pred_counts = pd.Series(preds['predictions']).value_counts().sort_index()
+                        
+                        if has_actual:
+                            actual_counts = pd.Series(actual_values).value_counts().sort_index()
+                            all_classes = sorted(set(pred_counts.index) | set(actual_counts.index))
+                            
+                            # Create grouped bar chart
+                            fig_dist = go.Figure()
+                            fig_dist.add_trace(go.Bar(
+                                name='Actual',
+                                x=[str(c) for c in all_classes],
+                                y=[actual_counts.get(c, 0) for c in all_classes],
+                                marker_color='steelblue'
+                            ))
+                            fig_dist.add_trace(go.Bar(
+                                name='Predicted',
+                                x=[str(c) for c in all_classes],
+                                y=[pred_counts.get(c, 0) for c in all_classes],
+                                marker_color='crimson'
+                            ))
+                            fig_dist.update_layout(
+                                title='Class Distribution: Actual vs Predicted',
+                                xaxis_title='Class',
+                                yaxis_title='Count',
+                                barmode='group',
+                                template=PLOTLY_TEMPLATE,
+                                height=400
+                            )
+                        else:
+                            fig_dist = go.Figure(data=[
+                                go.Bar(
+                                    x=[str(c) for c in pred_counts.index],
+                                    y=pred_counts.values,
+                                    marker_color='crimson'
+                                )
+                            ])
+                            fig_dist.update_layout(
+                                title='Predicted Class Distribution',
+                                xaxis_title='Class',
+                                yaxis_title='Count',
+                                template=PLOTLY_TEMPLATE,
+                                height=400
+                            )
+                        st.plotly_chart(fig_dist, use_container_width=True)
+                        
+                        # Summary stats
+                        col1, col2, col3, col4 = st.columns(4)
+                        col1.metric("N Predictions", len(preds['predictions']))
+                        col2.metric("Unique Classes", len(pred_counts))
+                        col3.metric("Most Common", str(pred_counts.idxmax()))
+                        col4.metric("Most Common Count", int(pred_counts.max()))
+                    else:
+                        # ═══════════════════════════════════════════════════════════════
+                        # REGRESSION VISUALIZATION
+                        # ═══════════════════════════════════════════════════════════════
+                        # Summary stats for predictions
+                        st.markdown("**📊 Prediction Summary:**")
+                        col1, col2, col3, col4 = st.columns(4)
+                        col1.metric("Min Prediction", f"{np.min(preds['predictions']):.4f}")
+                        col2.metric("Max Prediction", f"{np.max(preds['predictions']):.4f}")
+                        col3.metric("Mean Prediction", f"{np.mean(preds['predictions']):.4f}")
+                        col4.metric("Std Prediction", f"{np.std(preds['predictions']):.4f}")
+
+                        # Create visualization (regression only - scatter plot)
+                        if len(plot_features) >= 1:
+                            x_feature = plot_features[0]
+                            has_x_feature = x_feature in preview_df.columns
+
+                            if has_x_feature:
+                                # Sort by x for cleaner visualization
+                                sort_idx = np.argsort(preview_df[x_feature].values)
+                                x_sorted = preview_df[x_feature].values[sort_idx]
+                                pred_sorted = preview_df['prediction'].values[sort_idx]
+
+                                fig_pred = go.Figure()
+
+                                # If we have actual values, show them
+                                if has_actual:
+                                    actual_sorted = preview_df['actual'].values[sort_idx]
+                                    st.caption("🔵 Blue = Actual values (from new data) | 🔴 Red = Model predictions")
+
+                                    fig_pred.add_trace(go.Scatter(
+                                        x=x_sorted,
+                                        y=actual_sorted,
+                                        mode='markers',
+                                        name=f'Actual ({trained_target})',
+                                        marker=dict(color='steelblue', size=10, opacity=0.7, symbol='circle')
+                                    ))
+                                else:
+                                    st.caption("🔴 Red diamonds = Model predictions for new data inputs")
+
+                                # Predictions
                                 fig_pred.add_trace(go.Scatter(
                                     x=x_sorted,
-                                    y=actual_sorted,
+                                    y=pred_sorted,
                                     mode='markers',
-                                    name=f'Actual ({trained_target})',
-                                    marker=dict(color='steelblue', size=10, opacity=0.7, symbol='circle')
+                                    name='Predictions',
+                                    marker=dict(color='crimson', size=10, opacity=0.9, symbol='diamond')
                                 ))
+
+                                # Prediction trend line
+                                fig_pred.add_trace(go.Scatter(
+                                    x=x_sorted,
+                                    y=pred_sorted,
+                                    mode='lines',
+                                    name='Prediction Trend',
+                                    line=dict(color='crimson', width=2, dash='dash'),
+                                    showlegend=False
+                                ))
+
+                                fig_pred.update_layout(
+                                    title=f'New Data: Predictions vs {x_feature}',
+                                    xaxis_title=x_feature,
+                                    yaxis_title=trained_target,
+                                    template=PLOTLY_TEMPLATE,
+                                    height=500,
+                                    legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.99)
+                                )
+                                st.plotly_chart(fig_pred, use_container_width=True)
                             else:
-                                st.caption("🔴 Red diamonds = Model predictions for new data inputs")
-                            
-                            # Predictions
-                            fig_pred.add_trace(go.Scatter(
-                                x=x_sorted,
-                                y=pred_sorted,
-                                mode='markers',
-                                name='Predictions',
-                                marker=dict(color='crimson', size=10, opacity=0.9, symbol='diamond')
-                            ))
-                            
-                            # Prediction trend line
-                            fig_pred.add_trace(go.Scatter(
-                                x=x_sorted,
-                                y=pred_sorted,
-                                mode='lines',
-                                name='Prediction Trend',
-                                line=dict(color='crimson', width=2, dash='dash'),
-                                showlegend=False
-                            ))
-                            
-                            fig_pred.update_layout(
-                                title=f'New Data: Predictions vs {x_feature}',
-                                xaxis_title=x_feature,
-                                yaxis_title=trained_target,
-                                template=PLOTLY_TEMPLATE,
-                                height=500,
-                                legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.99)
-                            )
-                            st.plotly_chart(fig_pred, use_container_width=True)
-                        else:
-                            # Fallback: plot by index
-                            st.caption("🔴 Red diamonds = Model predictions")
-                            fig_pred = go.Figure()
-                            fig_pred.add_trace(go.Scatter(
-                                x=list(range(len(preview_df))),
-                                y=preview_df['prediction'].values,
-                                mode='markers+lines',
-                                name='Predictions',
-                                marker=dict(color='crimson', size=10, symbol='diamond'),
-                                line=dict(color='crimson', width=1, dash='dot')
-                            ))
-                            fig_pred.update_layout(
-                                title='Predictions by Sample Index',
-                                xaxis_title='Sample Index',
-                                yaxis_title='Predicted Value',
-                                template=PLOTLY_TEMPLATE,
-                                height=450
-                            )
-                            st.plotly_chart(fig_pred, use_container_width=True)
-                    
+                                # Fallback: plot by index
+                                st.caption("🔴 Red diamonds = Model predictions")
+                                fig_pred = go.Figure()
+                                fig_pred.add_trace(go.Scatter(
+                                    x=list(range(len(preview_df))),
+                                    y=preview_df['prediction'].values,
+                                    mode='markers+lines',
+                                    name='Predictions',
+                                    marker=dict(color='crimson', size=10, symbol='diamond'),
+                                    line=dict(color='crimson', width=1, dash='dot')
+                                ))
+                                fig_pred.update_layout(
+                                    title='Predictions by Sample Index',
+                                    xaxis_title='Sample Index',
+                                    yaxis_title='Predicted Value',
+                                    template=PLOTLY_TEMPLATE,
+                                    height=450
+                                )
+                                st.plotly_chart(fig_pred, use_container_width=True)
+
                     # Data table
                     with st.expander("📋 Predictions Table (first 100 rows)", expanded=False):
                         st.dataframe(preview_df.head(100), use_container_width=True)
-                        
+
                         # Download button
                         csv = preview_df.to_csv(index=False)
                         st.download_button(
@@ -1918,7 +1937,7 @@ def render_ml_tab():
                             file_name="predictions.csv",
                             mime="text/csv"
                         )
-                        
+
                 except Exception as e:
                     st.error(f"Visualization error: {e}")
                     import traceback
@@ -1953,27 +1972,744 @@ def render_ml_tab():
 
 
 # =============================================================================
+# NEURAL NETWORKS TAB
+# =============================================================================
+def render_neural_networks_tab():
+    """Render Neural Networks tab for deep learning models"""
+    st.header("🧠 Neural Networks")
+    
+    # Check TensorFlow availability
+    if not TF_AVAILABLE:
+        st.error("⚠️ TensorFlow is not installed. Neural Networks features are unavailable.")
+        st.info("Install TensorFlow with: `pip install tensorflow`")
+        return
+    
+    # Educational introduction
+    with st.expander("ℹ️ About Neural Networks - Deep Learning for Data Analysis", expanded=False):
+        st.markdown("""
+        ### 🧠 Neural Network Models
+        
+        This module provides deep learning models for:
+        
+        **1. Multi-Layer Perceptron (MLP)**
+        - Flexible feedforward networks for regression and classification
+        - Configurable hidden layers and activation functions
+        - Dropout regularization to prevent overfitting
+        
+        **2. LSTM (Long Short-Term Memory)**
+        - Specialized for time series forecasting
+        - Captures long-range temporal dependencies
+        - Generates future predictions beyond your data
+        
+        **3. Autoencoder**
+        - Unsupervised anomaly detection
+        - Learns compressed data representations
+        - Detects anomalies via reconstruction error
+        
+        **When to use Neural Networks:**
+        - Complex non-linear relationships
+        - Large datasets (1000+ samples recommended)
+        - Time series with temporal patterns
+        - When traditional ML models underperform
+        """)
+    
+    if st.session_state.df is None:
+        st.warning("📁 Please load data first using the Data & Preview tab")
+        return
+    
+    df = st.session_state.df
+    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    
+    if len(numeric_cols) < 2:
+        st.warning("⚠️ Need at least 2 numeric columns for neural network analysis")
+        return
+    
+    # Model selection
+    nn_model_type = st.selectbox(
+        "Select Neural Network Model",
+        ["MLP (Multi-Layer Perceptron)", "LSTM (Time Series Forecasting)", "Autoencoder (Anomaly Detection)"]
+    )
+    
+    # Initialize NeuralNetworkModels
+    nn = NeuralNetworkModels(df)
+    
+    # =========================================================================
+    # MLP
+    # =========================================================================
+    if nn_model_type == "MLP (Multi-Layer Perceptron)":
+        st.subheader("🔮 Multi-Layer Perceptron")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            target_col = st.selectbox("Target Variable", numeric_cols, key="mlp_target")
+            task_type = st.radio("Task Type", ["regression", "classification"], key="mlp_task")
+        
+        with col2:
+            feature_cols = st.multiselect(
+                "Feature Variables",
+                [c for c in numeric_cols if c != target_col],
+                default=[c for c in numeric_cols if c != target_col][:5],
+                key="mlp_features"
+            )
+        
+        # Architecture settings
+        with st.expander("🔧 Network Architecture", expanded=True):
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                n_layers = st.slider("Hidden Layers", 1, 5, 2, key="mlp_layers")
+                neurons = st.slider("Neurons per Layer", 8, 256, 64, key="mlp_neurons")
+            with col2:
+                dropout = st.slider("Dropout Rate", 0.0, 0.5, 0.2, key="mlp_dropout")
+                activation = st.selectbox("Activation", ["relu", "tanh", "sigmoid"], key="mlp_activation")
+            with col3:
+                epochs = st.slider("Epochs", 10, 200, 50, key="mlp_epochs")
+                batch_size = st.slider("Batch Size", 8, 128, 32, key="mlp_batch")
+        
+        hidden_layers = [neurons] * n_layers
+        
+        # Filter out target from features if accidentally selected (can happen with cached widget state)
+        feature_cols_clean = [f for f in feature_cols if f != target_col]
+        
+        # Show warning if target was in features
+        if len(feature_cols_clean) < len(feature_cols):
+            st.warning(f"⚠️ Removed '{target_col}' from features (target cannot be a feature)")
+        
+        if st.button("🚀 Train MLP", type="primary", key="train_mlp"):
+            if len(feature_cols_clean) < 1:
+                st.error("Select at least 1 feature (excluding target)")
+                return
+            
+            with st.spinner("Training MLP..."):
+                try:
+                    if task_type == "regression":
+                        results = nn.mlp_regressor(
+                            features=feature_cols_clean,
+                            target=target_col,
+                            hidden_layers=hidden_layers,
+                            activation=activation,
+                            dropout_rate=dropout,
+                            epochs=epochs,
+                            batch_size=batch_size,
+                            verbose=0
+                        )
+                    else:
+                        results = nn.mlp_classifier(
+                            features=feature_cols_clean,
+                            target=target_col,
+                            hidden_layers=hidden_layers,
+                            activation=activation,
+                            dropout_rate=dropout,
+                            epochs=epochs,
+                            batch_size=batch_size,
+                            verbose=0
+                        )
+                    
+                    st.success("✅ MLP Training Complete!")
+                    
+                    # Store trained model info in session state for prediction
+                    st.session_state['nn_model'] = nn
+                    st.session_state['nn_features'] = feature_cols_clean  # Use cleaned features
+                    st.session_state['nn_target'] = target_col
+                    st.session_state['nn_task'] = task_type
+                    
+                    # Metrics
+                    col1, col2, col3 = st.columns(3)
+                    if task_type == "regression":
+                        col1.metric("Test RMSE", f"{results['rmse']:.4f}")
+                        col2.metric("Test MAE", f"{results['mae']:.4f}")
+                        col3.metric("Test R²", f"{results['r2']:.4f}")
+                    else:
+                        col1.metric("Test Accuracy", f"{results['accuracy']:.2%}")
+                        col2.metric("Test Precision", f"{results['precision']:.2%}")
+                        col3.metric("Test F1 Score", f"{results['f1_score']:.2%}")
+                    
+                    # Training history
+                    if 'training_history' in results:
+                        st.subheader("📈 Training History")
+                        history = results['training_history']
+                        
+                        fig = make_subplots(rows=1, cols=2, subplot_titles=["Loss", "Metric"])
+                        
+                        # Loss
+                        fig.add_trace(go.Scatter(y=history['loss'], name='Train Loss', line=dict(color='blue')), row=1, col=1)
+                        if 'val_loss' in history:
+                            fig.add_trace(go.Scatter(y=history['val_loss'], name='Val Loss', line=dict(color='red')), row=1, col=1)
+                        
+                        # Metric
+                        metric_key = 'mae' if task_type == 'regression' else 'accuracy'
+                        if metric_key in history:
+                            fig.add_trace(go.Scatter(y=history[metric_key], name=f'Train {metric_key}', line=dict(color='green')), row=1, col=2)
+                            if f'val_{metric_key}' in history:
+                                fig.add_trace(go.Scatter(y=history[f'val_{metric_key}'], name=f'Val {metric_key}', line=dict(color='orange')), row=1, col=2)
+                        
+                        fig.update_layout(template=PLOTLY_TEMPLATE, height=400, showlegend=True)
+                        st.plotly_chart(fig, use_container_width=True)
+                    
+                    st.info("✅ Model trained! Now upload a prediction file below to test on new data.")
+                        
+                except Exception as e:
+                    st.error(f"❌ MLP Training failed: {str(e)}")
+        
+        # Prediction on new data
+        st.markdown("---")
+        st.subheader("🔮 Predict & Compare on New Data")
+        
+        # Check if we have a properly trained model with stored features
+        has_trained_model = 'nn_model' in st.session_state and 'nn_features' in st.session_state
+        
+        if has_trained_model:
+            stored_features = st.session_state['nn_features']
+            stored_target = st.session_state['nn_target']
+            stored_task = st.session_state['nn_task']
+            
+            st.caption(f"Upload a CSV with features ({', '.join(stored_features[:3])}{'...' if len(stored_features) > 3 else ''}) AND the target column '{stored_target}' to compare predictions vs actual values")
+            st.info(f"**Trained model expects:** Features: {stored_features}, Target: '{stored_target}', Task: {stored_task}")
+        else:
+            st.info("💡 Train a model above first, then upload a prediction file here.")
+            stored_features = feature_cols  # Fallback for display only
+            stored_target = target_col
+            stored_task = task_type
+        
+        predict_file = st.file_uploader("Upload Prediction/Test File (CSV)", type=['csv'], key="mlp_predict_file")
+        
+        if predict_file is not None:
+            try:
+                predict_df = pd.read_csv(predict_file)
+                st.write(f"📊 Loaded {len(predict_df)} samples with {len(predict_df.columns)} columns")
+                st.dataframe(predict_df.head(), use_container_width=True)
+                
+                # Check if we have a trained model
+                if not has_trained_model:
+                    st.warning("⚠️ Train a model first before making predictions")
+                else:
+                    # Check features exist in prediction file (use stored features from training)
+                    missing_features = [f for f in stored_features if f not in predict_df.columns]
+                    has_target = stored_target in predict_df.columns
+                    
+                    if missing_features:
+                        st.error(f"❌ Missing features in prediction file: {missing_features}")
+                        st.info(f"Expected features (from training): {stored_features}")
+                    elif not has_target:
+                        st.warning(f"⚠️ Target column '{stored_target}' not found in prediction file. Will show predictions only (no comparison).")
+                    
+                    if st.button("🎯 Make Predictions", type="primary", key="mlp_predict_btn"):
+                        if missing_features:
+                            st.error("Cannot predict - missing features")
+                        else:
+                            with st.spinner("Making predictions..."):
+                                try:
+                                    nn_model = st.session_state['nn_model']
+                                    pred_results = nn_model.mlp_predict(
+                                        new_data=predict_df,
+                                        features=stored_features,
+                                        model_type='regressor' if stored_task == 'regression' else 'classifier'
+                                    )
+                                    
+                                    if 'error' in pred_results:
+                                        st.error(f"❌ {pred_results['error']}")
+                                    else:
+                                        st.success(f"✅ Predictions complete for {pred_results['n_samples']} samples!")
+                                        
+                                        # Add predictions to dataframe
+                                        result_df = predict_df.copy()
+                                        result_df['Predicted'] = pred_results['predictions']
+                                        
+                                        # If we have actual values, compare
+                                        if has_target:
+                                            actual = predict_df[stored_target].values
+                                            predicted = pred_results['predictions']
+                                            
+                                            if stored_task == 'regression':
+                                                # Calculate metrics
+                                                from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+                                                mse = mean_squared_error(actual, predicted)
+                                                mae = mean_absolute_error(actual, predicted)
+                                                r2 = r2_score(actual, predicted)
+                                                
+                                                st.subheader("📊 Prediction Performance")
+                                                col1, col2, col3 = st.columns(3)
+                                                col1.metric("RMSE", f"{np.sqrt(mse):.4f}")
+                                                col2.metric("MAE", f"{mae:.4f}")
+                                                col3.metric("R²", f"{r2:.4f}")
+                                                
+                                                # Predicted vs Actual plot
+                                                st.subheader("🎯 Predicted vs Actual Values")
+                                                fig = go.Figure()
+                                                
+                                                # Scatter plot of predictions
+                                                fig.add_trace(go.Scatter(
+                                                    x=actual,
+                                                    y=predicted,
+                                                    mode='markers',
+                                                    marker=dict(color='steelblue', size=8, opacity=0.7),
+                                                    name='Predictions',
+                                                    hovertemplate='Actual: %{x:.2f}<br>Predicted: %{y:.2f}<extra></extra>'
+                                                ))
+                                                
+                                                # Perfect prediction line (y=x)
+                                                min_val = min(actual.min(), predicted.min())
+                                                max_val = max(actual.max(), predicted.max())
+                                                fig.add_trace(go.Scatter(
+                                                    x=[min_val, max_val],
+                                                    y=[min_val, max_val],
+                                                    mode='lines',
+                                                    line=dict(color='red', dash='dash', width=2),
+                                                    name='Perfect Prediction (y=x)'
+                                                ))
+                                                
+                                                fig.update_layout(
+                                                    title=f'Model Predictions vs Actual Values for {target_col}',
+                                                    xaxis_title=f'Actual {target_col}',
+                                                    yaxis_title=f'Predicted {target_col}',
+                                                    template=PLOTLY_TEMPLATE,
+                                                    height=500
+                                                )
+                                                st.plotly_chart(fig, use_container_width=True)
+                                                
+                                                # Residuals plot
+                                                residuals = predicted - actual
+                                                result_df['Residual'] = residuals
+                                                
+                                                fig2 = go.Figure()
+                                                fig2.add_trace(go.Scatter(
+                                                    x=predicted,
+                                                    y=residuals,
+                                                    mode='markers',
+                                                    marker=dict(color='coral', size=8, opacity=0.7),
+                                                    name='Residuals'
+                                                ))
+                                                fig2.add_hline(y=0, line_dash="dash", line_color="black")
+                                                fig2.update_layout(
+                                                    title='Residuals Plot (Predicted - Actual)',
+                                                    xaxis_title='Predicted Value',
+                                                    yaxis_title='Residual',
+                                                    template=PLOTLY_TEMPLATE,
+                                                    height=400
+                                                )
+                                                st.plotly_chart(fig2, use_container_width=True)
+                                                
+                                            else:  # Classification
+                                                from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+                                                import plotly.graph_objects as go
+                                                import numpy as np
+                                                accuracy = accuracy_score(actual, predicted)
+                                                st.subheader("📊 Classification Performance")
+                                                st.metric("Accuracy", f"{accuracy:.2%}")
+                                                # Classification report
+                                                report = classification_report(actual, predicted, output_dict=True)
+                                                st.dataframe(pd.DataFrame(report).T, use_container_width=True)
+
+                                                # Confusion matrix plot
+                                                st.subheader("🔲 Confusion Matrix")
+                                                cm = confusion_matrix(actual, predicted)
+                                                classes = np.unique(np.concatenate([actual, predicted]))
+                                                fig_cm = go.Figure(data=go.Heatmap(
+                                                    z=cm,
+                                                    x=[f'Pred: {c}' for c in classes],
+                                                    y=[f'Actual: {c}' for c in classes],
+                                                    colorscale='Blues',
+                                                    showscale=True,
+                                                    text=cm,
+                                                    texttemplate='%{text}',
+                                                    textfont={"size": 14}
+                                                ))
+                                                fig_cm.update_layout(
+                                                    title='Confusion Matrix',
+                                                    xaxis_title='Predicted',
+                                                    yaxis_title='Actual',
+                                                    template=PLOTLY_TEMPLATE,
+                                                    height=400
+                                                )
+                                                st.plotly_chart(fig_cm, use_container_width=True)
+
+                                                # Bar plot of class distributions
+                                                st.subheader("📊 Class Distribution: Actual vs Predicted")
+                                                import pandas as pd
+                                                actual_counts = pd.Series(actual).value_counts().sort_index()
+                                                pred_counts = pd.Series(predicted).value_counts().sort_index()
+                                                all_classes = sorted(set(actual_counts.index) | set(pred_counts.index))
+                                                fig_bar = go.Figure()
+                                                fig_bar.add_trace(go.Bar(
+                                                    name='Actual',
+                                                    x=[str(c) for c in all_classes],
+                                                    y=[actual_counts.get(c, 0) for c in all_classes],
+                                                    marker_color='steelblue'
+                                                ))
+                                                fig_bar.add_trace(go.Bar(
+                                                    name='Predicted',
+                                                    x=[str(c) for c in all_classes],
+                                                    y=[pred_counts.get(c, 0) for c in all_classes],
+                                                    marker_color='crimson'
+                                                ))
+                                                fig_bar.update_layout(
+                                                    title='Class Distribution: Actual vs Predicted',
+                                                    xaxis_title='Class',
+                                                    yaxis_title='Count',
+                                                    barmode='group',
+                                                    template=PLOTLY_TEMPLATE,
+                                                    height=400
+                                                )
+                                                st.plotly_chart(fig_bar, use_container_width=True)
+                                        
+                                        # Show results table
+                                        st.subheader("📋 Results Table")
+                                        st.dataframe(result_df, use_container_width=True)
+                                        
+                                        # Download button
+                                        csv = result_df.to_csv(index=False)
+                                        st.download_button(
+                                            label="📥 Download Predictions",
+                                            data=csv,
+                                            file_name="nn_predictions.csv",
+                                            mime="text/csv"
+                                        )
+                                except Exception as e:
+                                    st.error(f"❌ Prediction failed: {str(e)}")
+            except Exception as e:
+                st.error(f"❌ Failed to load prediction file: {str(e)}")
+    
+    # =========================================================================
+    # LSTM
+    # =========================================================================
+    elif nn_model_type == "LSTM (Time Series Forecasting)":
+        st.subheader("📈 LSTM Time Series Forecasting")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            ts_column = st.selectbox("Time Series Column", numeric_cols, key="lstm_column")
+            sequence_length = st.slider("Sequence Length (lookback)", 5, 100, 20, key="lstm_seq")
+        
+        with col2:
+            forecast_horizon = st.slider("Forecast Horizon", 1, 50, 10, key="lstm_horizon")
+            epochs = st.slider("Epochs", 10, 200, 50, key="lstm_epochs")
+        
+        with st.expander("🔧 LSTM Architecture", expanded=False):
+            col1, col2 = st.columns(2)
+            with col1:
+                lstm_units = st.slider("LSTM Units", 16, 256, 64, key="lstm_units")
+                n_lstm_layers = st.slider("LSTM Layers", 1, 4, 2, key="lstm_n_layers")
+            with col2:
+                dropout = st.slider("Dropout Rate", 0.0, 0.5, 0.2, key="lstm_dropout")
+                batch_size = st.slider("Batch Size", 8, 64, 16, key="lstm_batch")
+        
+        if st.button("🚀 Train LSTM", type="primary", key="train_lstm"):
+            with st.spinner("Training LSTM model..."):
+                try:
+                    results = nn.lstm_forecast(
+                        column=ts_column,
+                        sequence_length=sequence_length,
+                        forecast_horizon=forecast_horizon,
+                        lstm_units=[lstm_units] * n_lstm_layers,
+                        dropout_rate=dropout,
+                        epochs=epochs,
+                        batch_size=batch_size,
+                        verbose=0
+                    )
+                    
+                    st.success("✅ LSTM Training Complete!")
+                    
+                    # Metrics
+                    col1, col2, col3 = st.columns(3)
+                    col1.metric("Test RMSE", f"{results['rmse']:.4f}")
+                    col2.metric("Test MAE", f"{results['mae']:.4f}")
+                    col3.metric("Epochs Trained", results['epochs_trained'])
+                    
+                    # Forecast plot
+                    st.subheader("📊 Forecast Results")
+                    
+                    fig = go.Figure()
+                    
+                    # Actual values
+                    actual = results['y_test'].ravel()
+                    fig.add_trace(go.Scatter(
+                        y=actual,
+                        name='Actual',
+                        line=dict(color='blue')
+                    ))
+                    
+                    # Predicted values
+                    predicted = results['predictions'].ravel()
+                    fig.add_trace(go.Scatter(
+                        y=predicted,
+                        name='Predicted',
+                        line=dict(color='green')
+                    ))
+                    
+                    # Future forecast
+                    forecast = results['future_forecast']
+                    forecast_x = list(range(len(actual), len(actual) + len(forecast)))
+                    fig.add_trace(go.Scatter(
+                        x=forecast_x,
+                        y=forecast,
+                        name='Future Forecast',
+                        line=dict(color='red', dash='dash'),
+                        mode='lines+markers'
+                    ))
+                    
+                    fig.update_layout(
+                        title=f'LSTM Forecast for {ts_column}',
+                        xaxis_title='Time Step',
+                        yaxis_title='Value',
+                        template=PLOTLY_TEMPLATE,
+                        height=500
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Display future values
+                    st.subheader("🔮 Future Predictions")
+                    forecast_df = pd.DataFrame({
+                        'Step': range(1, len(forecast) + 1),
+                        'Predicted Value': forecast
+                    })
+                    st.dataframe(forecast_df, use_container_width=True)
+                    
+                    # Store model info for prediction
+                    st.session_state['lstm_model'] = nn
+                    st.session_state['lstm_column'] = ts_column
+                    st.session_state['lstm_seq_length'] = sequence_length
+                    st.session_state['lstm_forecast_horizon'] = forecast_horizon
+                    
+                    st.info("✅ Model trained! Now upload a prediction file below to forecast from new data.")
+                    
+                except Exception as e:
+                    st.error(f"❌ LSTM Training failed: {str(e)}")
+        
+        # Prediction on new data
+        st.markdown("---")
+        st.subheader("🔮 Forecast from New Data")
+        
+        stored_column = st.session_state.get('lstm_column', ts_column)
+        stored_seq_length = st.session_state.get('lstm_seq_length', sequence_length)
+        stored_forecast_horizon = st.session_state.get('lstm_forecast_horizon', forecast_horizon)
+        
+        st.caption(f"Upload a CSV with column '{stored_column}' (at least {stored_seq_length} values needed)")
+        
+        lstm_predict_file = st.file_uploader("Upload New Time Series File (CSV)", type=['csv'], key="lstm_predict_file")
+        
+        if lstm_predict_file is not None:
+            try:
+                lstm_predict_df = pd.read_csv(lstm_predict_file)
+                st.write(f"📊 Loaded {len(lstm_predict_df)} samples with {len(lstm_predict_df.columns)} columns")
+                st.dataframe(lstm_predict_df.head(), use_container_width=True)
+                
+                if 'lstm_model' not in st.session_state:
+                    st.warning("⚠️ Train an LSTM model first before making predictions")
+                else:
+                    if stored_column not in lstm_predict_df.columns:
+                        st.error(f"❌ Column '{stored_column}' not found in prediction file")
+                        st.info(f"Available columns: {list(lstm_predict_df.columns)}")
+                    else:
+                        if st.button("🎯 Generate Forecasts", type="primary", key="lstm_predict_btn"):
+                            with st.spinner("Generating forecasts..."):
+                                try:
+                                    lstm_model = st.session_state['lstm_model']
+                                    pred_results = lstm_model.lstm_predict(
+                                        new_data=lstm_predict_df,
+                                        column=stored_column
+                                    )
+                                    
+                                    if 'error' in pred_results:
+                                        st.error(f"❌ {pred_results['error']}")
+                                    else:
+                                        st.success(f"✅ Forecast complete!")
+                                        
+                                        # Show future forecast
+                                        st.subheader("🔮 Future Forecast")
+                                        future_forecast = pred_results['future_forecast']
+                                        
+                                        col1, col2, col3 = st.columns(3)
+                                        col1.metric("Forecast Steps", len(future_forecast))
+                                        col2.metric("Min Forecast", f"{np.min(future_forecast):.4f}")
+                                        col3.metric("Max Forecast", f"{np.max(future_forecast):.4f}")
+                                        
+                                        # Plot
+                                        fig = go.Figure()
+                                        
+                                        # Original data
+                                        original = lstm_predict_df[stored_column].values
+                                        fig.add_trace(go.Scatter(
+                                            y=original,
+                                            name='Input Data',
+                                            line=dict(color='blue')
+                                        ))
+                                        
+                                        # Future forecast
+                                        forecast_x = list(range(len(original), len(original) + len(future_forecast)))
+                                        fig.add_trace(go.Scatter(
+                                            x=forecast_x,
+                                            y=future_forecast,
+                                            name='Forecast',
+                                            line=dict(color='red', dash='dash'),
+                                            mode='lines+markers'
+                                        ))
+                                        
+                                        fig.update_layout(
+                                            title=f'LSTM Forecast from New Data: {stored_column}',
+                                            xaxis_title='Time Step',
+                                            yaxis_title='Value',
+                                            template=PLOTLY_TEMPLATE,
+                                            height=500
+                                        )
+                                        st.plotly_chart(fig, use_container_width=True)
+                                        
+                                        # Forecast table
+                                        forecast_df = pd.DataFrame({
+                                            'Step': range(1, len(future_forecast) + 1),
+                                            'Predicted Value': future_forecast
+                                        })
+                                        st.dataframe(forecast_df, use_container_width=True)
+                                        
+                                        # Download button
+                                        csv = forecast_df.to_csv(index=False)
+                                        st.download_button(
+                                            label="📥 Download Forecast",
+                                            data=csv,
+                                            file_name="lstm_forecast.csv",
+                                            mime="text/csv"
+                                        )
+                                        
+                                except Exception as e:
+                                    st.error(f"❌ Forecast failed: {str(e)}")
+            except Exception as e:
+                st.error(f"❌ Failed to load prediction file: {str(e)}")
+    
+    # =========================================================================
+    # Autoencoder
+    # =========================================================================
+    else:  # Autoencoder
+        st.subheader("🚨 Autoencoder Anomaly Detection")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            feature_cols = st.multiselect(
+                "Features for Anomaly Detection",
+                numeric_cols,
+                default=numeric_cols[:5],
+                key="ae_features"
+            )
+            encoding_dim = st.slider("Encoding Dimension", 2, 32, 8, key="ae_encoding")
+        
+        with col2:
+            contamination = st.slider("Expected Anomaly Rate", 0.01, 0.20, 0.05, key="ae_contamination")
+            epochs = st.slider("Epochs", 10, 200, 50, key="ae_epochs")
+        
+        with st.expander("🔧 Autoencoder Architecture", expanded=False):
+            col1, col2 = st.columns(2)
+            with col1:
+                hidden_layers = st.multiselect(
+                    "Hidden Layer Sizes",
+                    [16, 32, 64, 128, 256],
+                    default=[64, 32],
+                    key="ae_hidden"
+                )
+            with col2:
+                dropout = st.slider("Dropout Rate", 0.0, 0.5, 0.1, key="ae_dropout")
+                batch_size = st.slider("Batch Size", 16, 128, 32, key="ae_batch")
+        
+        if st.button("🚀 Train Autoencoder", type="primary", key="train_ae"):
+            if len(feature_cols) < 2:
+                st.error("Select at least 2 features")
+                return
+            
+            with st.spinner("Training Autoencoder..."):
+                try:
+                    results = nn.autoencoder_anomaly_detection(
+                        features=feature_cols,
+                        encoding_dim=encoding_dim,
+                        hidden_layers=hidden_layers if hidden_layers else [64, 32],
+                        dropout_rate=dropout,
+                        epochs=epochs,
+                        batch_size=batch_size,
+                        contamination=contamination,
+                        verbose=0
+                    )
+                    
+                    st.success("✅ Autoencoder Training Complete!")
+                    
+                    # Metrics
+                    col1, col2, col3 = st.columns(3)
+                    col1.metric("Anomalies Found", results['n_anomalies'])
+                    col2.metric("Anomaly Rate", f"{results['anomaly_percentage']:.2f}%")
+                    col3.metric("Threshold", f"{results['threshold']:.6f}")
+                    
+                    # Reconstruction error plot
+                    st.subheader("📊 Reconstruction Error Analysis")
+                    
+                    fig = go.Figure()
+                    
+                    reconstruction_errors = results['reconstruction_errors']
+                    threshold = results['threshold']
+                    anomaly_idx = results['anomaly_indices']
+                    
+                    # All points
+                    fig.add_trace(go.Scatter(
+                        y=reconstruction_errors,
+                        mode='lines',
+                        name='Reconstruction Error',
+                        line=dict(color='blue', width=1)
+                    ))
+                    
+                    # Threshold line
+                    fig.add_hline(
+                        y=threshold,
+                        line_dash="dash",
+                        line_color="red",
+                        annotation_text=f"Threshold ({threshold:.4f})"
+                    )
+                    
+                    # Highlight anomalies
+                    if len(anomaly_idx) > 0:
+                        fig.add_trace(go.Scatter(
+                            x=anomaly_idx,
+                            y=[reconstruction_errors[i] for i in anomaly_idx],
+                            mode='markers',
+                            name='Anomalies',
+                            marker=dict(color='red', size=10, symbol='x')
+                        ))
+                    
+                    fig.update_layout(
+                        title='Autoencoder Anomaly Detection',
+                        xaxis_title='Sample Index',
+                        yaxis_title='Reconstruction Error',
+                        template=PLOTLY_TEMPLATE,
+                        height=500
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Anomaly details
+                    if len(anomaly_idx) > 0:
+                        st.subheader("🔍 Anomaly Details")
+                        anomaly_df = df.iloc[anomaly_idx][feature_cols].copy()
+                        anomaly_df['Reconstruction Error'] = [reconstruction_errors[i] for i in anomaly_idx]
+                        anomaly_df = anomaly_df.sort_values('Reconstruction Error', ascending=False)
+                        st.dataframe(anomaly_df.head(20), use_container_width=True)
+                    
+                except Exception as e:
+                    st.error(f"❌ Autoencoder Training failed: {str(e)}")
+
+
+# =============================================================================
 # PCA ANALYSIS TAB
 # =============================================================================
 def render_pca_tab():
     """Render PCA analysis tab with comprehensive visualizations"""
     st.header("🔬 PCA (Principal Component Analysis)")
-    
+
     # Educational introduction
     with st.expander("ℹ️ About PCA - The Foundation of Multivariate Data Analysis", expanded=False):
         st.markdown("""
         **PCA is the mother method for Multivariate Data Analysis (MVDA)**
-        
-        PCA finds **lines, planes, and hyper-planes** in K-dimensional space that best approximate 
-        the data in a least-squares sense. As Pearson described it: *"finding lines and planes of 
+
+        PCA finds **lines, planes, and hyper-planes** in K-dimensional space that best approximate
+        the data in a least-squares sense. As Pearson described it: *"finding lines and planes of
         closest fit to systems of points in space"*.
-        
+
         **Key Concepts:**
         - **Scores**: The coordinates of observations projected onto the principal component plane
         - **Loadings**: The weights showing how each original variable contributes to each PC
         - **Biplot**: Combines scores and loadings to reveal relationships between observations AND variables
         - **Explained Variance**: How much of the total data variation each PC captures
-        
+
         **What PCA reveals:**
         - 📊 **Trends & Patterns**: Similar observations cluster together
         - 🎯 **Outliers**: Points far from the main cluster
@@ -1993,7 +2729,7 @@ def render_pca_tab():
     features = st.session_state.feature_cols
 
     ml = MLModels(df)
-    
+
     # Settings
     col_set1, col_set2 = st.columns(2)
     with col_set1:
@@ -2034,20 +2770,20 @@ def render_pca_tab():
             feature_names = results['feature_names']
             scores = results['transformed_data']
             n_components = min(results['n_components_selected'], scores.shape[1])
-            
+
             # ═══════════════════════════════════════════════════════════════
             # SCREE PLOT & CUMULATIVE VARIANCE
             # ═══════════════════════════════════════════════════════════════
             st.subheader("📊 Variance Explained")
-            
-            fig_scree = make_subplots(rows=1, cols=2, 
-                                      subplot_titles=('Scree Plot (Individual Variance)', 
+
+            fig_scree = make_subplots(rows=1, cols=2,
+                                      subplot_titles=('Scree Plot (Individual Variance)',
                                                      'Cumulative Variance Explained'))
 
             # Individual variance bars
             fig_scree.add_trace(
-                go.Bar(x=[f'PC{i+1}' for i in range(len(explained_var))], 
-                       y=explained_var * 100, 
+                go.Bar(x=[f'PC{i+1}' for i in range(len(explained_var))],
+                       y=explained_var * 100,
                        name='Individual',
                        marker_color='steelblue',
                        text=[f'{v*100:.1f}%' for v in explained_var],
@@ -2057,16 +2793,16 @@ def render_pca_tab():
 
             # Cumulative line
             fig_scree.add_trace(
-                go.Scatter(x=[f'PC{i+1}' for i in range(len(cumsum_var))], 
+                go.Scatter(x=[f'PC{i+1}' for i in range(len(cumsum_var))],
                           y=cumsum_var * 100,
-                          mode='lines+markers', 
+                          mode='lines+markers',
                           name='Cumulative',
                           marker=dict(size=10, color='darkorange'),
                           line=dict(width=3, color='darkorange')),
                 row=1, col=2
             )
             # 95% threshold line
-            fig_scree.add_hline(y=95, line_dash='dash', line_color='red', 
+            fig_scree.add_hline(y=95, line_dash='dash', line_color='red',
                                annotation_text='95% threshold', row=1, col=2)
 
             fig_scree.update_layout(height=400, template=PLOTLY_TEMPLATE, showlegend=False)
@@ -2080,10 +2816,10 @@ def render_pca_tab():
             st.subheader("🎯 Score Plot with Loading Vectors")
             st.caption("**Dots**: Observations projected onto PC1-PC2 plane. **Arrows**: How each original variable contributes to the PCs (loading vectors). "
                       "Arrows pointing same direction = correlated variables. Color shows observation's PC1 score.")
-            
+
             if scores.shape[1] >= 2:
                 fig_scores = go.Figure()
-                
+
                 # Scatter plot of scores with meaningful colors
                 fig_scores.add_trace(go.Scatter(
                     x=scores[:, 0],
@@ -2100,24 +2836,24 @@ def render_pca_tab():
                     hovertemplate='<b>Observation %{text}</b><br>PC1: %{x:.3f}<br>PC2: %{y:.3f}<extra></extra>',
                     name='Observations'
                 ))
-                
+
                 # Add reference lines at origin
                 fig_scores.add_hline(y=0, line_dash='dot', line_color='gray', opacity=0.5)
                 fig_scores.add_vline(x=0, line_dash='dot', line_color='gray', opacity=0.5)
-                
+
                 # Add LOADING VECTORS for original variables
                 # Scale loadings to fit the score space
                 max_score = max(np.max(np.abs(scores[:, 0])), np.max(np.abs(scores[:, 1])))
                 max_loading = np.max(np.abs(components[:2, :]))
                 load_scale = max_score * 0.8 / max_loading if max_loading > 0 else 1
-                
+
                 colors = px.colors.qualitative.Set1
                 for i, feature in enumerate(feature_names):
                     # Loading vector: how this variable projects onto PC1 and PC2
                     load_x = components[0, i] * load_scale  # PC1 loading
                     load_y = components[1, i] * load_scale  # PC2 loading
                     color = colors[i % len(colors)]
-                    
+
                     # Arrow line
                     fig_scores.add_trace(go.Scatter(
                         x=[0, load_x],
@@ -2128,7 +2864,7 @@ def render_pca_tab():
                         hoverinfo='name',
                         showlegend=True
                     ))
-                    
+
                     # Arrowhead
                     fig_scores.add_annotation(
                         x=load_x, y=load_y,
@@ -2136,7 +2872,7 @@ def render_pca_tab():
                         xref='x', yref='y', axref='x', ayref='y',
                         showarrow=True, arrowhead=2, arrowsize=1.5, arrowwidth=2, arrowcolor=color
                     )
-                    
+
                     # Label at arrow tip
                     fig_scores.add_annotation(
                         x=load_x * 1.1, y=load_y * 1.1,
@@ -2144,7 +2880,7 @@ def render_pca_tab():
                         showarrow=False,
                         font=dict(size=11, color=color, family='Arial Black')
                     )
-                
+
                 var1 = explained_var[0] * 100
                 var2 = explained_var[1] * 100
                 fig_scores.update_layout(
@@ -2157,24 +2893,24 @@ def render_pca_tab():
                     legend=dict(title='Original Variables', yanchor='top', y=0.99, xanchor='left', x=1.15)
                 )
                 st.plotly_chart(fig_scores, use_container_width=True)
-                
+
                 with st.expander("📖 How to interpret this plot"):
                     st.markdown("""
                     **This is a combined Score Plot + Loading Vectors visualization:**
-                    
+
                     - **Dots (Observations)**: Each dot is a data point projected onto PC1-PC2 space
                       - Color indicates observation number (low=purple, high=yellow)
                       - Dots close together = similar observations
                       - Dots far from origin = extreme values
-                    
+
                     - **Arrows (Loading Vectors)**: Show how original variables relate to PCs
                       - Arrow direction: which PC direction this variable aligns with
                       - Arrow length: strength of contribution to these PCs
                       - **Arrows pointing same way**: positively correlated variables
                       - **Arrows pointing opposite**: negatively correlated variables
                       - **Arrows at 90°**: uncorrelated variables
-                    
-                    **Reading tip**: Project a dot perpendicularly onto an arrow to see 
+
+                    **Reading tip**: Project a dot perpendicularly onto an arrow to see
                     if that observation has high/low values for that variable.
                     """)
 
@@ -2184,14 +2920,14 @@ def render_pca_tab():
             st.subheader("📐 Biplot: Observations AND Variables")
             st.caption("Combines score plot with loading vectors. Arrows show how each original variable "
                       "contributes to the principal components. Variables pointing in similar directions are correlated.")
-            
+
             if scores.shape[1] >= 2 and len(feature_names) > 0:
                 fig_biplot = go.Figure()
-                
+
                 # Scale scores to fit with loadings
                 score_scale = np.max(np.abs(components[:2, :])) * scale_loadings
                 scores_scaled = scores[:, :2] / (np.max(np.abs(scores[:, :2])) / score_scale)
-                
+
                 # Plot scores (observations)
                 fig_biplot.add_trace(go.Scatter(
                     x=scores_scaled[:, 0],
@@ -2202,16 +2938,16 @@ def render_pca_tab():
                     hovertemplate='Obs %{text}<extra></extra>',
                     text=[str(i+1) for i in range(len(scores))]
                 ))
-                
+
                 # Plot loading vectors (variables)
                 colors = px.colors.qualitative.Set1
                 for i, feature in enumerate(feature_names):
                     # Arrow from origin to loading
                     loading_x = components[0, i] * scale_loadings
                     loading_y = components[1, i] * scale_loadings
-                    
+
                     color = colors[i % len(colors)]
-                    
+
                     # Arrow line
                     fig_biplot.add_trace(go.Scatter(
                         x=[0, loading_x],
@@ -2221,7 +2957,7 @@ def render_pca_tab():
                         showlegend=False,
                         hoverinfo='skip'
                     ))
-                    
+
                     # Arrowhead (using annotation)
                     fig_biplot.add_annotation(
                         x=loading_x, y=loading_y,
@@ -2234,7 +2970,7 @@ def render_pca_tab():
                         arrowwidth=2,
                         arrowcolor=color
                     )
-                    
+
                     # Label
                     fig_biplot.add_trace(go.Scatter(
                         x=[loading_x * 1.15],
@@ -2245,11 +2981,11 @@ def render_pca_tab():
                         showlegend=False,
                         hoverinfo='skip'
                     ))
-                
+
                 # Reference lines
                 fig_biplot.add_hline(y=0, line_dash='dot', line_color='gray', opacity=0.5)
                 fig_biplot.add_vline(x=0, line_dash='dot', line_color='gray', opacity=0.5)
-                
+
                 fig_biplot.update_layout(
                     title='Biplot: Scores (points) + Loadings (vectors)',
                     xaxis_title=f'PC1 ({explained_var[0]*100:.1f}%)',
@@ -2259,23 +2995,23 @@ def render_pca_tab():
                     xaxis=dict(scaleanchor='y', scaleratio=1)
                 )
                 st.plotly_chart(fig_biplot, use_container_width=True)
-                
+
                 # Interpretation help
                 with st.expander("📖 How to interpret the Biplot"):
                     st.markdown("""
                     **Reading the Biplot:**
-                    
-                    1. **Observation Points (blue dots)**: 
+
+                    1. **Observation Points (blue dots)**:
                        - Close points = similar observations
                        - Far from center = extreme/unusual observations
-                    
+
                     2. **Loading Vectors (colored arrows)**:
                        - Arrow length = importance of variable for these PCs
                        - Arrow direction = how the variable relates to the PCs
                        - **Arrows pointing same direction** = positively correlated variables
                        - **Arrows pointing opposite directions** = negatively correlated variables
                        - **Arrows at 90°** = uncorrelated variables
-                    
+
                     3. **Projecting observations onto vectors**:
                        - Drop a perpendicular from an observation to a variable vector
                        - Where it lands indicates the observation's value for that variable
@@ -2287,9 +3023,9 @@ def render_pca_tab():
             if scores.shape[1] >= 3:
                 st.subheader("🌐 3D Score Plot with Loading Vectors")
                 st.caption("**Dots**: Observations in PC1-PC2-PC3 space. **Arrows**: Loading vectors showing how each original variable projects into this 3D space.")
-                
+
                 fig_3d = go.Figure()
-                
+
                 # Add data points with color by observation index
                 fig_3d.add_trace(go.Scatter3d(
                     x=scores[:, 0],
@@ -2307,12 +3043,12 @@ def render_pca_tab():
                     hovertemplate='<b>%{text}</b><br>PC1: %{x:.3f}<br>PC2: %{y:.3f}<br>PC3: %{z:.3f}<extra></extra>',
                     name='Observations'
                 ))
-                
+
                 # Add LOADING VECTORS for original variables (scaled to score space)
                 max_score_3d = max(np.max(np.abs(scores[:, 0])), np.max(np.abs(scores[:, 1])), np.max(np.abs(scores[:, 2])))
                 max_loading_3d = np.max(np.abs(components[:3, :])) if components.shape[0] >= 3 else 1
                 load_scale_3d = max_score_3d * 0.7 / max_loading_3d if max_loading_3d > 0 else 1
-                
+
                 colors_3d = px.colors.qualitative.Set1
                 for i, feature in enumerate(feature_names):
                     # Loading vector in 3D: how this variable projects onto PC1, PC2, PC3
@@ -2320,7 +3056,7 @@ def render_pca_tab():
                     load_y = components[1, i] * load_scale_3d
                     load_z = components[2, i] * load_scale_3d if components.shape[0] >= 3 else 0
                     color = colors_3d[i % len(colors_3d)]
-                    
+
                     # Arrow line
                     fig_3d.add_trace(go.Scatter3d(
                         x=[0, load_x], y=[0, load_y], z=[0, load_z],
@@ -2333,7 +3069,7 @@ def render_pca_tab():
                         hoverinfo='name',
                         showlegend=True
                     ))
-                    
+
                     # Cone arrowhead
                     length = np.sqrt(load_x**2 + load_y**2 + load_z**2)
                     if length > 0:
@@ -2347,7 +3083,7 @@ def render_pca_tab():
                             hoverinfo='skip',
                             showlegend=False
                         ))
-                
+
                 # Add origin marker
                 fig_3d.add_trace(go.Scatter3d(
                     x=[0], y=[0], z=[0],
@@ -2357,7 +3093,7 @@ def render_pca_tab():
                     hoverinfo='name',
                     showlegend=True
                 ))
-                
+
                 fig_3d.update_layout(
                     title='3D Score Plot with Variable Loading Vectors',
                     scene=dict(
@@ -2377,20 +3113,20 @@ def render_pca_tab():
                     )
                 )
                 st.plotly_chart(fig_3d, use_container_width=True)
-                
+
                 with st.expander("📖 Understanding the 3D Score Plot"):
                     st.markdown("""
                     **This is a 3D version of the Score Plot + Loading Vectors:**
-                    
+
                     - **Dots (Observations)**: Data points projected onto PC1-PC2-PC3 space
                       - Color indicates observation number
                       - Clusters = groups of similar observations
-                    
+
                     - **Arrows (Loading Vectors)**: Original variables projected onto PC space
                       - Direction shows how variable relates to PC1, PC2, PC3
                       - Length shows strength of contribution
                       - Variables pointing same direction are correlated
-                    
+
                     **Tip**: Rotate the 3D plot to explore the data structure from different angles.
                     """)
 
@@ -2400,14 +3136,14 @@ def render_pca_tab():
             st.subheader("🔥 Loading Matrix Heatmap")
             st.caption("How each original variable contributes to each principal component. "
                       "Red = positive loading, Blue = negative loading.")
-            
+
             n_show = min(5, components.shape[0])
             loadings_df = pd.DataFrame(
                 components[:n_show].T,
                 index=feature_names,
                 columns=[f'PC{i+1}' for i in range(n_show)]
             )
-            
+
             fig_heat = go.Figure(data=go.Heatmap(
                 z=loadings_df.values,
                 x=loadings_df.columns,
@@ -2419,7 +3155,7 @@ def render_pca_tab():
                 textfont={"size": 10},
                 colorbar=dict(title='Loading')
             ))
-            
+
             fig_heat.update_layout(
                 title='Variable Loadings on Principal Components',
                 xaxis_title='Principal Component',
@@ -2428,18 +3164,18 @@ def render_pca_tab():
                 height=max(300, len(feature_names) * 30)
             )
             st.plotly_chart(fig_heat, use_container_width=True)
-            
+
             # Loadings table
             with st.expander("📋 Detailed Loading Values"):
                 st.dataframe(loadings_df.round(4), use_container_width=True)
-            
+
             # ═══════════════════════════════════════════════════════════════
             # EXPORT PCA RESULTS
             # ═══════════════════════════════════════════════════════════════
             st.subheader("📥 Export PCA Results")
-            
+
             col1, col2, col3 = st.columns(3)
-            
+
             with col1:
                 # Export scores (transformed data)
                 scores_df = pd.DataFrame(
@@ -2453,7 +3189,7 @@ def render_pca_tab():
                     file_name="pca_scores.csv",
                     mime="text/csv"
                 )
-            
+
             with col2:
                 # Export loadings
                 csv_loadings = loadings_df.to_csv(index=True)
@@ -2463,7 +3199,7 @@ def render_pca_tab():
                     file_name="pca_loadings.csv",
                     mime="text/csv"
                 )
-            
+
             with col3:
                 # Export variance explained
                 var_df = pd.DataFrame({
@@ -2817,23 +3553,23 @@ def render_timeseries_tab():
 
     with col1:
         st.markdown("#### Axis Selection")
-        
+
         # X-axis selection
         x_options = ['Index (Row Number)'] + all_numeric
-        x_col = st.selectbox("X-axis (Time/Index)", x_options, 
+        x_col = st.selectbox("X-axis (Time/Index)", x_options,
                             help="Select a column for X-axis (typically time/date) or use row index")
-        
+
         # Y-axis selection
         selected_col = st.selectbox("Y-axis (Value)", features)
-        
+
         max_lag = st.slider("Max Lag", 5, 50, 20)
 
     # Plot the time series
     st.subheader("📈 Time Series Plot")
     series = df[selected_col].dropna()
-    
+
     fig = go.Figure()
-    
+
     if x_col == 'Index (Row Number)':
         # Use row index as X-axis
         fig.add_trace(go.Scatter(x=series.index, y=series, mode='lines', name=selected_col))
@@ -2843,7 +3579,7 @@ def render_timeseries_tab():
         x_data = df[x_col].loc[series.index]  # Match indices with non-null Y values
         fig.add_trace(go.Scatter(x=x_data, y=series, mode='lines', name=selected_col))
         fig.update_layout(xaxis_title=x_col, yaxis_title=selected_col)
-    
+
     fig.update_layout(title=f'Time Series: {selected_col}', template=PLOTLY_TEMPLATE, height=400)
     st.plotly_chart(fig, use_container_width=True)
 
@@ -3006,69 +3742,21 @@ def render_causality_tab():
                 {
                     'Lag': lag,
                     'p-value': data.get('ssr_ftest_pvalue', 0),
-                    '-log10(p)': -np.log10(max(data.get('ssr_ftest_pvalue', 1e-100), 1e-100)),
                     'Significant': '✅ Yes' if data.get('is_significant', False) else '❌ No'
                 }
                 for lag, data in results.items() if isinstance(data, dict)
             ])
             st.dataframe(granger_df, use_container_width=True)
 
-            # Plot -log10(p-value) - standard way to visualize p-values
-            # Higher bars = more significant (smaller p-value)
+            # Plot p-values
             lags = [lag for lag in results.keys() if isinstance(results[lag], dict)]
-            pvals = [results[lag].get('ssr_ftest_pvalue', 1) for lag in lags]
-            
-            # Transform to -log10(p) for visualization (clamp to avoid log(0))
-            neg_log_pvals = [-np.log10(max(p, 1e-100)) for p in pvals]
-            
-            # Color bars based on significance
-            colors = ['green' if p < 0.05 else 'gray' for p in pvals]
-            
-            # Significance threshold line: -log10(0.05) ≈ 1.3
-            sig_threshold = -np.log10(0.05)
+            pvals = [results[lag].get('ssr_ftest_pvalue', 0) for lag in lags]
 
             fig = go.Figure()
-            fig.add_trace(go.Bar(x=lags, y=neg_log_pvals, marker_color=colors, name='-log10(p)'))
-            fig.add_hline(y=sig_threshold, line_dash='dash', line_color='red', 
-                         annotation_text='p=0.05 threshold')
-            fig.update_layout(
-                title='Granger Causality: -log₁₀(p-value) by Lag (Higher = More Significant)',
-                xaxis_title='Lag',
-                yaxis_title='-log₁₀(p-value)',
-                template=PLOTLY_TEMPLATE, 
-                height=400
-            )
+            fig.add_trace(go.Scatter(x=lags, y=pvals, mode='lines+markers'))
+            fig.add_hline(y=0.05, line_dash='dash', line_color='red', annotation_text='p=0.05')
+            fig.update_layout(title='Granger Causality p-values', template=PLOTLY_TEMPLATE, height=400)
             st.plotly_chart(fig, use_container_width=True)
-            
-            # Show interpretation
-            sig_lags = [lag for lag, p in zip(lags, pvals) if p < 0.05]
-            if sig_lags:
-                min_p = min(pvals)
-                st.success(f"✅ Significant Granger causality at lags: {sig_lags} (min p-value: {min_p:.2e})")
-            else:
-                st.warning("❌ No significant Granger causality found at any lag")
-            
-            # Explanation of p-value interpretation
-            with st.expander("ℹ️ Understanding Granger Causality p-values"):
-                st.markdown("""
-**What does the p-value mean?**
-
-The p-value indicates the probability of observing the data (or something more extreme) 
-under the null hypothesis that past values of X do **not** provide any additional 
-predictive power for Y beyond what past values of Y alone already provide.
-
-| p-value | Interpretation |
-|---------|----------------|
-| **< 0.05** | Reject null hypothesis → X Granger-causes Y (significant predictive power) |
-| **> 0.05** | Cannot reject null → No evidence that X helps predict Y |
-
-**Important notes:**
-- The p-value does **not** measure the *strength* of the causal relationship
-- It only assesses the *statistical significance* of the predictive improvement
-- The test compares a restricted model (without X lags) to an unrestricted model (with X lags)
-- Lower p-values indicate stronger evidence against the null hypothesis
-- The -log₁₀(p) transformation makes small p-values easier to visualize (taller bars = more significant)
-""")
 
     if 'lead_lag' in st.session_state.analysis_results:
         results = st.session_state.analysis_results['lead_lag']
@@ -3135,7 +3823,7 @@ def render_visualization_tab():
             x_3d = st.selectbox("X axis", features, index=0)
             y_3d = st.selectbox("Y axis", features, index=min(1, len(features)-1))
             z_3d = st.selectbox("Z axis", features, index=min(2, len(features)-1))
-        
+
         if plot_type == "Linear Regression Plot (with Statistics)":
             st.markdown("**Select variables for regression:**")
             x_reg = st.selectbox("X variable (independent)", features, index=0, key="reg_x")
@@ -3204,34 +3892,34 @@ def render_visualization_tab():
                 )
                 fig.update_layout(height=500)
                 st.plotly_chart(fig, use_container_width=True)
-            
+
             elif plot_type == "Linear Regression Plot (with Statistics)":
                 # Import scipy for regression statistics
                 from scipy import stats as scipy_stats
-                
+
                 # Get data
                 x_data = df[x_reg].dropna()
                 y_data = df[y_reg].dropna()
-                
+
                 # Align indices
                 common_idx = x_data.index.intersection(y_data.index)
                 x_data = x_data.loc[common_idx].values
                 y_data = y_data.loc[common_idx].values
-                
+
                 if len(x_data) < 3:
                     st.error("Need at least 3 data points for regression.")
                 else:
                     # Perform linear regression using scipy.stats.linregress
                     slope, intercept, r_value, p_value, std_err = scipy_stats.linregress(x_data, y_data)
                     r_squared = r_value ** 2
-                    
+
                     # Create regression line
                     x_line = np.array([x_data.min(), x_data.max()])
                     y_line = slope * x_line + intercept
-                    
+
                     # Create figure
                     fig = go.Figure()
-                    
+
                     # Scatter points
                     fig.add_trace(go.Scatter(
                         x=x_data, y=y_data,
@@ -3239,7 +3927,7 @@ def render_visualization_tab():
                         name='Data Points',
                         marker=dict(color='steelblue', size=8, opacity=0.7)
                     ))
-                    
+
                     # Regression line
                     fig.add_trace(go.Scatter(
                         x=x_line, y=y_line,
@@ -3247,7 +3935,7 @@ def render_visualization_tab():
                         name=f'Regression Line',
                         line=dict(color='red', width=2)
                     ))
-                    
+
                     # Add confidence interval if requested
                     if show_ci:
                         n = len(x_data)
@@ -3257,17 +3945,17 @@ def render_visualization_tab():
                         residuals = y_data - y_pred
                         mse = np.sum(residuals ** 2) / (n - 2)
                         se = np.sqrt(mse)
-                        
+
                         # For confidence interval
                         t_val = scipy_stats.t.ppf(0.975, n - 2)
-                        
+
                         # Calculate CI at many points for smooth band
                         x_ci = np.linspace(x_data.min(), x_data.max(), 100)
                         y_ci = slope * x_ci + intercept
                         se_fit = se * np.sqrt(1/n + (x_ci - x_mean)**2 / ss_x)
                         ci_upper = y_ci + t_val * se_fit
                         ci_lower = y_ci - t_val * se_fit
-                        
+
                         # Add CI band
                         fig.add_trace(go.Scatter(
                             x=np.concatenate([x_ci, x_ci[::-1]]),
@@ -3278,11 +3966,11 @@ def render_visualization_tab():
                             name='95% Confidence Interval',
                             hoverinfo='skip'
                         ))
-                    
+
                     # Format equation and stats
                     sign = '+' if intercept >= 0 else '-'
                     eq_str = f"y = {slope:.4f}x {sign} {abs(intercept):.4f}"
-                    
+
                     # Update layout with stats annotation
                     fig.update_layout(
                         title=dict(
@@ -3297,35 +3985,35 @@ def render_visualization_tab():
                         showlegend=True,
                         legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
                     )
-                    
+
                     st.plotly_chart(fig, use_container_width=True)
-                    
+
                     # Display statistics in a clear table
                     st.markdown("### 📊 Regression Statistics")
-                    
+
                     col1, col2, col3, col4 = st.columns(4)
                     col1.metric("Slope (m)", f"{slope:.6f}")
                     col2.metric("Intercept (b)", f"{intercept:.6f}")
                     col3.metric("R² (R-squared)", f"{r_squared:.4f}")
                     col4.metric("p-value", f"{p_value:.2e}")
-                    
+
                     col5, col6, col7, col8 = st.columns(4)
                     col5.metric("Correlation (r)", f"{r_value:.4f}")
                     col6.metric("Std Error (slope)", f"{std_err:.6f}")
                     col7.metric("N (samples)", f"{len(x_data)}")
                     col8.metric("Degrees of Freedom", f"{len(x_data) - 2}")
-                    
+
                     # Interpretation
                     st.markdown("### 📖 Interpretation")
-                    
+
                     interpretation = []
-                    
+
                     # Slope interpretation
                     if slope > 0:
                         interpretation.append(f"- **Positive relationship**: For each 1-unit increase in {x_reg}, {y_reg} increases by {slope:.4f} units.")
                     else:
                         interpretation.append(f"- **Negative relationship**: For each 1-unit increase in {x_reg}, {y_reg} decreases by {abs(slope):.4f} units.")
-                    
+
                     # R² interpretation
                     if r_squared >= 0.9:
                         interpretation.append(f"- **Excellent fit**: R² = {r_squared:.4f} means {r_squared*100:.1f}% of variance in {y_reg} is explained by {x_reg}.")
@@ -3335,7 +4023,7 @@ def render_visualization_tab():
                         interpretation.append(f"- **Moderate fit**: R² = {r_squared:.4f} means {r_squared*100:.1f}% of variance is explained.")
                     else:
                         interpretation.append(f"- **Weak fit**: R² = {r_squared:.4f} means only {r_squared*100:.1f}% of variance is explained. Consider non-linear models.")
-                    
+
                     # p-value interpretation
                     if p_value < 0.001:
                         interpretation.append(f"- **Highly significant**: p = {p_value:.2e} (p < 0.001). Very strong evidence of a relationship.")
@@ -3345,7 +4033,7 @@ def render_visualization_tab():
                         interpretation.append(f"- **Significant**: p = {p_value:.4f} (p < 0.05). Moderate evidence of a relationship.")
                     else:
                         interpretation.append(f"- **Not significant**: p = {p_value:.4f} (p ≥ 0.05). Insufficient evidence of a linear relationship.")
-                    
+
                     for line in interpretation:
                         st.markdown(line)
 
@@ -3417,7 +4105,7 @@ def render_clustering_tab():
 
         if 'error' not in results:
             st.subheader("📊 Clustering Results")
-            
+
             # Metrics
             col1, col2, col3 = st.columns(3)
             col1.metric("Silhouette Score", f"{results.get('silhouette_score', 0):.4f}")
@@ -3449,12 +4137,12 @@ def render_clustering_tab():
                 )
                 fig.update_layout(height=500)
                 st.plotly_chart(fig, use_container_width=True)
-            
+
             # Export clustering results
             st.subheader("📥 Export Clustering Results")
             df_cluster_results = df[features].dropna().copy()
             df_cluster_results['Cluster'] = clusters[:len(df_cluster_results)]
-            
+
             csv_clusters = df_cluster_results.to_csv(index=True)
             st.download_button(
                 label="📥 Download Clustering Results (CSV)",
@@ -3523,7 +4211,7 @@ def render_anomaly_tab():
             pct_anomalies = (n_anomalies / len(anomaly_labels) * 100) if len(anomaly_labels) > 0 else 0
 
             st.subheader("📊 Anomaly Detection Results")
-            
+
             col1, col2, col3 = st.columns(3)
             col1.metric("🔴 Anomalies Found", n_anomalies)
             col2.metric("🟢 Normal Points", n_normal)
@@ -3561,13 +4249,13 @@ def render_anomaly_tab():
                         features[1]: y_vals,
                         'Status': labels
                     })
-                    
+
                     # Add original index for reference
                     df_plot['Original_Index'] = X.index
 
                     # Create figure with anomalies more prominent
                     fig = go.Figure()
-                    
+
                     # Plot normal points first (smaller, less prominent)
                     normal_mask = df_plot['Status'] == '🟢 Normal'
                     if normal_mask.any():
@@ -3579,7 +4267,7 @@ def render_anomaly_tab():
                             marker=dict(size=6, color='green', opacity=0.4),
                             hovertemplate=f'{features[0]}: %{{x:.3f}}<br>{features[1]}: %{{y:.3f}}<extra>Normal</extra>'
                         ))
-                    
+
                     # Plot anomalies on top (larger, more prominent)
                     anomaly_mask = df_plot['Status'] == '🔴 Anomaly'
                     if anomaly_mask.any():
@@ -3591,7 +4279,7 @@ def render_anomaly_tab():
                             marker=dict(size=12, color='red', symbol='x', line=dict(width=2, color='darkred')),
                             hovertemplate=f'{features[0]}: %{{x:.3f}}<br>{features[1]}: %{{y:.3f}}<extra>⚠️ ANOMALY</extra>'
                         ))
-                    
+
                     fig.update_layout(
                         title=f'{method} Anomaly Detection Results',
                         xaxis_title=features[0],
@@ -3601,15 +4289,15 @@ def render_anomaly_tab():
                         legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.99)
                     )
                     st.plotly_chart(fig, use_container_width=True)
-                    
+
                     # Show anomaly details table
                     st.subheader("🔍 Anomaly Details")
-                    
+
                     # Create full results dataframe
                     df_results = X.copy()
                     df_results['Status'] = labels
                     df_results['Anomaly_Score'] = results.get('scores', [0] * len(X))
-                    
+
                     # Show anomalies table
                     df_anomalies = df_results[df_results['Status'] == '🔴 Anomaly'].copy()
                     if len(df_anomalies) > 0:
@@ -3617,11 +4305,11 @@ def render_anomaly_tab():
                         st.dataframe(df_anomalies, use_container_width=True)
                     else:
                         st.info("No anomalies detected with current settings.")
-                    
+
                     # Export functionality
                     st.subheader("📥 Export Results")
                     col1, col2 = st.columns(2)
-                    
+
                     with col1:
                         # Export all results
                         csv_all = df_results.to_csv(index=True)
@@ -3631,7 +4319,7 @@ def render_anomaly_tab():
                             file_name="anomaly_detection_all.csv",
                             mime="text/csv"
                         )
-                    
+
                     with col2:
                         # Export only anomalies
                         if len(df_anomalies) > 0:
@@ -3756,7 +4444,7 @@ def render_signal_analysis_tab():
             "Analysis Type",
             ["FFT (Fourier)", "Power Spectral Density", "Continuous Wavelet", "Discrete Wavelet"]
         )
-        
+
         # Auto-detect sampling rate from data
         if 'time' in df.columns:
             time_diff = df['time'].diff().dropna()
@@ -3772,7 +4460,7 @@ def render_signal_analysis_tab():
             n_samples = len(df[selected_col].dropna())
             sampling_rate = float(n_samples)
             st.info(f"📊 No 'time' column found. Assuming {n_samples} samples over 1 second → {sampling_rate:.1f} Hz")
-        
+
         wavelet_type = st.selectbox("Wavelet Type", ["morl", "mexh", "gaus1", "gaus2", "cgau1"], index=0, help="Select the wavelet function for CWT.")
         cwt_scales = st.slider("CWT Scales (max)", 16, 256, 64, help="Maximum number of scales for CWT.")
         y_scale = st.selectbox("CWT Y-axis scale", ["log", "linear"], index=0, help="Y-axis scale for wavelet power plot.")
@@ -3783,18 +4471,18 @@ def render_signal_analysis_tab():
         # Data quality check
         n_samples = len(df[selected_col].dropna())
         nyquist_freq = sampling_rate / 2.0
-        
+
         if n_samples < 100:
             st.warning(f"⚠️ Only {n_samples} samples - may not be enough for reliable frequency analysis. Consider using test_data/signal_analysis_sample.csv")
-        
+
         st.info(f"📊 {n_samples} samples at **{sampling_rate:.1f} Hz** → Nyquist: {nyquist_freq:.1f} Hz (max detectable frequency)")
-        
+
         # Clear cache button
         if st.button("🗑️ Clear Cached Results", help="Clear all previous analysis results"):
             st.session_state.analysis_results = {}
             st.success("✅ Cache cleared! Run analysis again.")
             st.rerun()
-        
+
         # Only show the relevant button for the selected analysis type
         if analysis_type == "FFT (Fourier)":
             if st.button("🔍 FFT Analysis", width='stretch'):
@@ -3884,18 +4572,18 @@ def render_signal_analysis_tab():
             col1, col2 = st.columns(2)
             col1.metric("Dominant Frequency (Hz)", f"{fft_res.get('dominant_frequency', 0):.2f}")
             col2.metric("Peak Power", f"{fft_res.get('peak_power', 0):.2e}")
-            
+
             # Plot FFT spectrum
             frequencies = fft_res.get('positive_frequencies', [])
             magnitude = fft_res.get('magnitude', [])
-            
+
             if len(frequencies) > 0 and len(magnitude) > 0:
                 # Use only positive frequencies for cleaner plot
                 fig = go.Figure()
                 fig.add_trace(go.Scatter(
-                    x=frequencies, 
+                    x=frequencies,
                     y=magnitude,
-                    mode='lines', 
+                    mode='lines',
                     fill='tozeroy',
                     name='FFT Magnitude',
                     line=dict(color='steelblue')
@@ -3909,7 +4597,7 @@ def render_signal_analysis_tab():
                     hovermode='x unified'
                 )
                 st.plotly_chart(fig, use_container_width=True)
-                
+
                 # Show top frequencies
                 st.write("**Top 5 Dominant Frequencies:**")
                 top_freqs = fft_res.get('dominant_frequencies', [])
@@ -3934,7 +4622,7 @@ def render_signal_analysis_tab():
     if fft_res or psd_res:
         st.subheader("📥 Export Spectral Analysis Results")
         col1, col2 = st.columns(2)
-        
+
         with col1:
             if fft_res and 'error' not in fft_res:
                 fft_df = pd.DataFrame({
@@ -3949,7 +4637,7 @@ def render_signal_analysis_tab():
                     file_name="fft_results.csv",
                     mime="text/csv"
                 )
-        
+
         with col2:
             if psd_res and 'error' not in psd_res:
                 psd_df = pd.DataFrame({
@@ -3988,7 +4676,7 @@ def render_signal_analysis_tab():
                 if fig:
                     st.pyplot(fig, use_container_width=True)
                     plt.close(fig)
-                
+
                 # Export CWT results
                 st.subheader("📥 Export CWT Results")
                 col1, col2 = st.columns(2)
@@ -4032,7 +4720,7 @@ def render_signal_analysis_tab():
                     plt.close(fig)
                 else:
                     st.info("DWT data available but no plot generated")
-                
+
                 # Export DWT results
                 st.subheader("📥 Export DWT Results")
                 coefficients = results.get('coefficients', [])
@@ -4152,10 +4840,10 @@ def render_dimreduction_tab():
             transformed = results.get('transformed_data')
             components = results.get('components')
             feature_names = results.get('feature_names', [])
-            
+
             if (transformed is not None and hasattr(transformed, 'shape') and transformed.shape[1] >= 2
                 and components is not None and feature_names):
-                
+
                 # Create biplot with vectors
                 # Note: PCA components are (n_components, n_features), need to transpose for biplot
                 # which expects (n_features, n_components)
@@ -4169,27 +4857,27 @@ def render_dimreduction_tab():
                         scale_factor=3.0
                     )
                     st.plotly_chart(fig_biplot, use_container_width=True)
-                    
+
                     # Display insights
                     st.markdown("### 📊 Vector Interpretation Guide")
                     insights = generate_pca_insights(vector_info, explained_var, total_var)
                     st.markdown(insights)
-                    
+
                     # Display detailed vector interpretation
                     with st.expander("🔍 Detailed Vector Analysis"):
                         vector_interp = interpret_vectors(vector_info, feature_names)
-                        
+
                         st.markdown("#### PC Drivers")
                         st.markdown(vector_interp['pc1_drivers'])
                         st.markdown(vector_interp['pc2_drivers'])
-                        
+
                         st.markdown("#### Feature Correlations (Based on Vector Angles)")
                         for corr in vector_interp['correlations']:
                             st.markdown(f"- {corr}")
-                        
+
                         st.markdown("#### Feature Importance")
                         st.markdown(vector_interp['feature_importance'])
-                        
+
                         st.markdown("#### How to Read Vectors")
                         st.markdown("""
                         - **Vector direction**: Shows how feature aligns with PC1/PC2
@@ -4198,7 +4886,7 @@ def render_dimreduction_tab():
                         - **Perpendicular vectors**: Features are independent
                         - **Opposite vectors**: Features are negatively correlated
                         """)
-                        
+
                 except Exception as e:
                     st.error(f"Error creating PCA biplot: {str(e)}")
                     # Fallback to simple scatter
@@ -4271,7 +4959,7 @@ def main():
     # =========================================================================
     main_tabs = st.tabs([
         "📁 Data",
-        "📊 Statistics", 
+        "📊 Statistics",
         "🔊 Signal Processing",
         "⏱️ Time Series",
         "🤖 Machine Learning",
@@ -4290,14 +4978,14 @@ def main():
     with main_tabs[1]:
         st.markdown("#### 📊 Statistics Group")
         st.caption("Descriptive statistics, hypothesis testing, Bayesian inference, and uncertainty quantification")
-        
+
         stats_subtabs = st.tabs([
             "📊 Descriptive Statistics",
-            "🧪 Hypothesis Tests", 
+            "🧪 Hypothesis Tests",
             "📈 Bayesian Inference",
             "🎲 Uncertainty Analysis"
         ])
-        
+
         with stats_subtabs[0]:
             render_statistical_tab()
         with stats_subtabs[1]:
@@ -4321,44 +5009,47 @@ def main():
     with main_tabs[3]:
         st.markdown("#### ⏱️ Time Series Group")
         st.caption("Temporal pattern analysis, stationarity testing, and causal relationships")
-        
+
         ts_subtabs = st.tabs([
             "⏱️ Time Series Analysis",
             "🔗 Causality (Granger)"
         ])
-        
+
         with ts_subtabs[0]:
             render_timeseries_tab()
         with ts_subtabs[1]:
             render_causality_tab()
 
     # =========================================================================
-    # 🤖 MACHINE LEARNING GROUP (6 subtabs)
+    # 🤖 MACHINE LEARNING GROUP (7 subtabs)
     # =========================================================================
     with main_tabs[4]:
         st.markdown("#### 🤖 Machine Learning Group")
-        st.caption("Supervised learning, dimensionality reduction, clustering, and anomaly detection")
-        
+        st.caption("Supervised learning, neural networks, dimensionality reduction, clustering, and anomaly detection")
+
         ml_subtabs = st.tabs([
             "🤖 Regression/Classification",
+            "🧠 Neural Networks",
             "🔬 PCA (Principal Components)",
             "🎯 Clustering",
             "🚨 Anomaly Detection",
             "📉 Dimensionality Reduction",
             "🔀 Non-Linear Analysis"
         ])
-        
+
         with ml_subtabs[0]:
             render_ml_tab()
         with ml_subtabs[1]:
-            render_pca_tab()
+            render_neural_networks_tab()
         with ml_subtabs[2]:
-            render_clustering_tab()
+            render_pca_tab()
         with ml_subtabs[3]:
-            render_anomaly_tab()
+            render_clustering_tab()
         with ml_subtabs[4]:
-            render_dimreduction_tab()
+            render_anomaly_tab()
         with ml_subtabs[5]:
+            render_dimreduction_tab()
+        with ml_subtabs[6]:
             render_nonlinear_tab()
 
     # =========================================================================
