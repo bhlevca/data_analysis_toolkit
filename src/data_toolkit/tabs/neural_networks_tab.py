@@ -200,7 +200,7 @@ def render_neural_networks_tab():
                         fig.add_trace(go.Scatter(y=history[f'val_{metric_key}'], name=f'Val {metric_key}', line=dict(color='orange')), row=1, col=2)
                 
                 fig.update_layout(template=PLOTLY_TEMPLATE, height=400, showlegend=True)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width=None)
             
             st.info("✅ Model trained! Now upload a prediction file below to test on new data.")
         
@@ -230,7 +230,7 @@ def render_neural_networks_tab():
             try:
                 predict_df = pd.read_csv(predict_file)
                 st.write(f"📊 Loaded {len(predict_df)} samples with {len(predict_df.columns)} columns")
-                st.dataframe(predict_df.head(), use_container_width=True)
+                st.dataframe(predict_df.head(), width=None)
                 
                 # Check if we have a trained model
                 if not has_trained_model:
@@ -322,7 +322,7 @@ def render_neural_networks_tab():
                                                     height=500,
                                                     legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
                                                 )
-                                                st.plotly_chart(fig, use_container_width=True)
+                                                st.plotly_chart(fig, width=None)
                                                 
                                                 # Residuals plot
                                                 residuals = predicted - actual
@@ -344,7 +344,7 @@ def render_neural_networks_tab():
                                                     template=PLOTLY_TEMPLATE,
                                                     height=400
                                                 )
-                                                st.plotly_chart(fig2, use_container_width=True)
+                                                st.plotly_chart(fig2, width=None)
                                                 
                                             else:  # Classification
                                                 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
@@ -353,7 +353,7 @@ def render_neural_networks_tab():
                                                 st.metric("Accuracy", f"{accuracy:.2%}")
                                                 # Classification report
                                                 report = classification_report(actual, predicted, output_dict=True)
-                                                st.dataframe(pd.DataFrame(report).T, use_container_width=True)
+                                                st.dataframe(pd.DataFrame(report).T, width=None)
 
                                                 # Confusion matrix plot
                                                 st.subheader("🔲 Confusion Matrix")
@@ -376,7 +376,7 @@ def render_neural_networks_tab():
                                                     template=PLOTLY_TEMPLATE,
                                                     height=400
                                                 )
-                                                st.plotly_chart(fig_cm, use_container_width=True)
+                                                st.plotly_chart(fig_cm, width=None)
 
                                                 # Bar plot of class distributions
                                                 st.subheader("📊 Class Distribution: Actual vs Predicted")
@@ -404,11 +404,11 @@ def render_neural_networks_tab():
                                                     template=PLOTLY_TEMPLATE,
                                                     height=400
                                                 )
-                                                st.plotly_chart(fig_bar, use_container_width=True)
+                                                st.plotly_chart(fig_bar, width=None)
                                         
                                         # Show results table
                                         st.subheader("📋 Results Table")
-                                        st.dataframe(result_df, use_container_width=True)
+                                        st.dataframe(result_df, width=None)
                                         
                                         # Download button
                                         csv = result_df.to_csv(index=False)
@@ -525,7 +525,7 @@ def render_neural_networks_tab():
                 template=PLOTLY_TEMPLATE,
                 height=500
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width=None)
             
             # Display future values
             st.subheader("🔮 Future Predictions")
@@ -533,7 +533,7 @@ def render_neural_networks_tab():
                 'Step': range(1, len(forecast) + 1),
                 'Predicted Value': forecast
             })
-            st.dataframe(forecast_df, use_container_width=True)
+            st.dataframe(forecast_df, width=None)
             
             st.info("✅ Model trained! Now upload a prediction file below to forecast from new data.")
         
@@ -553,7 +553,7 @@ def render_neural_networks_tab():
             try:
                 lstm_predict_df = pd.read_csv(lstm_predict_file)
                 st.write(f"📊 Loaded {len(lstm_predict_df)} samples with {len(lstm_predict_df.columns)} columns")
-                st.dataframe(lstm_predict_df.head(), use_container_width=True)
+                st.dataframe(lstm_predict_df.head(), width=None)
                 
                 if 'lstm_model' not in st.session_state:
                     st.warning("⚠️ Train an LSTM model first before making predictions")
@@ -613,14 +613,14 @@ def render_neural_networks_tab():
                                             template=PLOTLY_TEMPLATE,
                                             height=500
                                         )
-                                        st.plotly_chart(fig, use_container_width=True)
+                                        st.plotly_chart(fig, width=None)
                                         
                                         # Forecast table
                                         forecast_df = pd.DataFrame({
                                             'Step': range(1, len(future_forecast) + 1),
                                             'Predicted Value': future_forecast
                                         })
-                                        st.dataframe(forecast_df, use_container_width=True)
+                                        st.dataframe(forecast_df, width=None)
                                         
                                         # Download button
                                         csv = forecast_df.to_csv(index=False)
@@ -753,7 +753,7 @@ def render_neural_networks_tab():
                 template=PLOTLY_TEMPLATE,
                 height=500
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width=None)
             
             # Anomaly details
             if len(anomaly_idx) > 0:
@@ -761,7 +761,7 @@ def render_neural_networks_tab():
                 anomaly_df = df.iloc[anomaly_idx][stored_ae_features_display].copy()
                 anomaly_df['Reconstruction Error'] = [reconstruction_errors[i] for i in anomaly_idx]
                 anomaly_df = anomaly_df.sort_values('Reconstruction Error', ascending=False)
-                st.dataframe(anomaly_df.head(20), use_container_width=True)
+                st.dataframe(anomaly_df.head(20), width=None)
             
             st.info("✅ Model trained! Now upload a prediction file below to detect anomalies in new data.")
         
@@ -788,7 +788,7 @@ def render_neural_networks_tab():
             try:
                 ae_predict_df = pd.read_csv(ae_predict_file)
                 st.write(f"📊 Loaded {len(ae_predict_df)} samples with {len(ae_predict_df.columns)} columns")
-                st.dataframe(ae_predict_df.head(), use_container_width=True)
+                st.dataframe(ae_predict_df.head(), width=None)
                 
                 # Check if we have a trained model
                 if not has_trained_ae:
@@ -874,7 +874,7 @@ def render_neural_networks_tab():
                                             template=PLOTLY_TEMPLATE,
                                             height=500
                                         )
-                                        st.plotly_chart(fig, use_container_width=True)
+                                        st.plotly_chart(fig, width=None)
                                         
                                         # Results table
                                         st.subheader("📋 Results Table")
@@ -887,7 +887,7 @@ def render_neural_networks_tab():
                                             by=['Is_Anomaly', 'Reconstruction_Error'],
                                             ascending=[False, False]
                                         )
-                                        st.dataframe(result_df_sorted, use_container_width=True)
+                                        st.dataframe(result_df_sorted, width=None)
                                         
                                         # Anomaly details
                                         if len(anomaly_indices) > 0:
@@ -895,7 +895,7 @@ def render_neural_networks_tab():
                                             anomaly_detail_df = ae_predict_df.iloc[anomaly_indices][stored_ae_features].copy()
                                             anomaly_detail_df['Reconstruction Error'] = [reconstruction_errors[i] for i in anomaly_indices]
                                             anomaly_detail_df = anomaly_detail_df.sort_values('Reconstruction Error', ascending=False)
-                                            st.dataframe(anomaly_detail_df, use_container_width=True)
+                                            st.dataframe(anomaly_detail_df, width=None)
                                         
                                         # Download button
                                         csv = result_df_sorted.to_csv(index=False)

@@ -588,34 +588,91 @@ Shows scatter plot with:
     "anomaly": """
 ## 🚨 Anomaly Detection Guide
 
-Anomaly detection identifies **unusual data points** that don't fit the normal pattern.
+Anomaly detection identifies **unusual data points** that don't fit the normal pattern. This toolkit provides several robust methods, each with unique strengths and parameters. Below is a detailed guide to each method, their arguments, and what to expect from their results.
 
 ### Methods Available
 
 | Method | Algorithm | Best For |
 |--------|-----------|----------|
-| **Isolation Forest** | Random tree isolation | General purpose, scales well |
-| **LOF (Local Outlier Factor)** | Local density comparison | Local anomalies, clusters |
-| **MCD (Minimum Covariance Determinant)** | Robust covariance | Elliptical distributions |
+| **Isolation Forest** | Random tree isolation | General purpose, scalable, works well for most data |
+| **LOF (Local Outlier Factor)** | Local density comparison | Detecting local anomalies, clusters, density-based outliers |
+| **MCD (Minimum Covariance Determinant)** | Robust covariance | Elliptical distributions, robust to outliers |
+| **One-Class SVM** | Support Vector Machine | High-dimensional data, flexible kernel choices |
+| **DBSCAN** | Density-based clustering | Arbitrary shapes, noise, spatial/irregular clusters |
+| **Autoencoder** | Neural network reconstruction | Complex, non-linear patterns, deep learning, high-dimensional data |
 
-### Parameters
+---
 
-**Contamination:** Expected fraction of anomalies (0.01 = 1%, 0.1 = 10%)
-- Lower = fewer anomalies detected
-- Higher = more anomalies detected
+### Method Details & Arguments
+
+#### **Isolation Forest**
+- **How it works:** Randomly isolates points; anomalies are isolated faster.
+- **Key argument:** `contamination` (float, 0-1): Expected fraction of anomalies (e.g., 0.05 = 5%).
+- **What to expect:** Fast, general-purpose. Good for large datasets. Returns anomaly scores and binary labels.
+
+#### **LOF (Local Outlier Factor)**
+- **How it works:** Compares local density of a point to its neighbors.
+- **Key arguments:**
+    - `n_neighbors` (int): Number of neighbors to use (default: 20).
+    - `contamination` (float): Expected fraction of anomalies.
+- **What to expect:** Detects local anomalies, can find outliers in clusters. Sensitive to `n_neighbors`.
+
+#### **MCD (Minimum Covariance Determinant)**
+- **How it works:** Fits an ellipse to the data, robustly estimates covariance.
+- **Key argument:** `contamination` (float): Expected fraction of anomalies.
+- **What to expect:** Best for data with elliptical/normal structure. Robust to outliers, but less effective for non-elliptical data.
+
+#### **One-Class SVM**
+- **How it works:** Learns a boundary around the majority of data using support vectors.
+- **Key arguments:**
+    - `nu` (float, 0-1): Upper bound on the fraction of anomalies (default: 0.05).
+    - `kernel` (str): Kernel type (`'rbf'`, `'linear'`, etc.; default: `'rbf'`).
+    - `gamma` (str or float): Kernel coefficient (`'scale'` or `'auto'` or a float).
+- **What to expect:** Flexible, works for high-dimensional data. Can be slow for large datasets. Sensitive to kernel and nu.
+
+#### **DBSCAN**
+- **How it works:** Groups points into dense clusters; points not in any cluster are labeled as anomalies.
+- **Key arguments:**
+    - `eps` (float): Maximum distance between neighbors (default: 0.5).
+    - `min_samples` (int): Minimum points to form a cluster (default: 5).
+- **What to expect:** Finds arbitrarily shaped clusters, labels noise as anomalies. No need to specify number of clusters. Good for spatial data.
+
+#### **Autoencoder**
+- **How it works:** Neural network learns to reconstruct input; anomalies have high reconstruction error.
+- **Key arguments:**
+    - `encoding_dim` (int): Size of bottleneck layer (default: 8).
+    - `contamination` (float): Expected anomaly rate (default: 0.05).
+    - `hidden_layers` (list): Encoder architecture (e.g., [64, 32]).
+- **What to expect:** Powerful for complex, non-linear data. Needs more data (500+ samples recommended). Returns reconstruction errors, threshold, and anomaly indices.
+
+---
 
 ### Output Interpretation
-- **Normal points**: -1 label (inliers)
-- **Anomalies**: 1 label (outliers)
-- Scatter plot shows anomalies in **red**
+- **Normal points**: Label `1` (inliers)
+- **Anomalies**: Label `-1` (outliers)
+- **Anomaly scores**: Higher = more likely to be an anomaly (except for DBSCAN, where noise is labeled `-1`)
+- **Scatter plot**: Anomalies shown in **red**
 
 ### Use Cases
 - Fraud detection
 - System monitoring
 - Quality control
 - Data cleaning
+- Scientific discovery
 
-💡 **Tip**: Start with Isolation Forest - it's fast and works well for most cases!
+---
+
+### Choosing a Method
+- **Start with Isolation Forest** for general use.
+- **Try LOF** for local anomalies or clusters.
+- **Use MCD** for elliptical/normal data.
+- **One-Class SVM** for high-dimensional or kernel-based separation.
+- **DBSCAN** for spatial/irregular clusters or when you expect noise.
+- **Autoencoder** for complex, high-dimensional, or non-linear data (requires more data).
+
+---
+
+💡 **Tip**: Adjust the main parameter (contamination, nu, eps, etc.) to tune sensitivity. Always visualize results and check if detected anomalies make sense for your domain!
 """,
 
     "clustering": """

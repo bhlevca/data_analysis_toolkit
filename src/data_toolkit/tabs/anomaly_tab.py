@@ -23,7 +23,7 @@ PLOTLY_TEMPLATE = "plotly_white"
 def render_anomaly_tab():
     """Render anomaly detection tab"""
     st.header("🚨 Anomaly Detection")
-    st.caption("Detect outliers using Isolation Forest, LOF (Local Outlier Factor), and MCD (Minimum Covariance Determinant)")
+    st.caption("Detect outliers using Isolation Forest, LOF, MCD, One-Class SVM, DBSCAN, and Autoencoder")
 
     if st.session_state.df is None:
         st.warning("⚠️ Please load data first.")
@@ -41,12 +41,35 @@ def render_anomaly_tab():
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        method = st.selectbox("Method", ["Isolation Forest", "Local Outlier Factor", "Minimum Covariance"])
-        contamination = st.slider("Contamination (% anomalies)", 0.01, 0.5, 0.1)
+        method = st.selectbox(
+            "Method",
+            [
+                "Isolation Forest",
+                "Local Outlier Factor",
+                "Minimum Covariance",
+                "One-Class SVM",
+                "DBSCAN",
+                "Autoencoder"
+            ]
+        )
+        if method in ("Isolation Forest", "Local Outlier Factor", "Minimum Covariance", "Autoencoder"):
+            contamination = st.slider("Contamination (% anomalies)", 0.01, 0.5, 0.1)
+        if method == "One-Class SVM":
+            nu = st.slider("nu (fraction anomalies)", 0.01, 0.5, 0.05)
+            kernel = st.selectbox("Kernel", ["rbf", "linear", "poly", "sigmoid"])
+            gamma = st.selectbox("Gamma", ["scale", "auto"])
+        if method == "DBSCAN":
+            eps = st.slider("eps (neighborhood radius)", 0.05, 2.0, 0.5)
+            min_samples = st.slider("min_samples", 2, 20, 5)
 
     with col2:
         if method == "Isolation Forest":
             n_estimators = st.slider("N Estimators", 50, 500, 100)
+        if method == "Local Outlier Factor":
+            n_neighbors = st.slider("n_neighbors", 5, 50, 20)
+        if method == "Autoencoder":
+            ae_epochs = st.slider("Epochs", 10, 200, 100)
+            ae_encoding_dim = st.slider("Encoding Dim", 2, 32, 8)
 
     with col3:
         if st.button("🚨 Detect Anomalies", use_container_width=True):
@@ -55,9 +78,15 @@ def render_anomaly_tab():
                     if method == "Isolation Forest":
                         results = ml.isolation_forest_anomaly(features, contamination=contamination, n_estimators=n_estimators)
                     elif method == "Local Outlier Factor":
-                        results = ml.local_outlier_factor(features, contamination=contamination)
+                        results = ml.local_outlier_factor(features, contamination=contamination, n_neighbors=n_neighbors)
                     elif method == "Minimum Covariance":
                         results = ml.minimum_covariance_determinant(features, contamination=contamination)
+                    elif method == "One-Class SVM":
+                        results = ml.one_class_svm_anomaly(features, nu=nu, kernel=kernel, gamma=gamma)
+                    elif method == "DBSCAN":
+                        results = ml.dbscan_anomaly(features, eps=eps, min_samples=min_samples)
+                    elif method == "Autoencoder":
+                        results = ml.autoencoder_anomaly(features, contamination=contamination, encoding_dim=ae_encoding_dim, epochs=ae_epochs)
 
                     st.session_state.analysis_results['anomaly'] = results
                     st.success("✅ Detection complete!")
@@ -66,10 +95,14 @@ def render_anomaly_tab():
 
     st.markdown("---")
 
+
     if 'anomaly' in st.session_state.analysis_results:
         results = st.session_state.analysis_results['anomaly']
 
+
+
         if 'error' not in results:
+
             anomaly_labels = results.get('anomaly_labels', [])
             n_anomalies = sum(1 for x in anomaly_labels if x == -1)
             n_normal = sum(1 for x in anomaly_labels if x == 1)
@@ -121,30 +154,28 @@ def render_anomaly_tab():
                     # Create figure with anomalies more prominent
                     fig = go.Figure()
 
-                    # Plot normal points first (smaller, less prominent)
+
+                    # Always plot, even if no anomalies
                     normal_mask = df_plot['Status'] == '🟢 Normal'
-                    if normal_mask.any():
-                        fig.add_trace(go.Scatter(
-                            x=df_plot.loc[normal_mask, features[0]],
-                            y=df_plot.loc[normal_mask, features[1]],
-                            mode='markers',
-                            name='Normal',
-                            marker=dict(size=6, color='green', opacity=0.4),
-                            hovertemplate=f'{features[0]}: %{{x:.3f}}<br>{features[1]}: %{{y:.3f}}<extra>Normal</extra>'
-                        ))
-
-                    # Plot anomalies on top (larger, more prominent)
                     anomaly_mask = df_plot['Status'] == '🔴 Anomaly'
-                    if anomaly_mask.any():
-                        fig.add_trace(go.Scatter(
-                            x=df_plot.loc[anomaly_mask, features[0]],
-                            y=df_plot.loc[anomaly_mask, features[1]],
-                            mode='markers',
-                            name='Anomaly',
-                            marker=dict(size=12, color='red', symbol='x', line=dict(width=2, color='darkred')),
-                            hovertemplate=f'{features[0]}: %{{x:.3f}}<br>{features[1]}: %{{y:.3f}}<extra>⚠️ ANOMALY</extra>'
-                        ))
-
+                    # Plot normal points (even if all points are normal)
+                    fig.add_trace(go.Scatter(
+                        x=df_plot.loc[normal_mask, features[0]],
+                        y=df_plot.loc[normal_mask, features[1]],
+                        mode='markers',
+                        name='Normal',
+                        marker=dict(size=6, color='green', opacity=0.4),
+                        hovertemplate=f'{features[0]}: %{{x:.3f}}<br>{features[1]}: %{{y:.3f}}<extra>Normal</extra>'
+                    ))
+                    # Plot anomalies (even if none)
+                    fig.add_trace(go.Scatter(
+                        x=df_plot.loc[anomaly_mask, features[0]],
+                        y=df_plot.loc[anomaly_mask, features[1]],
+                        mode='markers',
+                        name='Anomaly',
+                        marker=dict(size=12, color='red', symbol='x', line=dict(width=2, color='darkred')),
+                        hovertemplate=f'{features[0]}: %{{x:.3f}}<br>{features[1]}: %{{y:.3f}}<extra>⚠️ ANOMALY</extra>'
+                    ))
                     fig.update_layout(
                         title=f'{method} Anomaly Detection Results',
                         xaxis_title=features[0],
@@ -161,7 +192,7 @@ def render_anomaly_tab():
                     # Create full results dataframe
                     df_results = X.copy()
                     df_results['Status'] = labels
-                    df_results['Anomaly_Score'] = results.get('scores', [0] * len(X))
+                    df_results['Anomaly_Score'] = results.get('anomaly_scores', [0] * len(X))
 
                     # Show anomalies table
                     df_anomalies = df_results[df_results['Status'] == '🔴 Anomaly'].copy()

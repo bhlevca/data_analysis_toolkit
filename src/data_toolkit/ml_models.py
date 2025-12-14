@@ -10,32 +10,40 @@ Contains comprehensive methods for:
 Version: 2.0
 """
 
-import pandas as pd
-import numpy as np
 import matplotlib
+import numpy as np
+import pandas as pd
+
 matplotlib.use('Agg')
+import warnings
+from typing import Any, Dict, List, Optional, Tuple
+
 import matplotlib.pyplot as plt
-from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet, LogisticRegression
-from sklearn.preprocessing import StandardScaler, PolynomialFeatures
+from scipy.cluster.hierarchy import dendrogram, fcluster, linkage
+from scipy.spatial.distance import pdist, squareform
+from sklearn.cluster import DBSCAN, AgglomerativeClustering, KMeans
+from sklearn.covariance import MinCovDet
 from sklearn.decomposition import PCA, FastICA, TruncatedSVD
-from sklearn.ensemble import (RandomForestClassifier, RandomForestRegressor,
-                               GradientBoostingRegressor, GradientBoostingClassifier, IsolationForest)
-from sklearn.cluster import KMeans, DBSCAN, AgglomerativeClustering
-from sklearn.mixture import GaussianMixture
+from sklearn.ensemble import (GradientBoostingClassifier,
+                              GradientBoostingRegressor, IsolationForest,
+                              RandomForestClassifier, RandomForestRegressor)
+from sklearn.linear_model import (ElasticNet, Lasso, LinearRegression,
+                                  LogisticRegression, Ridge)
 from sklearn.manifold import TSNE
-from sklearn.neighbors import LocalOutlierFactor, KNeighborsClassifier, KNeighborsRegressor
+from sklearn.metrics import (accuracy_score, calinski_harabasz_score,
+                             classification_report, confusion_matrix,
+                             davies_bouldin_score, f1_score,
+                             mean_squared_error, precision_score, r2_score,
+                             recall_score, silhouette_score)
+from sklearn.mixture import GaussianMixture
+from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.naive_bayes import GaussianNB
+from sklearn.neighbors import (KNeighborsClassifier, KNeighborsRegressor,
+                               LocalOutlierFactor)
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 from sklearn.svm import SVC, SVR
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
-from sklearn.naive_bayes import GaussianNB
-from sklearn.covariance import MinCovDet
-from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.metrics import (classification_report, mean_squared_error, r2_score,
-                            silhouette_score, davies_bouldin_score, calinski_harabasz_score,
-                            accuracy_score, precision_score, recall_score, f1_score, confusion_matrix)
-from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
-from scipy.spatial.distance import pdist, squareform
-from typing import List, Dict, Any, Optional, Tuple
-import warnings
+
 warnings.filterwarnings('ignore')
 
 # Try optional imports
@@ -53,8 +61,167 @@ except ImportError:
 
 
 class MLModels:
-    """Enhanced Machine Learning Models for regression, classification, clustering,
-    dimensionality reduction, anomaly detection, and association rules"""
+    def one_class_svm_anomaly(self, features: List[str],
+                              nu: float = 0.05, kernel: str = 'rbf', gamma: str = 'scale') -> Dict[str, Any]:
+            """
+            One-Class SVM Anomaly Detection
+
+            Args:
+                features: List of feature column names
+                nu: An upper bound on the fraction of anomalies (0 < nu <= 1)
+                kernel: Kernel type ('rbf', 'linear', etc.)
+                gamma: Kernel coefficient
+
+            Returns:
+                Dictionary with anomaly detection results
+            """
+            if self.df is None:
+                return {'error': 'No data loaded'}
+
+            from sklearn.svm import OneClassSVM
+            X = self.df[features].dropna()
+            scaler = StandardScaler()
+            X_scaled = scaler.fit_transform(X)
+            model = OneClassSVM(nu=nu, kernel=kernel, gamma=gamma)
+            predictions = model.fit_predict(X_scaled)
+            scores = model.decision_function(X_scaled)
+            n_anomalies = (predictions == -1).sum()
+
+            # Align predictions back to original DataFrame index
+            mask = self.df[features].notnull().all(axis=1)
+            labels_full = np.ones(len(self.df), dtype=int)
+            idxs = np.where(mask)[0]
+            if len(idxs) == len(predictions):
+                labels_full[idxs] = predictions
+            else:
+                labels_full[idxs[:len(predictions)]] = predictions
+
+            anomaly_orig_indices = np.where(labels_full == -1)[0].tolist()
+
+            results = {
+                'method': 'One-Class SVM',
+                'anomaly_scores': scores,
+                'predictions': predictions,
+                'anomaly_labels': labels_full.tolist(),
+                'n_anomalies': int(n_anomalies),
+                'anomaly_percentage': (n_anomalies / len(X)) * 100 if len(X) > 0 else 0,
+                'anomaly_indices': anomaly_orig_indices,
+                'nu': nu,
+                'kernel': kernel,
+                'gamma': gamma,
+                'feature_names': features
+            }
+            self.last_results = results
+            return results
+
+    def dbscan_anomaly(self, features: List[str], eps: float = 0.5, min_samples: int = 5) -> Dict[str, Any]:
+            """
+            DBSCAN-based Anomaly Detection (labels noise points as anomalies)
+
+            Args:
+                features: List of feature column names
+                eps: Neighborhood radius
+                min_samples: Minimum samples in a neighborhood
+
+            Returns:
+                Dictionary with anomaly detection results
+            """
+            if self.df is None:
+                return {'error': 'No data loaded'}
+
+            X = self.df[features].dropna()
+            scaler = StandardScaler()
+            X_scaled = scaler.fit_transform(X)
+            model = DBSCAN(eps=eps, min_samples=min_samples)
+            clusters = model.fit_predict(X_scaled)
+            # DBSCAN labels noise as -1
+            predictions = np.where(clusters == -1, -1, 1)
+            n_anomalies = (predictions == -1).sum()
+
+            # Align predictions back to original DataFrame index
+            mask = self.df[features].notnull().all(axis=1)
+            labels_full = np.ones(len(self.df), dtype=int)
+            idxs = np.where(mask)[0]
+            if len(idxs) == len(predictions):
+                labels_full[idxs] = predictions
+            else:
+                labels_full[idxs[:len(predictions)]] = predictions
+
+            anomaly_orig_indices = np.where(labels_full == -1)[0].tolist()
+
+            results = {
+                'method': 'DBSCAN',
+                'anomaly_scores': clusters,
+                'predictions': predictions,
+                'anomaly_labels': labels_full.tolist(),
+                'n_anomalies': int(n_anomalies),
+                'anomaly_percentage': (n_anomalies / len(X)) * 100 if len(X) > 0 else 0,
+                'anomaly_indices': anomaly_orig_indices,
+                'eps': eps,
+                'min_samples': min_samples,
+                'feature_names': features
+            }
+            self.last_results = results
+            return results
+
+    def autoencoder_anomaly(self, features: List[str], contamination: float = 0.05, **kwargs) -> Dict[str, Any]:
+        """
+        Autoencoder-based anomaly detection (delegates to NeuralNetworkModels)
+
+        Args:
+            features: List of feature column names
+            contamination: Expected fraction of anomalies
+            kwargs: Additional parameters for neural network autoencoder
+
+        Returns:
+            Dictionary with anomaly detection results
+        """
+        # Check input data shape before calling neural network
+        X = self.df[features].dropna()
+        if X.shape[0] == 0:
+            return {
+                'method': 'Autoencoder',
+                'anomaly_scores': [],
+                'predictions': [],
+                'anomaly_labels': [],
+                'n_anomalies': 0,
+                'anomaly_percentage': 0,
+                'anomaly_indices': [],
+                'threshold': None,
+                'feature_names': features,
+                'error': 'Input data is empty after dropping NaNs.'
+            }
+        try:
+            from .neural_networks import NeuralNetworkModels
+        except ImportError:
+            try:
+                from neural_networks import NeuralNetworkModels
+            except ImportError:
+                return {'error': 'NeuralNetworkModels not available'}
+        nn = NeuralNetworkModels(self.df)
+        results = nn.autoencoder_anomaly_detection(features, contamination=contamination, **kwargs)
+        # Adapt output to match other methods
+        preds = np.where(results.get('is_anomaly', []), -1, 1)
+        anomaly_scores = results.get('reconstruction_errors', [0]*len(preds))
+        anomaly_labels = preds.tolist() if len(preds) else []
+        n_anomalies = int(results.get('n_anomalies', 0))
+        anomaly_indices = results.get('anomaly_indices', [])
+        return {
+            'method': 'Autoencoder',
+            'anomaly_scores': anomaly_scores,
+            'predictions': preds,
+            'anomaly_labels': anomaly_labels,
+            'n_anomalies': n_anomalies,
+            'anomaly_percentage': results.get('anomaly_percentage', 0),
+            'anomaly_indices': anomaly_indices,
+            'threshold': results.get('threshold', None),
+            'feature_names': features
+        }
+
+    """
+    Enhanced Machine Learning Models for regression, classification, clustering,
+    dimensionality reduction, anomaly detection, and association rules
+    """
 
     REGRESSION_MODELS = {
         'Linear Regression': LinearRegression,
@@ -757,11 +924,15 @@ class MLModels:
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
 
-        model = MinCovDet(contamination=contamination, random_state=42)
-        predictions = model.fit_predict(X_scaled)
+        model = MinCovDet(random_state=42)
+        model.fit(X_scaled)
         scores = model.mahalanobis(X_scaled)
 
-        n_anomalies = (predictions == -1).sum()
+        # Select top anomalies by Mahalanobis distance (higher = more outlier)
+        n_anomalies = int(np.ceil(contamination * len(X)))
+        anomaly_indices_sorted = np.argsort(scores)[-n_anomalies:] if n_anomalies > 0 else []
+        predictions = np.ones(len(X), dtype=int)
+        predictions[anomaly_indices_sorted] = -1
 
         # Align predictions back to original DataFrame index
         mask = self.df[features].notnull().all(axis=1)
@@ -780,7 +951,7 @@ class MLModels:
             'predictions': predictions,  # -1 for anomalies, 1 for normal (on cleaned X)
             'anomaly_labels': labels_full.tolist(),
             'n_anomalies': int(n_anomalies),
-            'anomaly_percentage': (n_anomalies / len(X)) * 100,
+            'anomaly_percentage': (n_anomalies / len(X)) * 100 if len(X) > 0 else 0,
             'anomaly_indices': anomaly_orig_indices,
             'covariance_matrix': model.covariance_,
             'location': model.location_,
@@ -883,9 +1054,8 @@ class MLModels:
 
     # --- Compatibility wrappers for older API (Streamlit / GUI) ------------
     def train_model(self, features: List[str], target: str, model_name: str,
-                    test_size: float = 0.2, random_state: int = 42) -> Dict[str, Any]:
+                   test_size: float = 0.2, random_state: int = 42) -> Dict[str, Any]:
         """
-        Compatibility method kept for older callers.
         Trains regression/classification models or delegates to clustering methods.
         """
         if self.df is None:
@@ -925,7 +1095,7 @@ class MLModels:
             return {'error': f'Unknown model: {model_name}'}
 
         # Instantiate model with reasonable defaults
-        if model_name in ['Random Forest Regressor', 'Random Forest Classifier', 
+        if model_name in ['Random Forest Regressor', 'Random Forest Classifier',
                           'Gradient Boosting Regressor', 'Gradient Boosting Classifier']:
             model = model_class(n_estimators=100, random_state=random_state)
         elif model_name in ['Ridge Regression', 'Lasso Regression', 'ElasticNet']:

@@ -43,7 +43,46 @@ except ImportError:
 
 
 class StatisticalAnalysis:
-    """Enhanced statistical analysis methods"""
+
+    def plot_outlier_line(self, column: str, outlier_info: dict) -> plt.Figure:
+        """
+        Plot a line plot of the data with outlier thresholds and outlier markers.
+        Args:
+            column: Column name to plot
+            outlier_info: Dict from outlier_detection() for this column
+        Returns:
+            Matplotlib Figure
+        """
+        data = self.df[column].dropna()
+        outlier_indices = outlier_info.get('outlier_indices', []) if outlier_info else []
+        is_outlier = data.index.isin(outlier_indices)
+        fig, ax = plt.subplots(figsize=(10, 4))
+        # Plot all data points (non-outliers in blue, outliers in red)
+        ax.scatter(data.index[~is_outlier], data.values[~is_outlier], color='steelblue', s=20, label='Normal')
+        if outlier_indices:
+            ax.scatter(data.index[is_outlier], data.values[is_outlier], color='red', marker='x', s=80, label='Outliers', zorder=5)
+        # Plot thresholds
+        if outlier_info:
+            if 'lower_bound' in outlier_info:
+                ax.axhline(outlier_info['lower_bound'], color='orange', linestyle='--', label='Lower Bound')
+            if 'upper_bound' in outlier_info:
+                ax.axhline(outlier_info['upper_bound'], color='orange', linestyle='--', label='Upper Bound')
+        ax.set_title(f"Outlier Detection: {column}")
+        ax.set_xlabel('Index')
+        ax.set_ylabel(column)
+        ax.legend()
+        plt.tight_layout()
+        return fig
+
+    def outlier_table(self, column: str, outlier_info: dict) -> pd.DataFrame:
+        """
+        Return a DataFrame of outlier values and their indices for a given column.
+        """
+        outlier_indices = outlier_info.get('outlier_indices', [])
+        if not outlier_indices:
+            return pd.DataFrame(columns=['Index', 'Value'])
+        data = self.df[column].loc[outlier_indices]
+        return pd.DataFrame({'Index': data.index, 'Value': data.values})
 
     def __init__(self, df: pd.DataFrame = None):
         self.df = df
