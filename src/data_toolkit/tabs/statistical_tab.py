@@ -2,6 +2,9 @@
 Tab module for the Data Analysis Toolkit
 """
 
+import os
+import sys
+
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -9,8 +12,6 @@ import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
 
-import sys
-import os
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_current_dir)
 if _parent_dir not in sys.path:
