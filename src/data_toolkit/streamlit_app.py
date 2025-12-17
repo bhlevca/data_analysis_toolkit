@@ -453,6 +453,19 @@ PCA finds eigenvectors of the covariance matrix:
 💡 **Tip**: Always standardize data before PCA (handled automatically)!
 """,
 
+    "image_recognition": """
+## 🖼️ Image Recognition (Streamlit Image Tab)
+
+Use the **Image** tab for image classification workflows (training, prediction, and saving models).
+
+1. Click **Image** → **Image Recognition**.
+2. Provide a dataset as class-labelled subfolders or upload a `labels.csv` mapping filenames to labels (paths may be absolute or relative to the selected folder).
+3. Preview samples, set `image_size` and `batch_size`, then train using CNN or Transfer Learning.
+4. Save models as `.keras` (recommended). If class names are missing, predictions will use numeric labels.
+
+Troubleshooting: If a saved model fails to load, ensure any custom layers are registered or re-save in `.keras` format. The loader skips missing CSV entries and warns.
+""",
+
     "bayesian": """
 ## 📈 Bayesian Analysis Guide
 
