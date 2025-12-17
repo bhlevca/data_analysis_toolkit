@@ -63,3 +63,8 @@ streamlit run src/data_toolkit/streamlit_app.py
 - **Collaboration**: Multiple developers can work on different tabs
 - **Readability**: Clear separation of concerns
 - **Debugging**: Errors point to specific tab files
+
+Quick start and image recognition docs
+- Quick Start (image demo): docs/QUICK_START.md
+- Streamlit integration guide: docs/STREAMLIT_INTEGRATION_GUIDE.md
+

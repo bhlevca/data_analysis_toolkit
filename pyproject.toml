@@ -53,6 +53,7 @@ dependencies = [
     "seaborn>=0.12.0",
     "plotly>=5.15.0",
     "streamlit>=1.28.0",
+    "Pillow>=9.0.0",
     "PyWavelets>=1.4.0",
     "mlxtend>=0.23.0",
     "umap-learn>=0.5.0",
@@ -75,6 +76,10 @@ rust = [
 ]
 neural = [
     "tensorflow>=2.10.0",
+]
+image = [
+    "Pillow>=9.0.0",
+    "opencv-python>=4.6.0",
 ]
 all = [
     "tensorflow>=2.10.0",

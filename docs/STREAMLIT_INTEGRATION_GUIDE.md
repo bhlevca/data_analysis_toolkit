@@ -1,3 +1,30 @@
+# Streamlit Integration Guide — Image Tab
+
+This document explains how to access and use the new Image Recognition tab inside the Streamlit app.
+
+Open the app:
+
+```bash
+streamlit run src/data_toolkit/streamlit_app.py --server.port 8501
+```
+
+Navigate: Machine Learning → Image Recognition
+
+Controls in the tab:
+- Generate Synthetic Dataset: creates `images/`, `predict_examples/`, and `labels.csv` under the chosen output folder.
+- Train CNN Model:
+  - **Data folder**: click `Browse` to open a compact folder browser (or `Native Browse` to open your OS folder dialog when running Streamlit locally), then `Select` the dataset folder. The selected folder is shown in the **Selected data folder** field. The folder must contain `images/` and `labels.csv` (or upload `labels.csv` via the UI).
+  - **Save model**: use the `Save model automatically` checkbox to write the trained model as a `.keras` file during training; if you choose not to auto-save, a `Save trained model` widget appears after training so you can persist the in-memory model.
+  - Tunable hyperparameters: epochs, batch size, image size, CNN depth, base filters, dense units.
+- Predict Single Image: Upload or choose from images found in the selected data folder (the UI lists candidates from `predict_examples/` and `images/`).
+
+Notes: the UI prefers `.keras` format for saved models and will only show legacy `.h5` files if no `.keras` files are present in `models/`.
+- Interactive Labeling: review `predict_examples/` images, assign labels; labeled images are moved into `images/` and appended to `labels.csv` as `train` split entries.
+
+Notes and troubleshooting:
+- Ensure TensorFlow is installed for training (`pip install -e .[neural]`)
+- If CPU-only, prefer smaller image sizes (64–128) and fewer epochs for responsiveness.
+- Uploaded `labels.csv` will be stored in the selected data folder before training.
 # 🎨 Streamlit UI Integration Guide for v2.0 Features
 
 ## Overview

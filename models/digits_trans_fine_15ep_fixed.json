@@ -1,0 +1,22 @@
+{
+  "class_names": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9"
+  ],
+  "image_size": 128,
+  "task": "classification",
+  "architecture": "mobilenetv2_transfer",
+  "base_trainable": true,
+  "num_classes": 10,
+  "n_train": 1601,
+  "n_val": 394,
+  "augmentation": true
+}

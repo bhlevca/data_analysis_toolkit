@@ -1043,6 +1043,7 @@ def render_tutorial_sidebar():
                 # Machine Learning group
                 "machine_learning": "🤖 ML › Regression/Classification",
                 "neural_networks": "🧠 ML › Neural Networks",
+                "image_recognition": "🖼️ Image Recognition › Streamlit Tab",
                 "pca": "🤖 ML › PCA (Principal Components)",
                 "clustering": "🤖 ML › Clustering",
                 "anomaly": "🤖 ML › Anomaly Detection",
@@ -1061,7 +1062,15 @@ def render_tutorial_sidebar():
             st.session_state.current_tutorial = selected
 
             st.markdown("---")
-            st.markdown(TUTORIALS[selected])
+            # If the selected topic is provided in the central comprehensive tutorial module, prefer that text
+            try:
+                from data_toolkit import comprehensive_tutorial
+                if selected in comprehensive_tutorial.get_all_topics():
+                    st.markdown(comprehensive_tutorial.get_tutorial(selected))
+                else:
+                    st.markdown(TUTORIALS[selected])
+            except Exception:
+                st.markdown(TUTORIALS[selected])
 
         st.markdown("---")
 

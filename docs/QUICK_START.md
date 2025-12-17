@@ -1,3 +1,48 @@
+# Quick Start — Image Recognition Demo
+
+This quickstart shows how to generate a small demo image dataset, train a tiny CNN, and run the Streamlit app to predict images.
+
+High-level notes:
+- The Quickstart demonstrates a *tiny* pipeline suitable for local testing (small dataset, few epochs).
+- The full-blown image recognition pipeline uses larger datasets, longer training, augmentation, and hyperparameter tuning; see `docs/IMAGE_WORKFLOW.md` for production guidance.
+
+Steps
+1. Create a virtual environment and install the package with image and neural extras:
+
+```bash
+python -m venv venv
+source venv/bin/activate
+pip install -e .[neural,image]
+```
+
+2. Generate demo images (small demo, 500 images recommended for better results):
+
+```bash
+python -c "import sys; sys.path.insert(0,'src'); from data_toolkit import image_data; image_data.generate_digit_images('test_data/digits', n_images=500, image_size=128, seed=42)"
+```
+
+3. Train a quick model via the CLI (short epochs for a fast demo):
+
+```bash
+python train_image_model.py --data_dir test_data/digits --labels labels.csv --epochs 5 --batch 32 --model_out models/demo_cnn.keras
+```
+
+Note: The toolkit prefers the native `.keras` format for model artifacts. The Streamlit UI also defaults to saving models as `.keras` and provides a checkbox to auto-save the trained model or a button to save a trained model kept in memory.
+
+4. Run the Streamlit app and open the Image Recognition tab:
+
+```bash
+streamlit run src/data_toolkit/streamlit_app.py --server.port 8501
+```
+
+5. In the app: Machine Learning → Image Recognition.
+- Generate dataset (optional) → Train CNN (choose `labels.csv in folder` or upload your own) → Predict single image (upload or pick from folder).
+
+Differences: "Tiny" quickstart vs full CNN
+- Quickstart: small dataset, few epochs, lower capacity model — meant for fast iteration and testing the UI/workflow.
+- Full pipeline: more images, larger image size, data augmentation, tuned CNN depth/filters, more epochs, GPU training.
+
+See `docs/IMAGE_WORKFLOW.md` for a step-by-step production workflow.
 # 🚀 Quick Start Examples - Advanced Data Analysis Toolkit v2.0
 
 ## Installation & Setup
