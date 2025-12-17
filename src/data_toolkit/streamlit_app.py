@@ -1059,6 +1059,7 @@ def render_tutorial_sidebar():
                 "causality": "⏱️ Time Series › Causality (Granger)",
                 # Machine Learning group
                 "machine_learning": "🤖 ML › Regression/Classification",
+                "image_recognition": "🖼️ Image Recognition › Streamlit Tab",
                 "pca": "🤖 ML › PCA (Principal Components)",
                 "clustering": "🤖 ML › Clustering",
                 "anomaly": "🤖 ML › Anomaly Detection",
