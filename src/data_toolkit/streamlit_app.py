@@ -169,11 +169,11 @@ TUTORIALS = {
     "getting_started": """
 ## 🚀 Getting Started with the Advanced Data Analysis Toolkit
 
-Welcome! This toolkit provides comprehensive data analysis capabilities organized into **6 main tabs** with **subtabs** inside each group.
+Welcome! This toolkit provides comprehensive data analysis capabilities organized into **7 main tabs** with **subtabs** inside each group.
 
 ---
 
-### 📂 Tab Structure (6 Main Tabs → Subtabs)
+### 📂 Tab Structure (7 Main Tabs → Subtabs)
 
 **Click a main tab, then click a subtab inside to access specific features:**
 
@@ -183,8 +183,9 @@ Welcome! This toolkit provides comprehensive data analysis capabilities organize
 | **📊 Statistics** | Descriptive Statistics, Hypothesis Tests, Bayesian Inference, Uncertainty Analysis |
 | **🔊 Signal Processing** | FFT/Wavelet (frequency and time-frequency analysis) |
 | **⏱️ Time Series** | Time Series Analysis, Causality (Granger) |
-| **🤖 Machine Learning** | Regression/Classification, PCA, Clustering, Anomaly Detection, Dimensionality Reduction, Non-Linear Analysis |
+| **🤖 Machine Learning** | Regression/Classification, PCA, Clustering, Anomaly Detection, Dimensionality Reduction, Non-Linear Analysis, Image Recognition |
 | **📈 Visualization** | Interactive Plots (scatter, box, 3D, regression lines) |
+| **🖼️ Image** | Image Recognition (training, prediction, dataset formats) |
 
 ---
 
@@ -214,8 +215,24 @@ Welcome! This toolkit provides comprehensive data analysis capabilities organize
 | Find clusters? | 🤖 ML → Clustering |
 | Find outliers? | 🤖 ML → Anomaly Detection |
 | Visualize data? | 📈 Visualization → Plots |
+| Image classification? | 🖼️ Image → Image Recognition (Streamlit Image tab) |
 
 ---
+
+### 🖼️ Image Recognition (quick guide)
+
+Use the **Image** tab for image classification workflows (training, prediction, and saving models).
+
+1. Click the **Image** main tab, then **Image Recognition** subtab.
+2. Select a data folder containing either:
+    - subfolders named by class (one folder per class), or
+    - a CSV mapping filenames to labels (see the folder picker for uploading CSV).
+3. Preview sample images, choose image size and batch size, then Train using the CNN or Transfer Learning options.
+4. If training completes, use the optional Save model checkbox or the Save button to export a `.keras` model (recommended).
+5. Use the Predict controls to run single-image or batch predictions; if class names are missing the UI will fall back to numeric labels.
+
+Troubleshooting: If a saved model fails to load, ensure any custom layers are registered or re-save the model in `.keras` format. CSV filename mismatches are skipped with warnings — check the preview to confirm your file paths.
+
 
 ### 📈 Interactive Charts (Plotly)
 

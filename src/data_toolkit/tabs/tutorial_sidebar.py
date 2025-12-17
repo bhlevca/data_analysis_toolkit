@@ -19,7 +19,7 @@ Welcome! This toolkit provides comprehensive data analysis capabilities organize
 
 ---
 
-### 📂 Tab Structure (6 Main Tabs → Subtabs)
+### 📂 Tab Structure (7 Main Tabs → Subtabs)
 
 **Click a main tab, then click a subtab inside to access specific features:**
 
