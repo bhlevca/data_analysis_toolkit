@@ -15,7 +15,7 @@ TUTORIALS = {
     "getting_started": """
 ## 🚀 Getting Started with the Advanced Data Analysis Toolkit
 
-Welcome! This toolkit provides comprehensive data analysis capabilities organized into **6 main tabs** with **subtabs** inside each group.
+Welcome! This toolkit provides comprehensive data analysis capabilities organized into **7 main tabs** with **subtabs** inside each group.
 
 ---
 
@@ -31,6 +31,7 @@ Welcome! This toolkit provides comprehensive data analysis capabilities organize
 | **⏱️ Time Series** | Time Series Analysis, Causality (Granger) |
 | **🤖 Machine Learning** | Regression/Classification, 🧠 Neural Networks, PCA, Clustering, Anomaly Detection, Dimensionality Reduction, Non-Linear Analysis |
 | **📈 Visualization** | Interactive Plots (scatter, box, 3D, regression lines) |
+| **🖼️ Image** | Image Recognition (training, prediction, dataset formats) |
 
 ---
 
@@ -1005,6 +1006,20 @@ Learns to compress and reconstruct data. Anomalies have high reconstruction erro
 | Poor accuracy | More data, more epochs, tune architecture |
 
 💡 **Tip**: Start simple (2 layers, 64 neurons) and add complexity only if needed!
+""",
+
+    "image_recognition": """
+## 🖼️ Image Recognition (Streamlit Image Tab)
+
+Use the **Image** tab for image classification workflows: dataset selection, training (CNN or transfer learning), prediction, and model saving.
+
+1. Click the **Image** main tab, then the **Image Recognition** subtab.
+2. Provide a dataset either as class-labelled subfolders or a CSV mapping filenames to labels. The app will attempt to resolve CSV paths relative to the selected data folder.
+3. Preview sample images, choose `image_size` and `batch_size`, then train using the CNN or Transfer Learning options.
+4. Save trained models as `.keras` (recommended). If class names are missing the UI will fall back to numeric labels for prediction output.
+5. For failed model loads, re-save in `.keras` format or ensure custom layers are registered when loading.
+
+Troubleshooting: CSV filename mismatches are skipped with warnings — inspect the preview to confirm file paths. If you need a native folder picker in browser deployments, consider adding a Streamlit component; a local tkinter dialog is available for desktop runs.
 """
 }
 
