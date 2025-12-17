@@ -1,36 +1,5 @@
 """
 Comprehensive Tutorial & Help System for Advanced Data Analysis Toolkit
-    # =========================================================================
-    # IMAGE RECOGNITION
-    # =========================================================================
-
-    "image_recognition": """
-## 🖼️ Image Recognition (Streamlit tab)
-
-### Overview
-Use the Image Recognition tab in the Streamlit app to generate datasets, train CNNs, and predict single images.
-
-### Selecting the dataset
-- Click **Browse** to open the compact folder picker and choose your dataset folder anywhere on your machine; or click **Native Browse** to use your OS folder dialog when running Streamlit locally.
-- The selected folder must contain an `images/` subfolder (or `predict_examples/`) and a `labels.csv` file formatted as `filename,label[,split]`.
-
-### Labels
-- You may upload a `labels.csv` via **Upload labels.csv**; the file will be saved into the selected data folder before training.
-- The CSV `filename` values can be absolute paths or paths relative to the data folder; the loader resolves them robustly and skips missing files with a warning.
-
-### Training & saving
-- Use the hyperparameters to tune the run (epochs, batch, image size, depth, base filters, dense units).
-- **Save model automatically**: check this to write the trained model to disk in `.keras` format when training completes.
-- If you don't auto-save, the app keeps the trained model in memory and shows a **Save trained model** widget after training so you can persist it.
-
-### Prediction
-- Predict single images by uploading an image or choosing one from the selected data folder. The app automatically loads class names from the model metadata JSON if present.
-
-### Notes & Troubleshooting
-- The app prefers `.keras` format for model artifacts; legacy `.h5` files are supported only when no `.keras` files are present.
-- If you see a `ReadFile` error during training, confirm that `labels.csv` filenames resolve to existing image files; the loader will skip missing entries and warn instead of crashing.
-""",
-
 
 This module contains detailed explanations, usage guides, interpretations,
 and next steps for all analysis methods.
@@ -44,8 +13,38 @@ COMPREHENSIVE_TUTORIALS = {
     # STATISTICAL ANALYSIS
     # =========================================================================
 
+    "image_recognition": """
+Image Recognition (Streamlit tab)
+
+Overview:
+Use the Image tab to prepare datasets, train convolutional neural networks (CNNs) or perform transfer learning, and run predictions.
+
+Dataset layout:
+- Class folder format: data_folder/<class_name>/*.jpg (each subfolder is a class).
+- CSV mapping: labels.csv with rows: filename,label[,split]. Filenames may be absolute or relative to the selected data folder.
+
+Preparing data:
+- Ensure images are readable and non-empty.
+- Filenames in labels.csv that do not resolve to files are skipped with a warning.
+- Use the preview in the Image tab to confirm samples.
+
+Training and saving:
+- Choose image size, batch size, epochs, and model type (CNN or transfer learning).
+- Enable 'Save model automatically' to persist trained models as .keras files.
+- If you do not auto-save, a Save trained model button is available after training.
+
+Prediction:
+- Predict single images by uploading or selecting from the dataset folder.
+- If class names are missing in model metadata, numeric labels will be shown.
+
+Troubleshooting:
+- Prefer .keras model format; legacy .h5 is supported as fallback.
+- If a model uses custom layers, ensure they are registered before loading.
+- If you see file read errors, check labels.csv paths and image files.
+""",
+
     "descriptive_stats": """
-## 📊 Descriptive Statistics
+## Descriptive Statistics
 
 ### What & Why
 Descriptive statistics summarize key characteristics of your data.
