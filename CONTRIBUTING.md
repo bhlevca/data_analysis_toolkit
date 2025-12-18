@@ -38,6 +38,14 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
 7. **Update documentation** if needed
 8. **Submit your pull request**
 
+### Git Workflow Guidance (Project Policy)
+
+- **Do not rebase shared branches** (e.g., `developer`) once they are pushed to the remote. Rebasing published branches rewrites history and makes collaboration harder.
+- Prefer `git merge --no-ff <branch>` to integrate feature branches into `main` to preserve a visible branch history (merge commits show branch "detours" in the project graph).
+- If you prefer a linear history, agree on that policy with the team before using rebase; do not rebase other contributors' branches.
+
+If you'd like local protection against accidental rebases, an optional pre-rebase hook is available at `.githooks/pre-rebase` — enable it locally by configuring Git's hook path (`git config core.hooksPath .githooks`).
+
 ## Development Setup
 
 ```bash
