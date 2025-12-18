@@ -1040,81 +1040,13 @@ def init_session_state():
 # TUTORIAL SIDEBAR
 # =============================================================================
 def render_tutorial_sidebar():
-    """Render the tutorial sidebar matching the tab/subtab structure"""
-    with st.sidebar:
-        st.markdown("# 📚 Help & Documentation")
-
-        st.session_state.show_tutorial = st.checkbox(
-            "Show Documentation Panel",
-            value=st.session_state.show_tutorial
-        )
-
-        if st.session_state.show_tutorial:
-            st.markdown("---")
-
-            # Match the exact tab/subtab structure
-            st.markdown("**Select a topic:**")
-
-            tutorial_topics = {
-                # Getting started
-                "getting_started": "🚀 Getting Started",
-                # Data group
-                "data_loading": "📁 Data › Data Loading",
-                # Statistics group
-                "statistical": "📊 Statistics › Descriptive Statistics",
-                "tests": "📊 Statistics › Hypothesis Tests",
-                "bayesian": "📊 Statistics › Bayesian Inference",
-                "uncertainty": "📊 Statistics › Uncertainty Analysis",
-                # Signal Processing group
-                "signal_analysis": "🔊 Signal Processing › FFT/Wavelet",
-                # Time Series group
-                "timeseries": "⏱️ Time Series › Analysis",
-                "causality": "⏱️ Time Series › Causality (Granger)",
-                # Machine Learning group
-                "machine_learning": "🤖 ML › Regression/Classification",
-                "image_recognition": "🖼️ Image Recognition › Streamlit Tab",
-                "pca": "🤖 ML › PCA (Principal Components)",
-                "clustering": "🤖 ML › Clustering",
-                "anomaly": "🤖 ML › Anomaly Detection",
-                "dim_reduction": "🤖 ML › Dimensionality Reduction",
-                "nonlinear": "🤖 ML › Non-Linear Analysis",
-                # Visualization group
-                "visualization": "📈 Visualization › Plots",
-            }
-
-            selected = st.selectbox(
-                "Documentation Topic",
-                options=list(tutorial_topics.keys()),
-                format_func=lambda x: tutorial_topics[x],
-                index=list(tutorial_topics.keys()).index(st.session_state.current_tutorial)
-            )
-            st.session_state.current_tutorial = selected
-
-            st.markdown("---")
-            st.markdown(TUTORIALS[selected])
-
-        st.markdown("---")
-
-        # Backend toggle
-        st.markdown("### ⚡ Performance")
-        rust_available = is_rust_available()
-
-        if rust_available:
-            use_rust = st.checkbox(
-                "🦀 Rust Acceleration",
-                value=st.session_state.use_rust,
-                help="Enable Rust backend for 10-50x speedup"
-            )
-            st.session_state.use_rust = use_rust
-            AccelerationSettings.set_use_rust(use_rust)
-
-            if use_rust:
-                st.success("⚡ Using Rust (Fast)")
-            else:
-                st.info("🐍 Using Python")
-        else:
-            st.warning("🐍 Python only")
-            st.caption("Run `maturin develop --release` in rust_extensions/ for speedup")
+    """Delegate rendering of the tutorial sidebar to the centralized implementation
+    in `data_toolkit.tabs.tutorial_sidebar`. This avoids duplication and ensures
+    a single source of truth for sidebar behaviour and content.
+    """
+    # Local import to avoid circular imports at module import time
+    from data_toolkit.tabs.tutorial_sidebar import render_tutorial_sidebar as _render
+    _render()
 
 
 # =============================================================================

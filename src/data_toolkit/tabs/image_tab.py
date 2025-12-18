@@ -154,6 +154,7 @@ def render_image_tab():
         dense_units = st.number_input("Dense units", value=256)
         model_out = st.text_input("Model output path (use .keras)", "models/image_cnn.keras")
         save_auto = st.checkbox('Save model automatically', value=False, key='save_auto')
+        st.caption("If unchecked, the trained model will remain in memory after training; use 'Save trained model' below to export it to disk.")
 
         if st.button("Start training"):
             st.info("Starting training — this runs synchronously in the Streamlit worker.")
@@ -343,6 +344,7 @@ def render_image_tab():
         # If training produced an unsaved model, allow saving it now
         if st.session_state.get('last_trained_model') is not None:
             st.write('You have a trained model in memory that was not saved.')
+            st.caption("Tip: set 'Save model automatically' before training to save directly, or use the form below to save the in-memory model to a .keras file.")
             save_path = st.text_input('Save trained model to', 'models/unsaved_trained.keras', key='save_trained_path')
             if st.button('Save trained model'):
                 try:

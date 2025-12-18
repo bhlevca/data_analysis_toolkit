@@ -14,33 +14,55 @@ COMPREHENSIVE_TUTORIALS = {
     # =========================================================================
 
     "image_recognition": """
-Image Recognition (Streamlit tab)
+Image Recognition (Streamlit Image tab)
 
-Overview:
-Use the Image tab to prepare datasets, train convolutional neural networks (CNNs) or perform transfer learning, and run predictions.
+Step-by-step (Streamlit Image tab)
+1) Select data folder
+   - Click Browse and choose the folder containing either class subfolders
+     (data_folder/<class_name>/*.jpg) or a `labels.csv` file mapping filenames to labels.
+   - To upload labels.csv from the UI, use the upload control; the file is saved to the
+     selected folder automatically.
 
-Dataset layout:
-- Class folder format: data_folder/<class_name>/*.jpg (each subfolder is a class).
-- CSV mapping: labels.csv with rows: filename,label[,split]. Filenames may be absolute or relative to the selected data folder.
+2) Preview and validate
+   - Use the Sample preview to inspect a few images per class. Confirm file paths resolve
+     and images are not corrupt or zero-byte.
+   - Recommended split: train 80%, val 10%, test 10% (the app accepts an optional split column).
 
-Preparing data:
-- Ensure images are readable and non-empty.
-- Filenames in labels.csv that do not resolve to files are skipped with a warning.
-- Use the preview in the Image tab to confirm samples.
+3) Configure training
+   - Image size: choose 64, 96, 128, 160 or 224. Larger sizes increase compute and memory use.
+   - Batch size: 16, 32, 64. Larger batches need more memory and may speed up training.
+   - Epochs: 10-50 typical. Use early stopping on validation loss to avoid overfitting.
+   - Model type: CNN (from scratch) or Transfer Learning (recommended for small datasets).
+   - Augmentation: enable to reduce overfitting on small datasets.
+   - Learning rate / optimizer: use sensible defaults; reduce LR if training is unstable.
 
-Training and saving:
-- Choose image size, batch size, epochs, and model type (CNN or transfer learning).
-- Enable 'Save model automatically' to persist trained models as .keras files.
-- If you do not auto-save, a Save trained model button is available after training.
+4) Expectations and heuristics
+   - Small datasets (< 500 images per class): transfer learning + augmentation gives best results.
+   - Higher image_size (e.g., 224) improves accuracy but increases memory and time; prefer GPU for large sizes.
+   - If classes are imbalanced, consider class weights or oversampling to improve per-class recall.
+   - Training time roughly scales with (dataset_size * epochs) / batch_size; monitor GPU/CPU usage.
 
-Prediction:
-- Predict single images by uploading or selecting from the dataset folder.
-- If class names are missing in model metadata, numeric labels will be shown.
+5) Training and saving
+   - Enable "Save model automatically" to persist the trained model as a `.keras` file with metadata
+     (including `class_names` where possible).
+   - If not saved automatically, use the Save trained model button after training to export `.keras`.
+   - Prefer `.keras` format; `.h5` is supported as fallback but can cause deserialization issues for some models.
 
-Troubleshooting:
-- Prefer .keras model format; legacy .h5 is supported as fallback.
-- If a model uses custom layers, ensure they are registered before loading.
-- If you see file read errors, check labels.csv paths and image files.
+6) Prediction
+   - Upload a single image or choose from dataset examples and click Predict.
+   - The UI shows predicted label and probabilities; if class names are missing, numeric labels are shown.
+
+Troubleshooting
+- ReadFile / missing images: verify `labels.csv` filenames point to existing images under the selected folder.
+- Unknown layer / Lambda deserialization errors: re-save model in `.keras` format in an environment where custom layers are defined,
+  or provide `custom_objects` when loading the model.
+- HDF5/legacy issues: prefer `.keras` to reduce compatibility problems.
+- Low accuracy / overfitting: add augmentation, reduce model capacity, or collect more data.
+
+Tips
+- Keep `labels.csv` paths relative to the data folder for portability.
+- Start with transfer learning at image_size=128 and batch_size=32, then increase size/filters if resources allow.
+- Use validation monitoring and early stopping to pick the best model automatically.
 """,
 
     "descriptive_stats": """

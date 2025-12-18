@@ -295,24 +295,29 @@ def train_cnn(
     
     print(f"\n📐 Model: {model.count_params():,} parameters\n")
 
-    model_out = Path(model_out)
-    model_out.parent.mkdir(parents=True, exist_ok=True)
-    
+    # Prepare model output path only if the user requested saving the model.
+    model_out_path = None
+    if save_model and model_out:
+        model_out_path = Path(model_out)
+        model_out_path.parent.mkdir(parents=True, exist_ok=True)
+
     callbacks = [
-        keras.callbacks.ModelCheckpoint(str(model_out), save_best_only=True, monitor='val_loss', verbose=1),
         keras.callbacks.EarlyStopping(monitor='val_loss', patience=8, restore_best_weights=True, verbose=1),
         keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=4, verbose=1, min_lr=1e-7)
     ]
+    if model_out_path is not None:
+        callbacks.insert(0, keras.callbacks.ModelCheckpoint(str(model_out_path), save_best_only=True, monitor='val_loss', verbose=1))
 
     print(f"🏋️  Training...\n")
     history = model.fit(train_ds, validation_data=val_ds, epochs=epochs, callbacks=callbacks)
 
     saved_path = None
     metadata_path = None
-    if save_model and model_out:
-        if model_out and model_out.suffix != '.keras':
-            model_out = model_out.with_suffix('.keras')
-        model.save(str(model_out))
+    if save_model and model_out_path is not None:
+        out_path = model_out_path
+        if out_path.suffix != '.keras':
+            out_path = out_path.with_suffix('.keras')
+        model.save(str(out_path))
 
         # Save metadata
         metadata = {
@@ -325,9 +330,9 @@ def train_cnn(
             'n_val': n_val,
             'augmentation': augment
         }
-        metadata_path = model_out.with_suffix('.json')
+        metadata_path = out_path.with_suffix('.json')
         metadata_path.write_text(json.dumps(metadata, indent=2))
-        saved_path = str(model_out)
+        saved_path = str(out_path)
     
     print(f"\n{'='*60}\n✅ Complete!\n✅ Model: {model_out}\n✅ Metadata: {metadata_path}\n{'='*60}\n")
 

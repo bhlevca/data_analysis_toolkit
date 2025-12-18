@@ -1011,16 +1011,16 @@ Learns to compress and reconstruct data. Anomalies have high reconstruction erro
     "image_recognition": """
 ## 🖼️ Image Recognition (Streamlit Image Tab)
 
-Use the **Image** tab for image classification workflows: dataset selection, training (CNN or transfer learning), prediction, and model saving.
+Step-by-step:
+1) **Select data folder** — provide class subfolders or upload a `labels.csv` mapping filenames to labels (prefer relative paths).
+2) **Preview & validate** — inspect a few images per class; check for missing or corrupt files.
+3) **Configure** — set `image_size` (64–224), `batch_size` (16–64), `epochs`, and enable augmentation if needed.
+4) **Choose model** — CNN from scratch or Transfer Learning (recommended for small datasets).
+5) **Train** — use early stopping on validation loss; monitor accuracy and per-class metrics.
+6) **Save** — enable "Save model automatically" or use the Save trained model button; prefer `.keras` format. If class names are missing, predictions will show numeric labels.
 
-1. Click the **Image** main tab, then the **Image Recognition** subtab.
-2. Provide a dataset either as class-labelled subfolders or a CSV mapping filenames to labels. The app will attempt to resolve CSV paths relative to the selected data folder.
-3. Preview sample images, choose `image_size` and `batch_size`, then train using the CNN or Transfer Learning options.
-4. Save trained models as `.keras` (recommended). If class names are missing the UI will fall back to numeric labels for prediction output.
-5. For failed model loads, re-save in `.keras` format or ensure custom layers are registered when loading.
-
-Troubleshooting: CSV filename mismatches are skipped with warnings — inspect the preview to confirm file paths. If you need a native folder picker in browser deployments, consider adding a Streamlit component; a local tkinter dialog is available for desktop runs.
-"""
+Troubleshooting: Verify `labels.csv` paths, re-save in `.keras` to avoid HDF5 issues, and register custom layers used by the model.
+""",
 }
 
 
@@ -1068,24 +1068,94 @@ def render_tutorial_sidebar():
                 "visualization": "📈 Visualization › Plots",
             }
 
+            # Use Streamlit's `key` to bind the selectbox directly to
+            # `st.session_state.current_tutorial`. Add an `on_change` callback
+            # that records the most recent selection to force an immediate
+            # session-state update (helps with certain frontend update races).
+            def _load_comprehensive_module():
+                """Load `comprehensive_tutorial` without triggering heavy package imports.
+                First try normal import; if that fails, load the module directly from file.
+                """
+                try:
+                    from data_toolkit import comprehensive_tutorial as ct
+                    return ct
+                except Exception:
+                    # Fallback: load module directly from file to avoid package-level imports
+                    import importlib.util
+                    from pathlib import Path
+                    file_path = Path(__file__).resolve().parents[1] / "comprehensive_tutorial.py"
+                    if not file_path.exists():
+                        raise
+                    spec = importlib.util.spec_from_file_location("comprehensive_tutorial_local", str(file_path))
+                    mod = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(mod)
+                    return mod
+
             selected = st.selectbox(
                 "Documentation Topic",
                 options=list(tutorial_topics.keys()),
                 format_func=lambda x: tutorial_topics[x],
-                index=list(tutorial_topics.keys()).index(st.session_state.current_tutorial)
+                key="current_tutorial",
             )
-            st.session_state.current_tutorial = selected
 
-            st.markdown("---")
-            # If the selected topic is provided in the central comprehensive tutorial module, prefer that text
+            # Visible status line so users can see the currently selected topic
+            # immediately after clicking (useful for diagnosing double-click issues).
+            st.markdown(f"**Selected:** {tutorial_topics.get(st.session_state.current_tutorial, st.session_state.current_tutorial)}")
+
+            # Show a compact source indicator immediately under the selectbox so
+            # users do not have to scroll to the content area to see where the
+            # text is coming from (comprehensive file vs short sidebar snippet).
             try:
-                from data_toolkit import comprehensive_tutorial
-                if selected in comprehensive_tutorial.get_all_topics():
-                    st.markdown(comprehensive_tutorial.get_tutorial(selected))
+                comp = _load_comprehensive_module()
+                comp_topics = comp.get_all_topics()
+                cur = st.session_state.current_tutorial
+                source_text = "Source: sidebar short tutorial"
+
+                # Only map a _small_ set of sidebar keys to comprehensive keys.
+                # Keep this conservative: we only map 'pca' and 'image_recognition'.
+                SIDEBAR_TO_COMP = {
+                    "pca": "pca_analysis",
+                    "image_recognition": "image_recognition",
+                }
+
+                comp_topic = None
+                # Prefer exact comprehensive key match
+                if cur in comp_topics:
+                    comp_topic = cur
+                # Allow explicit mapping for the small set above
+                elif cur in SIDEBAR_TO_COMP and SIDEBAR_TO_COMP[cur] in comp_topics:
+                    comp_topic = SIDEBAR_TO_COMP[cur]
+
+                if comp_topic:
+                    # Do not show mapping details; just indicate the source file.
+                    source_text = "Source: comprehensive_tutorial.py"
+                else:
+                    source_text = "Source: sidebar short tutorial"
+
+            except Exception:
+                source_text = "Source: sidebar short tutorial (comprehensive load failed)"
+
+            st.markdown(f"**{source_text}**")
+
+            # Render the tutorial content. Use the previously computed
+            # `comp` and `comp_topic` (if available) so the source indicator
+            # and the displayed text remain consistent.
+            try:
+                if 'comp' in locals() and comp is not None and 'comp_topic' in locals() and comp_topic:
+                    st.markdown(comp.get_tutorial(comp_topic))
+                    if comp_topic != selected:
+                        st.info(f"Source: comprehensive_tutorial.py (topic: '{comp_topic}', mapped from '{selected}')")
+                    else:
+                        st.info("Source: comprehensive_tutorial.py")
                 else:
                     st.markdown(TUTORIALS[selected])
-            except Exception:
+                    st.info("Source: sidebar short tutorial")
+            except Exception as e:
+                # Show the short tutorial and surface a debug note so the user
+                # can see why the comprehensive tutorial was not used.
                 st.markdown(TUTORIALS[selected])
+                st.info("Source: sidebar short tutorial (comprehensive load failed)")
+                st.error(f"[Debug] Comprehensive tutorial load failed: {e}")
 
         st.markdown("---")
 
