@@ -147,7 +147,7 @@ def render_data_tab():
 
         # Data preview
         st.markdown("### Data Preview")
-        st.dataframe(df.head(10), use_container_width=True)
+        st.dataframe(df.head(10), width='stretch')
 
         # Quick plot
         if len(st.session_state.feature_cols) >= 1:
@@ -174,6 +174,6 @@ def render_data_tab():
                         template=PLOTLY_TEMPLATE
                     )
                     fig.update_layout(height=500, xaxis_title=x_col, yaxis_title=y_col)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
                 except Exception as e:
                     st.warning(f"Could not generate quick visualization: {e}")

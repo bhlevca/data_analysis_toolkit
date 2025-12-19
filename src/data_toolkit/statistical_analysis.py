@@ -401,6 +401,462 @@ class StatisticalAnalysis:
         return fig
 
     # =========================================================================
+    # ENHANCED PROBABILITY DISTRIBUTION ANALYSIS
+    # =========================================================================
+
+    def fit_extended_distributions(self, column: str, distributions: List[str] = None) -> Dict[str, Any]:
+        """
+        Fit extended set of probability distributions with comprehensive goodness-of-fit tests.
+        
+        Args:
+            column: Column name to analyze
+            distributions: List of distributions to fit. Options:
+                          ['normal', 't', 'chi2', 'uniform', 'poisson', 'binomial',
+                           'gamma', 'exponential', 'lognormal', 'weibull', 'beta',
+                           'pareto', 'cauchy', 'laplace', 'logistic']
+                          If None, fits common continuous distributions.
+        
+        Returns:
+            Dictionary with fitted parameters, GOF tests, and best fit
+        """
+        if self.df is None:
+            return {'error': 'No data loaded'}
+        
+        data = self.df[column].dropna().values
+        n = len(data)
+        
+        if n < 10:
+            return {'error': 'Need at least 10 data points'}
+        
+        if distributions is None:
+            distributions = ['normal', 't', 'gamma', 'exponential', 'lognormal', 
+                           'weibull', 'uniform', 'laplace', 'logistic']
+        
+        results = {'data_summary': {
+            'n': n,
+            'mean': float(np.mean(data)),
+            'std': float(np.std(data)),
+            'min': float(np.min(data)),
+            'max': float(np.max(data)),
+            'skewness': float(stats.skew(data)),
+            'kurtosis': float(stats.kurtosis(data))
+        }}
+        
+        # Ensure positive data for certain distributions
+        data_positive = data[data > 0] if np.any(data <= 0) else data
+        
+        dist_results = {}
+        
+        for dist_name in distributions:
+            try:
+                if dist_name == 'normal':
+                    params = norm.fit(data)
+                    dist = norm(*params)
+                    ks_stat, ks_p = stats.kstest(data, 'norm', args=params)
+                    ad_stat = stats.anderson(data, 'norm')
+                    dist_results['normal'] = {
+                        'parameters': {'loc': params[0], 'scale': params[1]},
+                        'ks_statistic': float(ks_stat),
+                        'ks_pvalue': float(ks_p),
+                        'anderson_statistic': float(ad_stat.statistic),
+                        'anderson_critical_5pct': float(ad_stat.critical_values[2]),
+                        'aic': self._aic(data, dist, 2),
+                        'bic': self._bic(data, dist, 2)
+                    }
+                
+                elif dist_name == 't':
+                    params = stats.t.fit(data)
+                    dist = stats.t(*params)
+                    ks_stat, ks_p = stats.kstest(data, 't', args=params)
+                    dist_results['t'] = {
+                        'parameters': {'df': params[0], 'loc': params[1], 'scale': params[2]},
+                        'ks_statistic': float(ks_stat),
+                        'ks_pvalue': float(ks_p),
+                        'aic': self._aic(data, dist, 3),
+                        'bic': self._bic(data, dist, 3)
+                    }
+                
+                elif dist_name == 'chi2' and np.all(data >= 0):
+                    params = stats.chi2.fit(data_positive)
+                    dist = stats.chi2(*params)
+                    ks_stat, ks_p = stats.kstest(data_positive, 'chi2', args=params)
+                    dist_results['chi2'] = {
+                        'parameters': {'df': params[0], 'loc': params[1], 'scale': params[2]},
+                        'ks_statistic': float(ks_stat),
+                        'ks_pvalue': float(ks_p),
+                        'aic': self._aic(data_positive, dist, 3),
+                        'bic': self._bic(data_positive, dist, 3)
+                    }
+                
+                elif dist_name == 'uniform':
+                    params = stats.uniform.fit(data)
+                    dist = stats.uniform(*params)
+                    ks_stat, ks_p = stats.kstest(data, 'uniform', args=params)
+                    dist_results['uniform'] = {
+                        'parameters': {'loc': params[0], 'scale': params[1]},
+                        'ks_statistic': float(ks_stat),
+                        'ks_pvalue': float(ks_p),
+                        'aic': self._aic(data, dist, 2),
+                        'bic': self._bic(data, dist, 2)
+                    }
+                
+                elif dist_name == 'gamma' and len(data_positive) > 0:
+                    params = gamma.fit(data_positive)
+                    dist = gamma(*params)
+                    ks_stat, ks_p = stats.kstest(data_positive, 'gamma', args=params)
+                    dist_results['gamma'] = {
+                        'parameters': {'a': params[0], 'loc': params[1], 'scale': params[2]},
+                        'ks_statistic': float(ks_stat),
+                        'ks_pvalue': float(ks_p),
+                        'aic': self._aic(data_positive, dist, 3),
+                        'bic': self._bic(data_positive, dist, 3)
+                    }
+                
+                elif dist_name == 'exponential' and len(data_positive) > 0:
+                    params = expon.fit(data_positive)
+                    dist = expon(*params)
+                    ks_stat, ks_p = stats.kstest(data_positive, 'expon', args=params)
+                    ad_stat = stats.anderson(data_positive, 'expon')
+                    dist_results['exponential'] = {
+                        'parameters': {'loc': params[0], 'scale': params[1]},
+                        'ks_statistic': float(ks_stat),
+                        'ks_pvalue': float(ks_p),
+                        'anderson_statistic': float(ad_stat.statistic),
+                        'aic': self._aic(data_positive, dist, 2),
+                        'bic': self._bic(data_positive, dist, 2)
+                    }
+                
+                elif dist_name == 'lognormal' and len(data_positive) > 0:
+                    params = lognorm.fit(data_positive)
+                    dist = lognorm(*params)
+                    ks_stat, ks_p = stats.kstest(data_positive, 'lognorm', args=params)
+                    dist_results['lognormal'] = {
+                        'parameters': {'s': params[0], 'loc': params[1], 'scale': params[2]},
+                        'ks_statistic': float(ks_stat),
+                        'ks_pvalue': float(ks_p),
+                        'aic': self._aic(data_positive, dist, 3),
+                        'bic': self._bic(data_positive, dist, 3)
+                    }
+                
+                elif dist_name == 'weibull' and len(data_positive) > 0:
+                    params = weibull_min.fit(data_positive)
+                    dist = weibull_min(*params)
+                    ks_stat, ks_p = stats.kstest(data_positive, 'weibull_min', args=params)
+                    dist_results['weibull'] = {
+                        'parameters': {'c': params[0], 'loc': params[1], 'scale': params[2]},
+                        'ks_statistic': float(ks_stat),
+                        'ks_pvalue': float(ks_p),
+                        'aic': self._aic(data_positive, dist, 3),
+                        'bic': self._bic(data_positive, dist, 3)
+                    }
+                
+                elif dist_name == 'laplace':
+                    params = stats.laplace.fit(data)
+                    dist = stats.laplace(*params)
+                    ks_stat, ks_p = stats.kstest(data, 'laplace', args=params)
+                    dist_results['laplace'] = {
+                        'parameters': {'loc': params[0], 'scale': params[1]},
+                        'ks_statistic': float(ks_stat),
+                        'ks_pvalue': float(ks_p),
+                        'aic': self._aic(data, dist, 2),
+                        'bic': self._bic(data, dist, 2)
+                    }
+                
+                elif dist_name == 'logistic':
+                    params = stats.logistic.fit(data)
+                    dist = stats.logistic(*params)
+                    ks_stat, ks_p = stats.kstest(data, 'logistic', args=params)
+                    dist_results['logistic'] = {
+                        'parameters': {'loc': params[0], 'scale': params[1]},
+                        'ks_statistic': float(ks_stat),
+                        'ks_pvalue': float(ks_p),
+                        'aic': self._aic(data, dist, 2),
+                        'bic': self._bic(data, dist, 2)
+                    }
+                
+                elif dist_name == 'pareto' and len(data_positive) > 0:
+                    params = stats.pareto.fit(data_positive)
+                    dist = stats.pareto(*params)
+                    ks_stat, ks_p = stats.kstest(data_positive, 'pareto', args=params)
+                    dist_results['pareto'] = {
+                        'parameters': {'b': params[0], 'loc': params[1], 'scale': params[2]},
+                        'ks_statistic': float(ks_stat),
+                        'ks_pvalue': float(ks_p),
+                        'aic': self._aic(data_positive, dist, 3),
+                        'bic': self._bic(data_positive, dist, 3)
+                    }
+                
+                elif dist_name == 'cauchy':
+                    params = stats.cauchy.fit(data)
+                    dist = stats.cauchy(*params)
+                    ks_stat, ks_p = stats.kstest(data, 'cauchy', args=params)
+                    dist_results['cauchy'] = {
+                        'parameters': {'loc': params[0], 'scale': params[1]},
+                        'ks_statistic': float(ks_stat),
+                        'ks_pvalue': float(ks_p),
+                        'aic': self._aic(data, dist, 2),
+                        'bic': self._bic(data, dist, 2)
+                    }
+            
+            except Exception as e:
+                dist_results[dist_name] = {'error': str(e)}
+        
+        results['distributions'] = dist_results
+        
+        # Find best fit by AIC
+        valid_fits = {k: v for k, v in dist_results.items() if 'aic' in v}
+        if valid_fits:
+            best_by_aic = min(valid_fits.items(), key=lambda x: x[1]['aic'])
+            best_by_ks = max(valid_fits.items(), key=lambda x: x[1].get('ks_pvalue', 0))
+            results['best_fit_aic'] = best_by_aic[0]
+            results['best_fit_ks'] = best_by_ks[0]
+        
+        return results
+
+    def _aic(self, data: np.ndarray, dist, k: int) -> float:
+        """Calculate Akaike Information Criterion"""
+        try:
+            log_likelihood = np.sum(dist.logpdf(data))
+            return 2 * k - 2 * log_likelihood
+        except:
+            return float('inf')
+
+    def _bic(self, data: np.ndarray, dist, k: int) -> float:
+        """Calculate Bayesian Information Criterion"""
+        try:
+            n = len(data)
+            log_likelihood = np.sum(dist.logpdf(data))
+            return k * np.log(n) - 2 * log_likelihood
+        except:
+            return float('inf')
+
+    def random_variable_analysis(self, column: str) -> Dict[str, Any]:
+        """
+        Comprehensive random variable analysis including moments and quantiles.
+        
+        Args:
+            column: Column name to analyze
+            
+        Returns:
+            Dictionary with complete probability analysis
+        """
+        if self.df is None:
+            return {'error': 'No data loaded'}
+        
+        data = self.df[column].dropna().values
+        n = len(data)
+        
+        if n < 3:
+            return {'error': 'Need at least 3 data points'}
+        
+        # Moments
+        mean = np.mean(data)
+        var = np.var(data, ddof=1)
+        std = np.std(data, ddof=1)
+        skewness = stats.skew(data)
+        kurtosis = stats.kurtosis(data)  # Excess kurtosis
+        
+        # Quantiles
+        quantiles = {
+            '1%': float(np.percentile(data, 1)),
+            '5%': float(np.percentile(data, 5)),
+            '10%': float(np.percentile(data, 10)),
+            '25%': float(np.percentile(data, 25)),
+            '50%': float(np.percentile(data, 50)),
+            '75%': float(np.percentile(data, 75)),
+            '90%': float(np.percentile(data, 90)),
+            '95%': float(np.percentile(data, 95)),
+            '99%': float(np.percentile(data, 99))
+        }
+        
+        # IQR and outlier bounds
+        q1, q3 = np.percentile(data, [25, 75])
+        iqr = q3 - q1
+        lower_fence = q1 - 1.5 * iqr
+        upper_fence = q3 + 1.5 * iqr
+        
+        # Coefficient of variation
+        cv = (std / mean * 100) if mean != 0 else float('inf')
+        
+        # Standard error of mean
+        sem = std / np.sqrt(n)
+        
+        # 95% CI for mean
+        t_crit = stats.t.ppf(0.975, df=n-1)
+        ci_lower = mean - t_crit * sem
+        ci_upper = mean + t_crit * sem
+        
+        return {
+            'n': n,
+            'moments': {
+                'mean': float(mean),
+                'variance': float(var),
+                'std': float(std),
+                'skewness': float(skewness),
+                'excess_kurtosis': float(kurtosis)
+            },
+            'quantiles': quantiles,
+            'iqr': float(iqr),
+            'outlier_bounds': {
+                'lower_fence': float(lower_fence),
+                'upper_fence': float(upper_fence)
+            },
+            'coefficient_of_variation': float(cv),
+            'standard_error': float(sem),
+            'confidence_interval_95': {
+                'lower': float(ci_lower),
+                'upper': float(ci_upper)
+            },
+            'range': {
+                'min': float(np.min(data)),
+                'max': float(np.max(data)),
+                'range': float(np.max(data) - np.min(data))
+            }
+        }
+
+    def empirical_cdf(self, column: str, n_points: int = 100) -> Dict[str, Any]:
+        """
+        Compute empirical cumulative distribution function.
+        
+        Args:
+            column: Column name
+            n_points: Number of points for smooth CDF
+            
+        Returns:
+            Dictionary with x values and CDF values
+        """
+        if self.df is None:
+            return {'error': 'No data loaded'}
+        
+        data = self.df[column].dropna().values
+        data_sorted = np.sort(data)
+        n = len(data_sorted)
+        
+        # Empirical CDF
+        ecdf_y = np.arange(1, n + 1) / n
+        
+        # Smooth CDF for plotting
+        x_smooth = np.linspace(data.min(), data.max(), n_points)
+        cdf_smooth = np.array([np.mean(data <= x) for x in x_smooth])
+        
+        return {
+            'x': data_sorted.tolist(),
+            'cdf': ecdf_y.tolist(),
+            'x_smooth': x_smooth.tolist(),
+            'cdf_smooth': cdf_smooth.tolist(),
+            'n': n
+        }
+
+    def qq_analysis(self, column: str, distribution: str = 'normal') -> Dict[str, Any]:
+        """
+        Quantile-Quantile analysis against a theoretical distribution.
+        
+        Args:
+            column: Column name
+            distribution: 'normal', 't', 'exponential', 'uniform'
+            
+        Returns:
+            Dictionary with QQ data and correlation
+        """
+        if self.df is None:
+            return {'error': 'No data loaded'}
+        
+        data = self.df[column].dropna().values
+        data_sorted = np.sort(data)
+        n = len(data_sorted)
+        
+        # Theoretical quantiles
+        probs = (np.arange(1, n + 1) - 0.5) / n
+        
+        if distribution == 'normal':
+            theoretical = norm.ppf(probs)
+        elif distribution == 't':
+            theoretical = stats.t.ppf(probs, df=n-1)
+        elif distribution == 'exponential':
+            theoretical = expon.ppf(probs)
+        elif distribution == 'uniform':
+            theoretical = stats.uniform.ppf(probs)
+        else:
+            return {'error': f'Unknown distribution: {distribution}'}
+        
+        # Correlation coefficient (deviation from line indicates departure from distribution)
+        correlation = np.corrcoef(theoretical, data_sorted)[0, 1]
+        
+        # Fit line
+        slope, intercept = np.polyfit(theoretical, data_sorted, 1)
+        
+        return {
+            'theoretical_quantiles': theoretical.tolist(),
+            'sample_quantiles': data_sorted.tolist(),
+            'correlation': float(correlation),
+            'line_slope': float(slope),
+            'line_intercept': float(intercept),
+            'distribution': distribution
+        }
+
+    def plot_probability_analysis(self, column: str) -> plt.Figure:
+        """
+        Comprehensive probability distribution plot panel.
+        
+        Args:
+            column: Column to analyze
+            
+        Returns:
+            Figure with histogram, CDF, QQ-plot, and box plot
+        """
+        if self.df is None:
+            return None
+        
+        data = self.df[column].dropna().values
+        
+        fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+        
+        # 1. Histogram with fitted normal
+        ax = axes[0, 0]
+        ax.hist(data, bins=30, density=True, alpha=0.7, color='steelblue', edgecolor='black')
+        x = np.linspace(data.min(), data.max(), 100)
+        mu, sigma = norm.fit(data)
+        ax.plot(x, norm.pdf(x, mu, sigma), 'r-', linewidth=2, label=f'Normal fit\nμ={mu:.2f}, σ={sigma:.2f}')
+        ax.set_xlabel('Value')
+        ax.set_ylabel('Density')
+        ax.set_title(f'{column} - Histogram with Normal Fit')
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        
+        # 2. Empirical CDF
+        ax = axes[0, 1]
+        data_sorted = np.sort(data)
+        ecdf = np.arange(1, len(data) + 1) / len(data)
+        ax.step(data_sorted, ecdf, where='post', color='steelblue', linewidth=2, label='Empirical CDF')
+        ax.plot(x, norm.cdf(x, mu, sigma), 'r--', linewidth=2, label='Normal CDF')
+        ax.set_xlabel('Value')
+        ax.set_ylabel('Cumulative Probability')
+        ax.set_title(f'{column} - Empirical CDF')
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        
+        # 3. Q-Q Plot
+        ax = axes[1, 0]
+        stats.probplot(data, dist="norm", plot=ax)
+        ax.set_title(f'{column} - Q-Q Plot (Normal)')
+        ax.grid(True, alpha=0.3)
+        
+        # 4. Box plot with violin
+        ax = axes[1, 1]
+        parts = ax.violinplot(data, positions=[1], showmeans=True, showextrema=True)
+        parts['bodies'][0].set_facecolor('steelblue')
+        parts['bodies'][0].set_alpha(0.7)
+        ax.boxplot(data, positions=[2])
+        ax.set_xticks([1, 2])
+        ax.set_xticklabels(['Violin', 'Box'])
+        ax.set_ylabel('Value')
+        ax.set_title(f'{column} - Distribution Shape')
+        ax.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        return fig
+
+    # =========================================================================
     # STATISTICAL HYPOTHESIS TESTS
     # =========================================================================
 
@@ -584,6 +1040,432 @@ class StatisticalAnalysis:
 
         self.last_test_results = results
         return results
+
+    def anova_twoway(self, data_column: str, factor1: str, factor2: str) -> Dict[str, Any]:
+        """
+        Two-Way ANOVA with interaction effects.
+        
+        Tests main effects of two factors and their interaction on a continuous outcome.
+        
+        Args:
+            data_column: Column with continuous dependent variable
+            factor1: First categorical factor (grouping variable)
+            factor2: Second categorical factor (grouping variable)
+            
+        Returns:
+            Dictionary with F-statistics, p-values for main effects and interaction
+        """
+        if self.df is None:
+            return {'error': 'No data loaded'}
+        
+        try:
+            import statsmodels.api as sm
+            from statsmodels.formula.api import ols
+            from statsmodels.stats.anova import anova_lm
+            
+            # Prepare data
+            df_clean = self.df[[data_column, factor1, factor2]].dropna()
+            
+            if len(df_clean) < 10:
+                return {'error': 'Need at least 10 observations for two-way ANOVA'}
+            
+            # Fit model with interaction
+            formula = f'{data_column} ~ C({factor1}) + C({factor2}) + C({factor1}):C({factor2})'
+            model = ols(formula, data=df_clean).fit()
+            anova_table = anova_lm(model, typ=2)
+            
+            # Extract results
+            results = {
+                'test': 'Two-Way ANOVA',
+                'data_column': data_column,
+                'factor1': factor1,
+                'factor2': factor2,
+                'n_observations': len(df_clean),
+                'effects': {}
+            }
+            
+            # Main effect of factor1
+            f1_key = f'C({factor1})'
+            if f1_key in anova_table.index:
+                results['effects']['factor1'] = {
+                    'name': factor1,
+                    'sum_sq': float(anova_table.loc[f1_key, 'sum_sq']),
+                    'df': float(anova_table.loc[f1_key, 'df']),
+                    'F': float(anova_table.loc[f1_key, 'F']),
+                    'p_value': float(anova_table.loc[f1_key, 'PR(>F)']),
+                    'significant': anova_table.loc[f1_key, 'PR(>F)'] < 0.05
+                }
+            
+            # Main effect of factor2
+            f2_key = f'C({factor2})'
+            if f2_key in anova_table.index:
+                results['effects']['factor2'] = {
+                    'name': factor2,
+                    'sum_sq': float(anova_table.loc[f2_key, 'sum_sq']),
+                    'df': float(anova_table.loc[f2_key, 'df']),
+                    'F': float(anova_table.loc[f2_key, 'F']),
+                    'p_value': float(anova_table.loc[f2_key, 'PR(>F)']),
+                    'significant': anova_table.loc[f2_key, 'PR(>F)'] < 0.05
+                }
+            
+            # Interaction effect
+            int_key = f'C({factor1}):C({factor2})'
+            if int_key in anova_table.index:
+                results['effects']['interaction'] = {
+                    'name': f'{factor1} x {factor2}',
+                    'sum_sq': float(anova_table.loc[int_key, 'sum_sq']),
+                    'df': float(anova_table.loc[int_key, 'df']),
+                    'F': float(anova_table.loc[int_key, 'F']),
+                    'p_value': float(anova_table.loc[int_key, 'PR(>F)']),
+                    'significant': anova_table.loc[int_key, 'PR(>F)'] < 0.05
+                }
+            
+            # Residual
+            if 'Residual' in anova_table.index:
+                results['residual'] = {
+                    'sum_sq': float(anova_table.loc['Residual', 'sum_sq']),
+                    'df': float(anova_table.loc['Residual', 'df'])
+                }
+            
+            # R-squared
+            results['r_squared'] = float(model.rsquared)
+            results['adj_r_squared'] = float(model.rsquared_adj)
+            
+            # Summary interpretation
+            sig_effects = [name for name, info in results['effects'].items() if info.get('significant')]
+            if sig_effects:
+                results['interpretation'] = f"Significant effects: {', '.join(sig_effects)}"
+            else:
+                results['interpretation'] = "No significant effects detected"
+            
+            self.last_test_results = results
+            return results
+            
+        except Exception as e:
+            return {'error': str(e)}
+
+    def anova_repeated_measures(self, data_column: str, subject_column: str, 
+                                 within_factor: str) -> Dict[str, Any]:
+        """
+        Repeated-Measures ANOVA (within-subjects).
+        
+        Tests differences when the same subjects are measured under different conditions.
+        
+        Args:
+            data_column: Column with continuous dependent variable
+            subject_column: Column identifying subjects
+            within_factor: Column with within-subjects factor (conditions)
+            
+        Returns:
+            Dictionary with F-statistic, p-value, and sphericity test
+        """
+        if self.df is None:
+            return {'error': 'No data loaded'}
+        
+        try:
+            from scipy import stats as scipy_stats
+            
+            # Prepare data
+            df_clean = self.df[[data_column, subject_column, within_factor]].dropna()
+            
+            # Get unique conditions and subjects
+            conditions = df_clean[within_factor].unique()
+            subjects = df_clean[subject_column].unique()
+            n_conditions = len(conditions)
+            n_subjects = len(subjects)
+            
+            if n_conditions < 2:
+                return {'error': 'Need at least 2 conditions for repeated-measures ANOVA'}
+            if n_subjects < 3:
+                return {'error': 'Need at least 3 subjects for repeated-measures ANOVA'}
+            
+            # Create data matrix (subjects x conditions)
+            data_matrix = []
+            for subj in subjects:
+                subj_data = []
+                for cond in conditions:
+                    vals = df_clean[(df_clean[subject_column] == subj) & 
+                                   (df_clean[within_factor] == cond)][data_column].values
+                    if len(vals) > 0:
+                        subj_data.append(vals.mean())  # Average if multiple measurements
+                    else:
+                        subj_data.append(np.nan)
+                data_matrix.append(subj_data)
+            
+            data_matrix = np.array(data_matrix)
+            
+            # Remove subjects with missing data
+            valid_mask = ~np.any(np.isnan(data_matrix), axis=1)
+            data_matrix = data_matrix[valid_mask]
+            n_subjects_valid = data_matrix.shape[0]
+            
+            if n_subjects_valid < 3:
+                return {'error': 'Not enough complete subjects for analysis'}
+            
+            # Calculate repeated-measures ANOVA manually
+            # Grand mean
+            grand_mean = np.mean(data_matrix)
+            
+            # Between-subjects sum of squares
+            subject_means = np.mean(data_matrix, axis=1)
+            ss_between_subjects = n_conditions * np.sum((subject_means - grand_mean) ** 2)
+            
+            # Within-subjects (conditions) sum of squares
+            condition_means = np.mean(data_matrix, axis=0)
+            ss_within = n_subjects_valid * np.sum((condition_means - grand_mean) ** 2)
+            
+            # Error sum of squares (interaction)
+            ss_error = 0
+            for i in range(n_subjects_valid):
+                for j in range(n_conditions):
+                    ss_error += (data_matrix[i, j] - subject_means[i] - condition_means[j] + grand_mean) ** 2
+            
+            # Degrees of freedom
+            df_conditions = n_conditions - 1
+            df_subjects = n_subjects_valid - 1
+            df_error = df_conditions * df_subjects
+            
+            # Mean squares
+            ms_conditions = ss_within / df_conditions
+            ms_error = ss_error / df_error
+            
+            # F-statistic
+            f_stat = ms_conditions / ms_error if ms_error > 0 else float('inf')
+            p_value = 1 - scipy_stats.f.cdf(f_stat, df_conditions, df_error)
+            
+            # Effect size (partial eta-squared)
+            eta_squared = ss_within / (ss_within + ss_error)
+            
+            # Mauchly's sphericity test (simplified)
+            # This is an approximation
+            variances = np.var(data_matrix, axis=0, ddof=1)
+            covariances = np.cov(data_matrix.T)
+            sphericity_approx = np.std(variances) / np.mean(variances) if np.mean(variances) > 0 else 0
+            
+            results = {
+                'test': 'Repeated-Measures ANOVA',
+                'data_column': data_column,
+                'within_factor': within_factor,
+                'n_subjects': n_subjects_valid,
+                'n_conditions': n_conditions,
+                'conditions': conditions.tolist(),
+                'ss_between_subjects': float(ss_between_subjects),
+                'ss_within_conditions': float(ss_within),
+                'ss_error': float(ss_error),
+                'df_conditions': df_conditions,
+                'df_error': df_error,
+                'ms_conditions': float(ms_conditions),
+                'ms_error': float(ms_error),
+                'F': float(f_stat),
+                'p_value': float(p_value),
+                'partial_eta_squared': float(eta_squared),
+                'sphericity_concern': sphericity_approx > 0.3,
+                'significant': p_value < 0.05,
+                'interpretation': f"Conditions differ significantly (F={f_stat:.2f}, p={p_value:.4f})" if p_value < 0.05 else "No significant difference between conditions"
+            }
+            
+            self.last_test_results = results
+            return results
+            
+        except Exception as e:
+            return {'error': str(e)}
+
+    def posthoc_tukey(self, data_column: str, group_column: str) -> Dict[str, Any]:
+        """
+        Tukey's Honest Significant Difference (HSD) post-hoc test.
+        
+        Performs pairwise comparisons after significant ANOVA.
+        Controls family-wise error rate.
+        
+        Args:
+            data_column: Column with continuous dependent variable
+            group_column: Column with group labels
+            
+        Returns:
+            Dictionary with pairwise comparison results
+        """
+        if self.df is None:
+            return {'error': 'No data loaded'}
+        
+        try:
+            from scipy import stats as scipy_stats
+            from itertools import combinations
+            
+            df_clean = self.df[[data_column, group_column]].dropna()
+            groups = df_clean[group_column].unique()
+            n_groups = len(groups)
+            
+            if n_groups < 2:
+                return {'error': 'Need at least 2 groups for post-hoc tests'}
+            
+            # Get group data
+            group_data = {g: df_clean[df_clean[group_column] == g][data_column].values 
+                         for g in groups}
+            group_means = {g: np.mean(v) for g, v in group_data.items()}
+            group_ns = {g: len(v) for g, v in group_data.items()}
+            
+            # Calculate MSE (pooled variance)
+            n_total = sum(group_ns.values())
+            grand_mean = np.mean(df_clean[data_column])
+            
+            ss_within = sum(np.sum((group_data[g] - group_means[g]) ** 2) for g in groups)
+            df_within = n_total - n_groups
+            mse = ss_within / df_within if df_within > 0 else 1
+            
+            # Tukey HSD comparisons
+            comparisons = []
+            for g1, g2 in combinations(groups, 2):
+                mean_diff = group_means[g1] - group_means[g2]
+                
+                # Standard error
+                se = np.sqrt(mse * (1/group_ns[g1] + 1/group_ns[g2]) / 2)
+                
+                # Q statistic (studentized range)
+                q_stat = abs(mean_diff) / se if se > 0 else 0
+                
+                # Use studentized range distribution approximation
+                # For exact, would need special tables or scipy.stats.studentized_range
+                # Approximate p-value using t-distribution with Bonferroni correction
+                n_comparisons = n_groups * (n_groups - 1) / 2
+                t_stat = q_stat / np.sqrt(2)
+                p_raw = 2 * (1 - scipy_stats.t.cdf(abs(t_stat), df_within))
+                p_adj = min(1.0, p_raw * n_comparisons)  # Bonferroni approximation
+                
+                comparisons.append({
+                    'group1': str(g1),
+                    'group2': str(g2),
+                    'mean_diff': float(mean_diff),
+                    'std_error': float(se),
+                    'q_statistic': float(q_stat),
+                    'p_value': float(p_adj),
+                    'significant': p_adj < 0.05,
+                    'ci_lower': float(mean_diff - 1.96 * se),
+                    'ci_upper': float(mean_diff + 1.96 * se)
+                })
+            
+            results = {
+                'test': "Tukey's HSD",
+                'data_column': data_column,
+                'group_column': group_column,
+                'n_groups': n_groups,
+                'n_comparisons': len(comparisons),
+                'mse': float(mse),
+                'df_within': df_within,
+                'comparisons': comparisons,
+                'group_means': {str(k): float(v) for k, v in group_means.items()},
+                'group_sizes': {str(k): int(v) for k, v in group_ns.items()}
+            }
+            
+            # Summary
+            sig_pairs = [f"{c['group1']} vs {c['group2']}" for c in comparisons if c['significant']]
+            if sig_pairs:
+                results['interpretation'] = f"Significant differences: {', '.join(sig_pairs)}"
+            else:
+                results['interpretation'] = "No significant pairwise differences"
+            
+            self.last_test_results = results
+            return results
+            
+        except Exception as e:
+            return {'error': str(e)}
+
+    def posthoc_bonferroni(self, data_column: str, group_column: str, 
+                           alpha: float = 0.05) -> Dict[str, Any]:
+        """
+        Bonferroni-corrected pairwise t-tests.
+        
+        Conservative multiple comparison correction.
+        
+        Args:
+            data_column: Column with continuous dependent variable
+            group_column: Column with group labels
+            alpha: Family-wise significance level
+            
+        Returns:
+            Dictionary with pairwise comparison results
+        """
+        if self.df is None:
+            return {'error': 'No data loaded'}
+        
+        try:
+            from scipy import stats as scipy_stats
+            from itertools import combinations
+            
+            df_clean = self.df[[data_column, group_column]].dropna()
+            groups = df_clean[group_column].unique()
+            n_groups = len(groups)
+            
+            if n_groups < 2:
+                return {'error': 'Need at least 2 groups for post-hoc tests'}
+            
+            # Get group data
+            group_data = {g: df_clean[df_clean[group_column] == g][data_column].values 
+                         for g in groups}
+            group_means = {g: np.mean(v) for g, v in group_data.items()}
+            group_stds = {g: np.std(v, ddof=1) for g, v in group_data.items()}
+            group_ns = {g: len(v) for g, v in group_data.items()}
+            
+            # Number of comparisons for Bonferroni correction
+            n_comparisons = n_groups * (n_groups - 1) // 2
+            alpha_corrected = alpha / n_comparisons
+            
+            # Pairwise t-tests
+            comparisons = []
+            for g1, g2 in combinations(groups, 2):
+                # Independent samples t-test
+                t_stat, p_raw = scipy_stats.ttest_ind(group_data[g1], group_data[g2])
+                p_adj = min(1.0, p_raw * n_comparisons)
+                
+                mean_diff = group_means[g1] - group_means[g2]
+                
+                # Pooled standard error
+                n1, n2 = group_ns[g1], group_ns[g2]
+                s1, s2 = group_stds[g1], group_stds[g2]
+                se = np.sqrt(s1**2/n1 + s2**2/n2)
+                
+                # Effect size (Cohen's d)
+                pooled_std = np.sqrt(((n1-1)*s1**2 + (n2-1)*s2**2) / (n1+n2-2))
+                cohens_d = mean_diff / pooled_std if pooled_std > 0 else 0
+                
+                comparisons.append({
+                    'group1': str(g1),
+                    'group2': str(g2),
+                    'mean_diff': float(mean_diff),
+                    'std_error': float(se),
+                    't_statistic': float(t_stat),
+                    'p_raw': float(p_raw),
+                    'p_adjusted': float(p_adj),
+                    'significant': p_adj < alpha,
+                    'cohens_d': float(cohens_d),
+                    'effect_size': 'small' if abs(cohens_d) < 0.5 else ('medium' if abs(cohens_d) < 0.8 else 'large')
+                })
+            
+            results = {
+                'test': 'Bonferroni Pairwise t-tests',
+                'data_column': data_column,
+                'group_column': group_column,
+                'alpha': alpha,
+                'alpha_corrected': float(alpha_corrected),
+                'n_groups': n_groups,
+                'n_comparisons': n_comparisons,
+                'comparisons': comparisons,
+                'group_means': {str(k): float(v) for k, v in group_means.items()},
+                'group_stds': {str(k): float(v) for k, v in group_stds.items()},
+                'group_sizes': {str(k): int(v) for k, v in group_ns.items()}
+            }
+            
+            # Summary
+            sig_pairs = [f"{c['group1']} vs {c['group2']}" for c in comparisons if c['significant']]
+            if sig_pairs:
+                results['interpretation'] = f"Significant differences (Bonferroni α={alpha_corrected:.4f}): {', '.join(sig_pairs)}"
+            else:
+                results['interpretation'] = "No significant pairwise differences after Bonferroni correction"
+            
+            self.last_test_results = results
+            return results
+            
+        except Exception as e:
+            return {'error': str(e)}
 
     def levene_test(self, column_names: List[str]) -> Dict[str, Any]:
         """

@@ -51,21 +51,21 @@ def render_uncertainty_tab():
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        if st.button("🔄 Bootstrap CI", use_container_width=True):
+        if st.button("🔄 Bootstrap CI", width='stretch'):
             with st.spinner(f"Running {n_bootstrap} bootstrap iterations..."):
                 # Correct API: bootstrap_ci(features, target, n_bootstrap, confidence)
                 results = uncertainty.bootstrap_ci(features, target, n_bootstrap, confidence)
                 st.session_state.analysis_results['bootstrap'] = results
 
     with col2:
-        if st.button("🎯 Residual Analysis", use_container_width=True):
+        if st.button("🎯 Residual Analysis", width='stretch'):
             with st.spinner("Analyzing residuals..."):
                 # Correct API: residual_analysis(features, target)
                 results = uncertainty.residual_analysis(features, target)
                 st.session_state.analysis_results['residuals'] = results
 
     with col3:
-        if st.button("🎲 Monte Carlo", use_container_width=True):
+        if st.button("🎲 Monte Carlo", width='stretch'):
             with st.spinner(f"Running {n_simulations} simulations..."):
                 # Correct API: monte_carlo(features, target, n_simulations, confidence)
                 results = uncertainty.monte_carlo_analysis(features, target, n_simulations, confidence)
@@ -88,7 +88,7 @@ def render_uncertainty_tab():
                 'CI Lower': results.get('ci_lower', []),
                 'CI Upper': results.get('ci_upper', [])
             })
-            st.dataframe(boot_df, use_container_width=True)
+            st.dataframe(boot_df, width='stretch')
 
     if 'residuals' in st.session_state.analysis_results:
         results = st.session_state.analysis_results['residuals']
@@ -123,7 +123,7 @@ def render_uncertainty_tab():
                 )
 
                 fig.update_layout(height=400, template=PLOTLY_TEMPLATE, showlegend=False)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
     if 'monte_carlo' in st.session_state.analysis_results:
         results = st.session_state.analysis_results['monte_carlo']

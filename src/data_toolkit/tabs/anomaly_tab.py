@@ -73,7 +73,7 @@ def render_anomaly_tab():
             ae_encoding_dim = st.slider("Encoding Dim", 2, 32, 8)
 
     with col3:
-        if st.button("🚨 Detect Anomalies", use_container_width=True):
+        if st.button("🚨 Detect Anomalies", width='stretch'):
             with st.spinner("Detecting anomalies..."):
                 try:
                     if method == "Isolation Forest":
@@ -185,7 +185,7 @@ def render_anomaly_tab():
                         height=500,
                         legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.99)
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
 
                     # Show anomaly details table
                     st.subheader("🔍 Anomaly Details")
@@ -199,7 +199,7 @@ def render_anomaly_tab():
                     df_anomalies = df_results[df_results['Status'] == '🔴 Anomaly'].copy()
                     if len(df_anomalies) > 0:
                         st.write(f"**Showing {len(df_anomalies)} anomalies:**")
-                        st.dataframe(df_anomalies, use_container_width=True)
+                        st.dataframe(df_anomalies, width='stretch')
                     else:
                         st.info("No anomalies detected with current settings.")
 

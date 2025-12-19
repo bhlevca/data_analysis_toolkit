@@ -21,6 +21,8 @@ This directory contains synthetic datasets designed to test all features of the 
 | `neural_network_train.csv` | 150 | 7 | Neural network training (MLP, Autoencoder) |
 | `neural_network_predict.csv` | 25 | 5 | Neural network predictions |
 | `timeseries_lstm.csv` | 100 | 4 | LSTM time series forecasting |
+| `twoway_anova_data.csv` | 30 | 3 | Two-Way ANOVA (treatment × gender) |
+| `repeated_measures_anova_data.csv` | 40 | 3 | Repeated-Measures ANOVA (within-subjects) |
 
 ---
 
@@ -467,3 +469,123 @@ Use these datasets to test the example plugins:
 7. Review reconstruction errors and detected anomalies
 8. Review R², MAE, MSE metrics
 9. Load `ml_regression_predict.csv` for predictions
+
+---
+
+## New Test Data Files (v2.0)
+
+The following files were added to support new features:
+
+| File | Rows | Columns | Primary Use |
+|------|------|---------|-------------|
+| `multivariate_timeseries.csv` | 500 | 5 | VAR, VECM, Granger causality, DTW |
+| `anova_factorial.csv` | 180 | 4 | Two-way ANOVA with interaction |
+| `repeated_measures.csv` | 160 | 3 | Repeated-measures ANOVA |
+| `distribution_samples.csv` | 1000 | 8 | Distribution fitting (12+ distributions) |
+| `coherence_signals.csv` | 1000 | 4 | Coherence, XWT, wavelet coherence |
+| `seasonal_timeseries.csv` | 60 | 6 | ARIMA, SARIMA, seasonal decomposition |
+
+### multivariate_timeseries.csv
+**Purpose**: Multivariate time series with known causal relationships
+
+**Columns**:
+- `time`: Time index
+- `GDP`: AR(1) process with trend (causes Consumption)
+- `Consumption`: Depends on lagged GDP
+- `Investment`: Depends on lagged Consumption
+- `Noise_Control`: Independent random walk
+
+**Test These Features**:
+- ✅ VAR (Vector Autoregression)
+- ✅ Granger causality tests
+- ✅ VECM (cointegration analysis)
+- ✅ DTW (Dynamic Time Warping)
+
+### anova_factorial.csv
+**Purpose**: Two-way factorial ANOVA with interaction
+
+**Columns**:
+- `Subject_ID`: Subject identifier
+- `Treatment`: Factor 1 (Control, Drug_A, Drug_B)
+- `Gender`: Factor 2 (Male, Female)
+- `Response`: Continuous dependent variable
+
+**Design**: 3×2 factorial with Drug_B × Female interaction
+
+**Test These Features**:
+- ✅ Two-way ANOVA
+- ✅ Interaction effects
+- ✅ Tukey's HSD post-hoc
+- ✅ Bonferroni correction
+
+### repeated_measures.csv
+**Purpose**: Repeated-measures (within-subjects) ANOVA
+
+**Columns**:
+- `Subject_ID`: Subject identifier
+- `Timepoint`: Within-subjects factor (Baseline, Week_1, Week_2, Week_4)
+- `Score`: Continuous dependent variable
+
+**Design**: 40 subjects × 4 timepoints with improvement trend
+
+**Test These Features**:
+- ✅ Repeated-measures ANOVA
+- ✅ Sphericity check
+- ✅ Partial eta-squared effect size
+
+### distribution_samples.csv
+**Purpose**: Samples from various distributions for fitting tests
+
+**Columns**:
+- `normal`: Normal distribution (μ=50, σ=10)
+- `lognormal`: Lognormal distribution
+- `exponential`: Exponential distribution
+- `gamma`: Gamma distribution
+- `weibull`: Weibull distribution
+- `uniform`: Uniform distribution
+- `bimodal`: Mixture of two normals
+- `t_dist`: Student's t-distribution
+
+**Test These Features**:
+- ✅ Extended distribution fitting (12+ distributions)
+- ✅ AIC/BIC model selection
+- ✅ KS goodness-of-fit test
+- ✅ QQ plot analysis
+
+### coherence_signals.csv
+**Purpose**: Paired signals with known coherence at specific frequencies
+
+**Columns**:
+- `time`: Time in seconds
+- `signal1`: 5 Hz + 15 Hz components + noise
+- `signal2`: 5 Hz (coherent with signal1) + 25 Hz + noise
+- `signal3_independent`: Independent control signal
+
+**Test These Features**:
+- ✅ Coherence analysis
+- ✅ Cross-wavelet transform (XWT)
+- ✅ Wavelet coherence (WTC)
+- ✅ Harmonic analysis
+
+### seasonal_timeseries.csv
+**Purpose**: Seasonal time series for ARIMA/SARIMA forecasting
+
+**Columns**:
+- `date`: Monthly dates (2019-2023)
+- `month`, `year`: Date components
+- `sales`: Composite signal with trend + seasonality + AR
+- `trend_component`: True trend (for validation)
+- `seasonal_component`: True seasonal pattern
+
+**Test These Features**:
+- ✅ Auto-ARIMA parameter selection
+- ✅ SARIMA modeling
+- ✅ Forecast with confidence intervals
+- ✅ Seasonal decomposition
+
+### Generating New Test Data
+
+To regenerate all extended test data files:
+```bash
+python test_data/create_extended_test_data.py
+```

@@ -56,21 +56,21 @@ def render_dimreduction_tab():
 
     with col1:
         if method == "PCA":
-            if st.button("🔬 PCA", use_container_width=True):
+            if st.button("🔬 PCA", width='stretch'):
                 with st.spinner("Computing PCA..."):
                     results = ml.pca_analysis(features, n_components=n_components)
                     st.session_state.analysis_results['pca_new'] = results
 
     with col2:
         if method == "t-SNE":
-            if st.button("📊 t-SNE", use_container_width=True):
+            if st.button("📊 t-SNE", width='stretch'):
                 with st.spinner("Computing t-SNE..."):
                     results = ml.tsne_analysis(features, n_components=n_components)
                     st.session_state.analysis_results['tsne'] = results
 
     with col3:
         if method == "UMAP":
-            if st.button("🔷 UMAP", use_container_width=True):
+            if st.button("🔷 UMAP", width='stretch'):
                 with st.spinner("Computing UMAP..."):
                     results = ml.umap_analysis(features, n_components=n_components)
                     st.session_state.analysis_results['umap'] = results
@@ -78,14 +78,14 @@ def render_dimreduction_tab():
     col4, col5 = st.columns(2)
     with col4:
         if method == "SVD":
-            if st.button("📐 SVD", use_container_width=True):
+            if st.button("📐 SVD", width='stretch'):
                 with st.spinner("Computing SVD..."):
                     results = ml.svd_analysis(features, n_components=n_components)
                     st.session_state.analysis_results['svd'] = results
 
     with col5:
         if method == "ICA":
-            if st.button("🔀 ICA", use_container_width=True):
+            if st.button("🔀 ICA", width='stretch'):
                 with st.spinner("Computing ICA..."):
                     results = ml.ica_analysis(features, n_components=n_components)
                     st.session_state.analysis_results['ica'] = results
@@ -103,7 +103,7 @@ def render_dimreduction_tab():
             if len(explained_var) > 0:
                 fig = px.bar(x=[f'PC{i+1}' for i in range(len(explained_var))], y=explained_var,
                             title='Explained Variance per Component', template=PLOTLY_TEMPLATE)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
             # Enhanced Cartesian biplot with feature vectors
             transformed = results.get('transformed_data')
@@ -125,7 +125,7 @@ def render_dimreduction_tab():
                         feature_names,
                         scale_factor=3.0
                     )
-                    st.plotly_chart(fig_biplot, use_container_width=True)
+                    st.plotly_chart(fig_biplot, width='stretch')
 
                     # Display insights
                     st.markdown("### 📊 Vector Interpretation Guide")
@@ -164,7 +164,7 @@ def render_dimreduction_tab():
                                         labels={'x': 'PC1', 'y': 'PC2'},
                                         template=PLOTLY_TEMPLATE)
                     fig_pc.update_layout(height=500)
-                    st.plotly_chart(fig_pc, use_container_width=True)
+                    st.plotly_chart(fig_pc, width='stretch')
 
     if 'tsne' in st.session_state.analysis_results:
         results = st.session_state.analysis_results['tsne']
@@ -175,7 +175,7 @@ def render_dimreduction_tab():
                 fig = px.scatter(x=data[:, 0], y=data[:, 1] if data.shape[1] > 1 else data[:, 0],
                                title='t-SNE Projection', template=PLOTLY_TEMPLATE)
                 fig.update_layout(height=500)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
     if 'umap' in st.session_state.analysis_results:
         results = st.session_state.analysis_results['umap']
@@ -186,7 +186,7 @@ def render_dimreduction_tab():
                 fig = px.scatter(x=data[:, 0], y=data[:, 1] if data.shape[1] > 1 else data[:, 0],
                                title='UMAP Projection', template=PLOTLY_TEMPLATE)
                 fig.update_layout(height=500)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
     if 'svd' in st.session_state.analysis_results:
         results = st.session_state.analysis_results['svd']
@@ -197,7 +197,7 @@ def render_dimreduction_tab():
                 fig = px.scatter(x=data[:, 0], y=data[:, 1] if data.shape[1] > 1 else data[:, 0],
                                title='SVD Projection', template=PLOTLY_TEMPLATE)
                 fig.update_layout(height=500)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
     if 'ica' in st.session_state.analysis_results:
         results = st.session_state.analysis_results['ica']
@@ -208,6 +208,6 @@ def render_dimreduction_tab():
                 fig = px.scatter(x=data[:, 0], y=data[:, 1] if data.shape[1] > 1 else data[:, 0],
                                title='ICA Projection', template=PLOTLY_TEMPLATE)
                 fig.update_layout(height=500)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
 

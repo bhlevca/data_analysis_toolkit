@@ -825,6 +825,783 @@ Critical for decision-making and policy evaluation.
 - Consider alternative explanations
 - Design study to test causality
 """,
+
+    # =========================================================================
+    # EXTENDED ANOVA & POST-HOC TESTS (NEW)
+    # =========================================================================
+
+    "anova_extended": """
+## 🧪 Extended ANOVA & Post-Hoc Tests
+
+### What & Why
+ANOVA extensions for complex experimental designs with multiple factors,
+repeated measurements, and follow-up pairwise comparisons.
+
+---
+
+### Two-Way Factorial ANOVA
+
+**Purpose:** Test main effects of two factors AND their interaction.
+
+**Model:** Y = μ + αᵢ + βⱼ + (αβ)ᵢⱼ + ε
+
+| Effect | Question |
+|--------|----------|
+| **Main Effect A** | Does factor A affect outcome (ignoring B)? |
+| **Main Effect B** | Does factor B affect outcome (ignoring A)? |
+| **Interaction A×B** | Does effect of A depend on level of B? |
+
+**Interpretation:**
+- Significant main effect: Factor influences outcome overall
+- Significant interaction: Effects are not additive (interpret main effects cautiously)
+- Always examine interaction first before interpreting main effects
+
+**Example:** Studying plant growth with Fertilizer (A: Low/High) and Water (B: Low/High)
+- Main effect of Fertilizer: High fertilizer increases growth
+- Main effect of Water: More water increases growth  
+- Interaction: Extra fertilizer helps more when water is abundant
+
+---
+
+### Repeated-Measures ANOVA
+
+**Purpose:** Compare conditions when same subjects are measured multiple times.
+
+**Advantages over Independent ANOVA:**
+- Controls for individual differences
+- More statistical power
+- Requires fewer subjects
+
+**Assumptions:**
+1. **Sphericity**: Equal variances of differences between conditions
+   - Test with Mauchly's test
+   - If violated (p < 0.05): Use Greenhouse-Geisser or Huynh-Feldt correction
+
+**Effect Size (Partial η²):**
+| Value | Interpretation |
+|-------|----------------|
+| 0.01 | Small |
+| 0.06 | Medium |
+| 0.14+ | Large |
+
+---
+
+### Post-Hoc Tests
+
+**When to use:** After significant omnibus ANOVA to determine which specific groups differ.
+
+#### Tukey's Honest Significant Difference (HSD)
+- Controls family-wise error rate
+- All pairwise comparisons
+- Best for equal sample sizes
+- Reports: Mean difference, SE, Q-statistic, adjusted p-value
+
+#### Bonferroni Correction
+- Most conservative approach
+- Divides α by number of comparisons
+- Good for few planned comparisons
+- Reports: t-statistic, raw p-value, adjusted p-value, Cohen's d
+
+**Effect Size (Cohen's d):**
+| Value | Interpretation |
+|-------|----------------|
+| 0.2 | Small |
+| 0.5 | Medium |
+| 0.8+ | Large |
+
+---
+
+### How to Use in the Toolkit
+
+1. **Two-Way ANOVA:**
+   - Select continuous dependent variable
+   - Select two categorical factors
+   - Review main effects and interaction in results table
+
+2. **Repeated-Measures ANOVA:**
+   - Select dependent variable (measurement)
+   - Select subject/ID column
+   - Select within-subjects factor (conditions)
+   - Check sphericity warning
+
+3. **Post-Hoc Tests:**
+   - Select dependent variable
+   - Select grouping variable
+   - Choose Tukey HSD or Bonferroni
+   - Review pairwise comparison table
+
+### What to Do Next
+- If interaction is significant: Plot interaction and interpret conditionally
+- If main effects only: Report effect sizes and confidence intervals
+- Document which comparisons were planned vs. exploratory
+""",
+
+    # =========================================================================
+    # PROBABILITY DISTRIBUTIONS (NEW)
+    # =========================================================================
+
+    "probability_distributions": """
+## 📊 Probability Distribution Analysis
+
+### What & Why
+Fit theoretical probability distributions to empirical data for:
+- Understanding data-generating processes
+- Simulation and Monte Carlo methods
+- Risk assessment and reliability analysis
+- Parametric statistical inference
+
+---
+
+### Extended Distribution Fitting
+
+The toolkit fits 12+ distributions and ranks them by goodness-of-fit:
+
+| Distribution | Use Case |
+|-------------|----------|
+| **Normal** | Symmetric, bell-shaped data |
+| **t-distribution** | Symmetric with heavier tails than normal |
+| **Gamma** | Positive, right-skewed data (waiting times) |
+| **Exponential** | Memoryless processes (time between events) |
+| **Lognormal** | Positive, right-skewed (multiplicative processes) |
+| **Weibull** | Reliability analysis, survival times |
+| **Laplace** | Double-exponential, heavier tails |
+| **Logistic** | Similar to normal but heavier tails |
+| **Pareto** | Power-law distributions (80/20 rule) |
+| **Cauchy** | Very heavy tails, no mean exists |
+| **Chi-squared** | Sum of squared normals |
+| **Beta** | Bounded [0,1] data (proportions) |
+
+---
+
+### Model Selection Criteria
+
+#### AIC (Akaike Information Criterion)
+- AIC = 2k - 2ln(L)
+- k = number of parameters, L = likelihood
+- **Lower is better**
+- Penalizes complexity to avoid overfitting
+
+#### BIC (Bayesian Information Criterion)  
+- BIC = k·ln(n) - 2ln(L)
+- n = sample size
+- **Lower is better**
+- Stricter penalty than AIC for large samples
+
+#### Kolmogorov-Smirnov Test
+- Tests if data comes from specified distribution
+- **p > 0.05**: Cannot reject that data follows distribution
+- **p < 0.05**: Data significantly differs from distribution
+
+---
+
+### Random Variable Analysis
+
+For each fitted distribution, compute:
+
+**Moments:**
+- Mean (expected value)
+- Variance (spread)
+- Skewness (asymmetry)
+- Kurtosis (tail heaviness)
+
+**Quantiles:**
+- Median (50th percentile)
+- Quartiles (25th, 75th)
+- Extreme percentiles (1st, 99th)
+
+**Confidence Intervals:**
+- Parameter uncertainty from MLE
+- Bootstrap confidence intervals
+
+---
+
+### QQ (Quantile-Quantile) Plots
+
+**Interpretation:**
+- Points on diagonal line = good fit
+- Curved pattern = wrong distribution family
+- S-shape = different skewness/kurtosis
+- Outliers = extreme values deviating from line
+
+**Common Patterns:**
+| Pattern | Meaning |
+|---------|---------|
+| Light right tail | Points below line at right |
+| Heavy right tail | Points above line at right |
+| Short tails | S-curve bowing inward |
+| Long tails | S-curve bowing outward |
+
+---
+
+### How to Use
+
+1. Load data and select numeric column
+2. Go to Statistics → Probability Distributions
+3. Select distributions to fit (or use "All")
+4. Review AIC/BIC ranking table
+5. Check QQ plots for top candidates
+6. Use best-fit distribution for inference
+
+### What to Do Next
+- Use fitted distribution for simulation
+- Calculate probability of extreme events
+- Perform parametric hypothesis tests
+- Report uncertainty in distribution parameters
+""",
+
+    # =========================================================================
+    # EXTENDED SPECTRAL ANALYSIS (NEW)
+    # =========================================================================
+
+    "spectral_extended": """
+## 🔊 Extended Spectral Analysis
+
+### What & Why
+Advanced frequency-domain analysis for paired signals and non-stationary data.
+Goes beyond standard FFT to analyze relationships between signals.
+
+---
+
+### Coherence Analysis
+
+**Purpose:** Measure linear correlation between two signals as function of frequency.
+
+**Formula:** Cxy(f) = |Sxy(f)|² / (Sxx(f) · Syy(f))
+
+| Value | Interpretation |
+|-------|----------------|
+| 0 | No linear relationship at frequency f |
+| 0.5 | Moderate coherence |
+| 1 | Perfect linear relationship |
+
+**Use Cases:**
+- EEG channel synchronization
+- Mechanical vibration analysis
+- Climate teleconnections
+- Audio signal processing
+
+**Parameters:**
+- **nperseg**: Segment length (longer = better frequency resolution)
+- **noverlap**: Segment overlap (typically 50%)
+
+---
+
+### Cross-Wavelet Transform (XWT)
+
+**Purpose:** Shows common power in time-frequency space between two signals.
+
+**Advantages over Coherence:**
+- Reveals time-varying relationships
+- Shows phase relationships
+- Handles non-stationary signals
+
+**Interpretation:**
+- High power = both signals have strong oscillations at that time-frequency
+- Phase arrows show lead/lag relationship
+- Cone of influence marks edge effects
+
+**Parameters:**
+- **scales**: Range of wavelet scales (auto-selected based on sampling)
+- **wavelet**: Mother wavelet (Morlet is default)
+
+---
+
+### Wavelet Coherence (WTC)
+
+**Purpose:** Localized coherence varying in both time and frequency.
+
+**Advantages:**
+- Detects intermittent coupling
+- Shows when/where signals are correlated
+- Handles non-stationary relationships
+
+**Statistical Significance:**
+- Compare to surrogate distribution
+- Monte Carlo significance testing
+- 95% confidence contours
+
+**Interpretation Guide:**
+| Color | Meaning |
+|-------|---------|
+| Red/Yellow | High coherence (signals coupled) |
+| Blue/Green | Low coherence (signals independent) |
+| Arrows → | In-phase relationship |
+| Arrows ← | Anti-phase relationship |
+| Arrows ↓ | Signal 1 leads by 90° |
+| Arrows ↑ | Signal 2 leads by 90° |
+
+---
+
+### Harmonic Analysis
+
+**Purpose:** Extract sinusoidal components using least-squares fitting.
+
+**Method:** Fits model: y(t) = Σ [Aᵢ·cos(2πfᵢt) + Bᵢ·sin(2πfᵢt)]
+
+**Output:**
+- Dominant frequencies
+- Amplitudes (Rᵢ = √(Aᵢ² + Bᵢ²))
+- Phases (φᵢ = arctan(Bᵢ/Aᵢ))
+- Explained variance per component
+
+**Use Cases:**
+- Tidal analysis
+- Seasonal decomposition
+- Removing known periodic signals
+- Detecting hidden periodicities
+
+---
+
+### Choosing the Right Method
+
+| Question | Method |
+|----------|--------|
+| Frequency relationship (stationary)? | Coherence |
+| Time-frequency relationship? | XWT or WTC |
+| Localized coherence? | WTC |
+| Extract dominant periods? | Harmonic Analysis |
+| Quick power spectrum? | Standard FFT |
+
+### How to Use
+
+1. Go to Signal Processing → Extended Spectral
+2. Select two signal columns
+3. Choose analysis type
+4. Adjust parameters if needed
+5. Interpret plots and metrics
+
+### What to Do Next
+- Compare coherence at different frequency bands
+- Identify time periods of high coherence
+- Extract phase relationships for lead-lag analysis
+- Use significant frequencies in models
+""",
+
+    # =========================================================================
+    # ARIMA/SARIMA FORECASTING (NEW)
+    # =========================================================================
+
+    "arima_sarima": """
+## ⏱️ ARIMA & SARIMA Forecasting
+
+### What & Why
+Box-Jenkins methodology for time series forecasting.
+ARIMA for non-seasonal, SARIMA for seasonal patterns.
+
+---
+
+### ARIMA(p, d, q) Components
+
+| Parameter | Meaning | Identification |
+|-----------|---------|----------------|
+| **p** | Autoregressive order | PACF cutoff |
+| **d** | Differencing order | ADF test (0 if stationary) |
+| **q** | Moving average order | ACF cutoff |
+
+**AR(p):** Current value depends on p past values
+- Yₜ = φ₁Yₜ₋₁ + φ₂Yₜ₋₂ + ... + φₚYₜ₋ₚ + εₜ
+
+**I(d):** Differencing to achieve stationarity
+- d=1: ΔYₜ = Yₜ - Yₜ₋₁
+- d=2: Δ²Yₜ = ΔYₜ - ΔYₜ₋₁
+
+**MA(q):** Current value depends on q past errors
+- Yₜ = εₜ + θ₁εₜ₋₁ + θ₂εₜ₋₂ + ... + θqεₜ₋q
+
+---
+
+### SARIMA(p,d,q)(P,D,Q,m)
+
+Extends ARIMA with seasonal components:
+
+| Parameter | Meaning | Example |
+|-----------|---------|---------|
+| **P** | Seasonal AR order | Relationship with same season last year |
+| **D** | Seasonal differencing | Remove yearly pattern |
+| **Q** | Seasonal MA order | Seasonal error structure |
+| **m** | Seasonal period | 12 for monthly, 4 for quarterly |
+
+**Common Seasonal Periods:**
+- Monthly data: m=12
+- Quarterly data: m=4
+- Weekly data: m=52 (or 7 for daily)
+- Hourly data: m=24
+
+---
+
+### Auto-ARIMA
+
+**Purpose:** Automatic parameter selection via grid search.
+
+**Algorithm:**
+1. Test stationarity (ADF test)
+2. Determine d (differencing order)
+3. Search grid of (p, q) values
+4. Select model with lowest AIC/BIC
+5. Validate residuals
+
+**Parameters to Set:**
+- max_p, max_q: Maximum orders to try
+- seasonal: Enable SARIMA search
+- m: Seasonal period (if seasonal)
+
+---
+
+### Model Diagnostics
+
+**Residual Checks (should pass all):**
+
+| Test | Good Result | Problem If Failed |
+|------|-------------|-------------------|
+| **Ljung-Box** | p > 0.05 | Autocorrelation remains |
+| **Normality** | p > 0.05 | Non-normal errors |
+| **Heteroscedasticity** | p > 0.05 | Variance changes over time |
+
+**Residual Plots:**
+- ACF of residuals: No significant spikes
+- Histogram: Approximately normal
+- Q-Q plot: Points on diagonal
+
+---
+
+### Forecasting
+
+**Point Forecasts:**
+- Expected value at each future time point
+- Based on fitted model parameters
+
+**Confidence Intervals:**
+- 95% CI: True value expected here 95% of time
+- Widens as forecast horizon increases
+- Assumes model is correctly specified
+
+**Forecast Horizons:**
+- Short-term (1-3 periods): Most accurate
+- Medium-term (3-12 periods): Moderate accuracy
+- Long-term (12+ periods): Use with caution
+
+---
+
+### Common ARIMA Models
+
+| Model | Use Case |
+|-------|----------|
+| ARIMA(1,1,1) | Simple baseline for most series |
+| ARIMA(1,1,0) | AR(1) with differencing |
+| ARIMA(0,1,1) | MA(1) with differencing (exponential smoothing) |
+| ARIMA(2,1,2) | More complex dynamics |
+| SARIMA(1,1,1)(1,1,1,12) | Monthly seasonal data |
+
+### How to Use
+
+1. Go to Time Series → ARIMA/SARIMA
+2. Select time series column
+3. Enable Auto-ARIMA or set parameters manually
+4. Set forecast horizon
+5. Review fit statistics and residual diagnostics
+6. Generate forecasts with confidence intervals
+
+### What to Do Next
+- Compare AIC/BIC across model specifications
+- Validate on holdout test set
+- Check residuals for remaining patterns
+- Consider external regressors (ARIMAX) if predictors available
+""",
+
+    # =========================================================================
+    # MULTIVARIATE TIME SERIES (NEW)
+    # =========================================================================
+
+    "multivariate_ts": """
+## 📈 Multivariate Time Series Analysis
+
+### What & Why
+Analyze multiple time series jointly to capture interdependencies,
+test causality, and forecast related variables together.
+
+---
+
+### VAR (Vector Autoregression)
+
+**Purpose:** Model each variable as function of lagged values of ALL variables.
+
+**Model:** Yₜ = A₁Yₜ₋₁ + A₂Yₜ₋₂ + ... + AₚYₜ₋ₚ + εₜ
+
+Where Y is a vector of all variables and A are coefficient matrices.
+
+**Key Features:**
+- Captures feedback between variables
+- Granger causality tests built-in
+- Impulse response functions
+- Variance decomposition
+
+**Lag Selection:**
+| Criterion | Interpretation |
+|-----------|----------------|
+| AIC | Balance fit and complexity |
+| BIC | More parsimonious (fewer lags) |
+| HQIC | Between AIC and BIC |
+
+**Granger Causality:**
+- Tests if past X improves prediction of Y
+- F-test for joint significance of lags
+- p < 0.05: X "Granger-causes" Y
+
+---
+
+### VECM (Vector Error Correction Model)
+
+**Purpose:** VAR for cointegrated (non-stationary but related) series.
+
+**When to Use:**
+- Series are non-stationary (fail ADF)
+- Series share long-run equilibrium (cointegration)
+- Want to model both short-run and long-run dynamics
+
+**Johansen Cointegration Test:**
+| Result | Interpretation |
+|--------|----------------|
+| r = 0 | No cointegration → Use VAR on differences |
+| r = 1 | One cointegrating relationship |
+| r = k | Full rank (all series are stationary) |
+
+**Error Correction Term:**
+- Speed of adjustment to equilibrium
+- Should be negative and significant
+- |α| closer to 1 = faster adjustment
+
+**Example:** Stock prices and dividends
+- Both non-stationary
+- Share long-run relationship (cointegrated)
+- VECM captures short-run deviations and adjustment
+
+---
+
+### DTW (Dynamic Time Warping)
+
+**Purpose:** Measure similarity between time series with different speeds/phases.
+
+**Algorithm:**
+1. Build cost matrix between all point pairs
+2. Find optimal warping path (minimum cost alignment)
+3. DTW distance = accumulated cost along path
+
+**Advantages over Euclidean:**
+- Handles time shifts and stretching
+- Robust to different lengths
+- Captures shape similarity
+
+**Use Cases:**
+- Pattern recognition
+- Speech recognition
+- Gesture classification
+- Finding similar time series
+
+**Parameters:**
+- **Window**: Constraint on warping (Sakoe-Chiba band)
+- **Step pattern**: Allowed moves in alignment
+
+**DTW Distance Matrix:**
+- Compute pairwise DTW between all series
+- Use for clustering (hierarchical, k-medoids)
+- Basis for k-NN classification
+
+---
+
+### Choosing Between Methods
+
+| Situation | Recommended Method |
+|-----------|-------------------|
+| Stationary series | VAR |
+| Non-stationary, cointegrated | VECM |
+| Pattern similarity | DTW |
+| Causality testing | VAR with Granger tests |
+| Forecasting multiple series | VAR or VECM |
+
+### How to Use
+
+1. **VAR:**
+   - Go to Time Series → Multivariate
+   - Select multiple numeric columns
+   - Choose VAR analysis
+   - Review Granger causality results
+   - Examine impulse responses
+
+2. **VECM:**
+   - Same interface as VAR
+   - Enable cointegration test
+   - If cointegrated, VECM is used automatically
+
+3. **DTW:**
+   - Select series to compare
+   - View alignment path visualization
+   - Compute distance matrix for clustering
+
+### What to Do Next
+- Use VAR forecasts with impulse response scenarios
+- Interpret cointegrating vectors economically
+- Cluster similar series using DTW distance matrix
+- Validate with out-of-sample forecasting
+""",
+
+    # =========================================================================
+    # BIOMASS SEGMENTATION (NEW)
+    # =========================================================================
+
+    "biomass_segmentation": """
+## 🌿 Biomass Segmentation (U-Net)
+
+### What & Why
+Deep learning for semantic segmentation of aquatic imagery.
+Identifies and quantifies Dreissena mussels, Cladophora algae, and other vegetation.
+
+---
+
+### U-Net Architecture
+
+**Encoder (Contracting Path):**
+- Conv layers extract features
+- Max pooling reduces spatial size
+- Captures "what" is in image
+
+**Bottleneck:**
+- Deepest layer with smallest spatial size
+- Maximum abstraction
+
+**Decoder (Expanding Path):**
+- Transposed convolutions upsample
+- Skip connections from encoder
+- Recovers "where" information
+
+**Skip Connections:**
+- Copy features from encoder to decoder
+- Preserve fine-grained spatial information
+- Critical for precise boundaries
+
+---
+
+### Class Labels
+
+| Class ID | Label | Color |
+|----------|-------|-------|
+| 0 | Background | Blue |
+| 1 | Dreissena mussels | Red |
+| 2 | Cladophora algae | Green |
+| 3 | Other vegetation | Yellow |
+
+---
+
+### Loss Functions
+
+**Dice Loss:**
+- Better for imbalanced classes
+- Directly optimizes IoU-like metric
+- Dice = 2|A∩B| / (|A| + |B|)
+
+**Combined Loss:**
+- Weighted combination of Dice and cross-entropy
+- Balances pixel-wise and region-wise accuracy
+
+---
+
+### Data Preparation
+
+**Image Requirements:**
+- Consistent resolution (e.g., 256x256)
+- RGB format
+- Clear visibility
+
+**Mask Requirements:**
+- Same size as images
+- Integer class labels (0, 1, 2, 3)
+- One mask per image
+
+**Augmentation (Recommended):**
+- Rotation (0-360°)
+- Flipping (horizontal, vertical)
+- Brightness/contrast adjustment
+- Elastic deformation
+
+---
+
+### Training Configuration
+
+| Parameter | Recommended | Notes |
+|-----------|-------------|-------|
+| Image size | 256x256 | Balance accuracy and memory |
+| Batch size | 8-16 | Reduce if memory limited |
+| Epochs | 50-100 | Use early stopping |
+| Learning rate | 1e-4 | Reduce if unstable |
+| Validation split | 0.2 | 20% for validation |
+
+**Early Stopping:**
+- Monitor validation Dice coefficient
+- Patience: 10-15 epochs
+- Restore best weights
+
+---
+
+### Transfer Learning (VGG Backbone)
+
+**Advantages:**
+- Pretrained on ImageNet
+- Better feature extraction
+- Faster convergence
+- Works with less data
+
+**Freezing Strategy:**
+1. Start with frozen encoder
+2. Train decoder only (5-10 epochs)
+3. Unfreeze and fine-tune all (lower LR)
+
+---
+
+### Output Analysis
+
+**Per-Class Metrics:**
+- Coverage percentage (% of image)
+- Pixel count per class
+- Class distribution histogram
+
+**Spatial Analysis:**
+- Density maps
+- Connected component analysis
+- Boundary detection
+
+**Biomass Estimation:**
+- Coverage × calibration factor = biomass
+- Requires ground truth calibration
+
+---
+
+### How to Use
+
+1. **Prepare Data:**
+   - Organize images and masks in folders
+   - Ensure consistent naming
+   - Split into train/val/test
+
+2. **Configure Model:**
+   - Go to ML → Biomass Segmentation
+   - Set image size and architecture
+   - Enable augmentation for small datasets
+
+3. **Train:**
+   - Monitor loss curves
+   - Check validation Dice score
+   - Save best model
+
+4. **Predict:**
+   - Upload new images
+   - View segmentation masks
+   - Analyze class distributions
+
+### What to Do Next
+- Validate on independent test images
+- Compare predicted vs. manual segmentation
+- Calibrate coverage to actual biomass
+- Apply to time series for temporal analysis
+""",
 }
 
 def get_tutorial(topic: str) -> str:

@@ -49,7 +49,7 @@ def render_causality_tab():
         col_a, col_b = st.columns(2)
 
         with col_a:
-            if st.button("🔬 Granger Causality", use_container_width=True):
+            if st.button("🔬 Granger Causality", width='stretch'):
                 with st.spinner("Testing..."):
                     # Correct API: granger_causality([features], target, max_lag)
                     results = causality.granger_causality([selected_feature], target, max_lag)
@@ -57,7 +57,7 @@ def render_causality_tab():
                     st.session_state.analysis_results['granger_feature'] = selected_feature
 
         with col_b:
-            if st.button("⏱️ Lead-Lag Analysis", use_container_width=True):
+            if st.button("⏱️ Lead-Lag Analysis", width='stretch'):
                 with st.spinner("Computing..."):
                     # Correct API: lead_lag_analysis([features], target, max_lag)
                     results = causality.lead_lag_analysis([selected_feature], target, max_lag)
@@ -84,7 +84,7 @@ def render_causality_tab():
                 }
                 for lag, data in results.items() if isinstance(data, dict)
             ])
-            st.dataframe(granger_df, use_container_width=True)
+            st.dataframe(granger_df, width='stretch')
 
             # Plot p-values
             lags = [lag for lag in results.keys() if isinstance(results[lag], dict)]
@@ -94,7 +94,7 @@ def render_causality_tab():
             fig.add_trace(go.Scatter(x=lags, y=pvals, mode='lines+markers'))
             fig.add_hline(y=0.05, line_dash='dash', line_color='red', annotation_text='p=0.05')
             fig.update_layout(title='Granger Causality p-values', template=PLOTLY_TEMPLATE, height=400)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
     if 'lead_lag' in st.session_state.analysis_results:
         results = st.session_state.analysis_results['lead_lag']
@@ -123,6 +123,6 @@ def render_causality_tab():
             fig.add_trace(go.Bar(x=lags, y=corrs, marker_color='steelblue'))
             fig.add_vline(x=best_lag, line_dash='dash', line_color='red')
             fig.update_layout(title='Cross-correlation at Different Lags', template=PLOTLY_TEMPLATE, height=400)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
 

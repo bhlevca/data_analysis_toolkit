@@ -1021,6 +1021,165 @@ Step-by-step:
 
 Troubleshooting: Verify `labels.csv` paths, re-save in `.keras` to avoid HDF5 issues, and register custom layers used by the model.
 """,
+
+    "anova_extended": """
+## 🧪 Extended ANOVA & Post-Hoc Tests
+
+### Two-Way ANOVA
+Tests main effects of two factors and their interaction on a continuous outcome.
+- **Main Effect A**: Does factor A affect the outcome?
+- **Main Effect B**: Does factor B affect the outcome?
+- **Interaction A×B**: Does the effect of A depend on B?
+
+### Repeated-Measures ANOVA
+Use when the same subjects are measured under multiple conditions.
+- Accounts for within-subject correlation
+- More powerful than independent-groups ANOVA
+- Check sphericity assumption (Mauchly's test)
+
+### Post-Hoc Tests
+After significant ANOVA, determine which groups differ:
+
+| Test | Use When |
+|------|----------|
+| **Tukey's HSD** | All pairwise comparisons, balanced groups |
+| **Bonferroni** | Conservative, few comparisons |
+
+💡 **Tip**: Run post-hoc tests only after significant omnibus ANOVA!
+""",
+
+    "probability_distributions": """
+## 📊 Probability Distribution Fitting
+
+### Extended Distribution Fitting
+Fits 12+ theoretical distributions to your data:
+- Normal, t-distribution, Gamma, Exponential
+- Lognormal, Weibull, Laplace, Logistic
+- Pareto, Cauchy, and more
+
+### Model Selection Criteria
+| Metric | Interpretation |
+|--------|----------------|
+| **AIC** | Lower is better (penalizes complexity) |
+| **BIC** | Lower is better (stricter penalty) |
+| **KS test** | p > 0.05 means good fit |
+
+### Random Variable Analysis
+- Moments: mean, variance, skewness, kurtosis
+- Quantiles: median, quartiles, percentiles
+- Confidence intervals for parameters
+
+### QQ Plots
+Points on diagonal = good fit to theoretical distribution.
+
+💡 **Tip**: Compare multiple distributions using AIC before choosing one!
+""",
+
+    "spectral_extended": """
+## 🔊 Extended Spectral Analysis
+
+### Coherence Analysis
+Measures linear correlation between two signals as a function of frequency.
+- **Value 0-1**: Higher = stronger relationship at that frequency
+- Use for finding common oscillations in paired signals
+
+### Cross-Wavelet Transform (XWT)
+Shows where two signals share common power in time-frequency space.
+- Reveals coupled oscillations
+- Identifies phase relationships
+
+### Wavelet Coherence (WTC)
+Localized coherence varying in both time and frequency.
+- Better than standard coherence for non-stationary signals
+- Shows when/where signals are correlated
+
+### Harmonic Analysis
+Least-squares fitting of sinusoidal components.
+- Extracts dominant periodicities
+- Provides amplitude, frequency, and phase
+
+💡 **Tip**: Use coherence for stationary signals, wavelet coherence for non-stationary!
+""",
+
+    "arima_sarima": """
+## ⏱️ ARIMA/SARIMA Forecasting
+
+### ARIMA(p, d, q)
+- **p**: Autoregressive order (use PACF cutoff)
+- **d**: Differencing order (0 if stationary)
+- **q**: Moving average order (use ACF cutoff)
+
+### SARIMA(p,d,q)(P,D,Q,m)
+Adds seasonal components:
+- **P, D, Q**: Seasonal AR, differencing, MA orders
+- **m**: Seasonal period (12=monthly, 4=quarterly)
+
+### Auto-ARIMA
+Automatic parameter selection via grid search:
+- Tests multiple (p,d,q) combinations
+- Selects model with lowest AIC/BIC
+
+### Forecasting
+- Point forecasts with confidence intervals
+- Residual diagnostics (should be white noise)
+- Use holdout set for validation
+
+💡 **Tip**: Always check stationarity (ADF test) before ARIMA modeling!
+""",
+
+    "multivariate_ts": """
+## 📈 Multivariate Time Series
+
+### VAR (Vector Autoregression)
+Models multiple time series jointly.
+- Each variable depends on lagged values of all variables
+- Includes Granger causality tests
+- Good for forecasting interrelated variables
+
+### VECM (Vector Error Correction)
+Use when series are cointegrated (share long-run equilibrium).
+- Johansen test identifies cointegration rank
+- Models both short-run dynamics and long-run relationships
+- Better than VAR for non-stationary but cointegrated series
+
+### DTW (Dynamic Time Warping)
+Measures similarity between time series that may be shifted/stretched.
+- Handles different lengths and speeds
+- Finds optimal alignment between series
+- Use for pattern matching and clustering
+
+### Granger Causality
+Tests if past values of X help predict Y.
+- Not true causation, but predictive causality
+- Check at multiple lags
+
+💡 **Tip**: Use VECM if Johansen test shows cointegration, VAR otherwise!
+""",
+
+    "biomass_segmentation": """
+## 🌿 Biomass Segmentation (U-Net)
+
+### Overview
+Semantic segmentation for aquatic biomass using deep learning.
+Classes: Background, Dreissena mussels, Cladophora algae, Other vegetation
+
+### U-Net Architecture
+- Encoder: Extracts features (downsampling)
+- Decoder: Reconstructs spatial resolution (upsampling)
+- Skip connections: Preserve fine details
+
+### Training Tips
+- Use augmentation for small datasets
+- Dice loss works better than cross-entropy for imbalanced masks
+- Start with pretrained VGG encoder for transfer learning
+
+### Output Analysis
+- Per-class coverage percentages
+- Spatial distribution maps
+- Biomass density estimates
+
+💡 **Tip**: Transfer learning with VGG backbone works best for small datasets!
+""",
 }
 
 
@@ -1036,6 +1195,15 @@ def render_tutorial_sidebar():
 
         if st.session_state.show_tutorial:
             st.markdown("---")
+            
+            # Toggle between short and comprehensive tutorials
+            tutorial_mode = st.radio(
+                "Documentation Mode",
+                ["📝 Quick Reference", "📖 Comprehensive Guide"],
+                key="tutorial_mode",
+                horizontal=True
+            )
+            use_comprehensive = tutorial_mode == "📖 Comprehensive Guide"
 
             # Match the exact tab/subtab structure
             st.markdown("**Select a topic:**")
@@ -1048,17 +1216,23 @@ def render_tutorial_sidebar():
                 # Statistics group
                 "statistical": "📊 Statistics › Descriptive Statistics",
                 "tests": "📊 Statistics › Hypothesis Tests",
+                "anova_extended": "📊 Statistics › ANOVA (Extended)",
+                "probability_distributions": "📊 Statistics › Probability Distributions",
                 "bayesian": "📊 Statistics › Bayesian Inference",
                 "uncertainty": "📊 Statistics › Uncertainty Analysis",
                 # Signal Processing group
                 "signal_analysis": "🔊 Signal Processing › FFT/Wavelet",
+                "spectral_extended": "🔊 Signal Processing › Extended Spectral",
                 # Time Series group
                 "timeseries": "⏱️ Time Series › Analysis",
+                "arima_sarima": "⏱️ Time Series › ARIMA/SARIMA",
+                "multivariate_ts": "⏱️ Time Series › Multivariate (VAR/VECM/DTW)",
                 "causality": "⏱️ Time Series › Causality (Granger)",
                 # Machine Learning group
                 "machine_learning": "🤖 ML › Regression/Classification",
                 "neural_networks": "🧠 ML › Neural Networks",
                 "image_recognition": "🖼️ Image Recognition › Streamlit Tab",
+                "biomass_segmentation": "🌿 ML › Biomass Segmentation",
                 "pca": "🤖 ML › PCA (Principal Components)",
                 "clustering": "🤖 ML › Clustering",
                 "anomaly": "🤖 ML › Anomaly Detection",
@@ -1109,52 +1283,48 @@ def render_tutorial_sidebar():
                 comp = _load_comprehensive_module()
                 comp_topics = comp.get_all_topics()
                 cur = st.session_state.current_tutorial
-                source_text = "Source: sidebar short tutorial"
-
-                # Only map a _small_ set of sidebar keys to comprehensive keys.
-                # Keep this conservative: we only map 'pca' and 'image_recognition'.
+                
+                # Mapping from sidebar keys to comprehensive tutorial keys
                 SIDEBAR_TO_COMP = {
                     "pca": "pca_analysis",
                     "image_recognition": "image_recognition",
+                    "anova_extended": "anova_extended",
+                    "probability_distributions": "probability_distributions",
+                    "spectral_extended": "spectral_extended",
+                    "arima_sarima": "arima_sarima",
+                    "multivariate_ts": "multivariate_ts",
+                    "biomass_segmentation": "biomass_segmentation",
                 }
 
                 comp_topic = None
                 # Prefer exact comprehensive key match
                 if cur in comp_topics:
                     comp_topic = cur
-                # Allow explicit mapping for the small set above
+                # Allow explicit mapping for the set above
                 elif cur in SIDEBAR_TO_COMP and SIDEBAR_TO_COMP[cur] in comp_topics:
                     comp_topic = SIDEBAR_TO_COMP[cur]
 
-                if comp_topic:
-                    # Do not show mapping details; just indicate the source file.
-                    source_text = "Source: comprehensive_tutorial.py"
+                if use_comprehensive and comp_topic:
+                    source_text = "📖 Comprehensive Guide"
+                elif comp_topic:
+                    source_text = "📝 Quick Reference (📖 available)"
                 else:
-                    source_text = "Source: sidebar short tutorial"
+                    source_text = "📝 Quick Reference"
 
             except Exception:
-                source_text = "Source: sidebar short tutorial (comprehensive load failed)"
+                source_text = "📝 Quick Reference (comprehensive load failed)"
 
             st.markdown(f"**{source_text}**")
 
-            # Render the tutorial content. Use the previously computed
-            # `comp` and `comp_topic` (if available) so the source indicator
-            # and the displayed text remain consistent.
+            # Render the tutorial content based on mode selection
             try:
-                if 'comp' in locals() and comp is not None and 'comp_topic' in locals() and comp_topic:
+                if use_comprehensive and 'comp' in locals() and comp is not None and 'comp_topic' in locals() and comp_topic:
                     st.markdown(comp.get_tutorial(comp_topic))
-                    if comp_topic != selected:
-                        st.info(f"Source: comprehensive_tutorial.py (topic: '{comp_topic}', mapped from '{selected}')")
-                    else:
-                        st.info("Source: comprehensive_tutorial.py")
                 else:
-                    st.markdown(TUTORIALS[selected])
-                    st.info("Source: sidebar short tutorial")
+                    st.markdown(TUTORIALS.get(selected, "Topic not found in quick reference."))
             except Exception as e:
-                # Show the short tutorial and surface a debug note so the user
-                # can see why the comprehensive tutorial was not used.
-                st.markdown(TUTORIALS[selected])
-                st.info("Source: sidebar short tutorial (comprehensive load failed)")
+                # Show the short tutorial and surface a debug note
+                st.markdown(TUTORIALS.get(selected, "Topic not found."))
                 st.error(f"[Debug] Comprehensive tutorial load failed: {e}")
 
         st.markdown("---")
