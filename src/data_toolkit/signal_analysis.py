@@ -303,35 +303,26 @@ def plot_wavelet_torrence(cwt_results: Dict[str, Any], column: str, y_scale: str
     normalized_power = power / variance
     log_power = np.log2(normalized_power + 1e-10)
 
+    # Pre-compute log2 of periods for unified Y-axis (same as cross-wavelet and coherence)
+    log_periods = np.log2(periods)
+    
     # Helper function to plot main heatmap on an axes
     def plot_main_heatmap(ax_main, add_colorbar=True, show_xlabel=True):
-        # Use pcolormesh for full heatmap without truncation
-        dt = time[1] - time[0] if len(time) > 1 else 1.0
-        time_edges = np.concatenate([time - dt/2, [time[-1] + dt/2]])
+        # Use contourf with log2(periods) for consistent appearance with cross/coherence
+        im = ax_main.contourf(time, log_periods, log_power, 32, cmap='viridis', extend='both')
 
-        # For periods, use log spacing for edges
-        period_edges = np.zeros(len(periods) + 1)
-        period_edges[0] = periods[0] * 0.9
-        period_edges[-1] = periods[-1] * 1.1
-        for i in range(1, len(periods)):
-            period_edges[i] = np.sqrt(periods[i-1] * periods[i])
-
-        # Plot the full power spectrum
-        im = ax_main.pcolormesh(time_edges, period_edges, log_power,
-                                 cmap='viridis', shading='flat')
-
-        if y_scale == 'log':
-            ax_main.set_yscale('log')
-        # Small periods (high freq) at TOP, large periods at BOTTOM
-        # Invert y-axis: set ylim with large value first, small value second
-        ax_main.set_ylim([periods[-1] * 1.1, periods[0] * 0.9])
+        # Set axis limits: small periods (high freq) at top, large periods at bottom
+        ax_main.set_xlim([time[0], time[-1]])
+        ax_main.set_ylim([log_periods[-1], log_periods[0]])  # Large periods at bottom, small at top
 
         # Draw COI as filled region (hatched area = unreliable)
         if show_coi and coi is not None and len(coi) == len(time):
-            ax_main.fill_between(time, coi, periods[-1] * 2,
+            coi_clipped = np.clip(coi, periods[0], periods[-1])
+            log_coi = np.log2(coi_clipped)
+            ax_main.fill_between(time, log_coi, log_periods[-1],
                                   facecolor='white', alpha=0.3,
                                   hatch='///', edgecolor='gray')
-            ax_main.plot(time, coi, 'k--', linewidth=2, label='COI')
+            ax_main.plot(time, log_coi, 'k--', linewidth=2, label='COI')
 
         # Add significance contours
         try:
@@ -339,11 +330,16 @@ def plot_wavelet_torrence(cwt_results: Dict[str, Any], column: str, y_scale: str
             chi2_crit = chi2.ppf(significance_level, df=2)
             signif = mean_power_scale * chi2_crit / 2.0
             mask = power > signif[:, None]
-            ax_main.contour(time, periods, mask.astype(int), levels=[0.5],
+            ax_main.contour(time, log_periods, mask.astype(int), levels=[0.5],
                             colors='black', linewidths=1.5)
         except Exception:
             pass
 
+        # Set y-axis ticks to show actual period values (unified format)
+        y_ticks = np.log2(periods[::max(1, len(periods)//8)])
+        ax_main.set_yticks(y_ticks)
+        ax_main.set_yticklabels([f'{2**y:.2f}' for y in y_ticks])
+        
         ax_main.set_ylabel('Period', fontsize=12)
         if show_xlabel:
             ax_main.set_xlabel('Time', fontsize=12)
@@ -388,7 +384,7 @@ def plot_wavelet_torrence(cwt_results: Dict[str, Any], column: str, y_scale: str
     # GLOBAL WAVELET POWER SPECTRUM (right panel)
     # ═══════════════════════════════════════════════════════════════
     global_power = np.mean(normalized_power, axis=1)
-    ax_global.plot(global_power, periods, 'b-', linewidth=1.5)
+    ax_global.plot(global_power, log_periods, 'b-', linewidth=1.5)
 
     # Add significance level for global power
     try:
@@ -409,10 +405,8 @@ def plot_wavelet_torrence(cwt_results: Dict[str, Any], column: str, y_scale: str
     ax_global.set_title('Global\nPower', fontsize=10)
     ax_global.tick_params(labelleft=False)
     ax_global.set_xlim([0, np.max(global_power) * 1.1])
-    if y_scale == 'log':
-        ax_global.set_yscale('log')
-    # Match main plot: small periods at top (inverted)
-    ax_global.set_ylim([periods[-1] * 1.1, periods[0] * 0.9])    # ═══════════════════════════════════════════════════════════════
+    # Match main plot: use log2 periods with inverted axis
+    ax_global.set_ylim([log_periods[-1], log_periods[0]])    # ═══════════════════════════════════════════════════════════════
     # SCALE-AVERAGED POWER (bottom panel) - Time series of variance
     # ═══════════════════════════════════════════════════════════════
     scale_avg_power = np.mean(normalized_power, axis=0)
@@ -843,15 +837,13 @@ def plot_cross_wavelet(results: Dict[str, Any], show_phase_arrows: bool = True,
     
     fig, ax = plt.subplots(figsize=(14, 8))
     
-    # Plot log of cross-wavelet power using log2 transform on both power and y-axis
+    # Use contourf with log2(periods) for unified Y-axis (same as CWT and coherence)
     log_power = np.log2(xwt_power + 1e-10)
     log_periods = np.log2(periods)
     
     im = ax.contourf(time, log_periods, log_power, 32, cmap='jet', extend='both')
     
     # Set axis limits: small periods (high freq) at top, large periods at bottom
-    # periods[0] is smallest, periods[-1] is largest
-    # ylim[0] = bottom, ylim[1] = top, so we want large at bottom, small at top
     ax.set_xlim([time[0], time[-1]])
     ax.set_ylim([log_periods[-1], log_periods[0]])  # Large periods at bottom, small at top
     
@@ -859,7 +851,6 @@ def plot_cross_wavelet(results: Dict[str, Any], show_phase_arrows: bool = True,
     if coi is not None and len(coi) == len(time):
         coi_clipped = np.clip(coi, periods[0], periods[-1])
         log_coi = np.log2(coi_clipped)
-        # Fill from COI down to largest period (bottom of plot)
         ax.fill_between(time, log_coi, log_periods[-1],
                         facecolor='white', alpha=0.4,
                         hatch='///', edgecolor='gray')
@@ -882,7 +873,7 @@ def plot_cross_wavelet(results: Dict[str, Any], show_phase_arrows: bool = True,
         col_step = max(1, len(time) // n_cols_target)
         col_indices = np.arange(0, len(time), col_step)
         
-        # Extract sampled data
+        # Extract sampled data - use log_periods for correct arrow positioning
         t_sample = time[col_indices]
         p_sample = log_periods[row_indices]
         u_sample = u_full[np.ix_(row_indices, col_indices)]
@@ -898,7 +889,7 @@ def plot_cross_wavelet(results: Dict[str, Any], show_phase_arrows: bool = True,
                   headwidth=4, headlength=4, headaxislength=3,
                   scale=35)
     
-    # Set y-axis ticks to show actual period values
+    # Set y-axis ticks to show actual period values (unified format)
     y_ticks = np.log2(periods[::max(1, len(periods)//8)])
     ax.set_yticks(y_ticks)
     ax.set_yticklabels([f'{2**y:.2f}' for y in y_ticks])
@@ -951,7 +942,7 @@ def plot_wavelet_coherence(results: Dict[str, Any], show_phase_arrows: bool = Tr
     
     fig, ax = plt.subplots(figsize=(14, 8))
     
-    # Plot coherence with jet colormap (standard for coherence)
+    # Use contourf with log2(periods) for unified Y-axis (same as CWT and cross-wavelet)
     im = ax.contourf(time, log_periods, wtc_clipped, 32, cmap='jet', 
                      extend='both', vmin=0, vmax=1)
     
@@ -969,7 +960,6 @@ def plot_wavelet_coherence(results: Dict[str, Any], show_phase_arrows: bool = Tr
     if coi is not None and len(coi) == len(time):
         coi_clipped = np.clip(coi, periods[0], periods[-1])
         log_coi = np.log2(coi_clipped)
-        # Fill from COI down to largest period (bottom of plot)
         ax.fill_between(time, log_coi, log_periods[-1],
                         facecolor='white', alpha=0.4,
                         hatch='///', edgecolor='gray')
@@ -992,7 +982,7 @@ def plot_wavelet_coherence(results: Dict[str, Any], show_phase_arrows: bool = Tr
         col_step = max(1, len(time) // n_cols_target)
         col_indices = np.arange(0, len(time), col_step)
         
-        # Extract sampled data
+        # Extract sampled data - use log_periods for correct arrow positioning
         t_sample = time[col_indices]
         p_sample = log_periods[row_indices]
         u_sample = u_full[np.ix_(row_indices, col_indices)]
@@ -1008,11 +998,10 @@ def plot_wavelet_coherence(results: Dict[str, Any], show_phase_arrows: bool = Tr
                   headwidth=4, headlength=4, headaxislength=3,
                   scale=35)
     
-    # Set y-axis ticks to show actual period values
+    # Set y-axis ticks to show actual period values (unified format)
     y_ticks = np.log2(periods[::max(1, len(periods)//8)])
     ax.set_yticks(y_ticks)
     ax.set_yticklabels([f'{2**y:.2f}' for y in y_ticks])
-    
     ax.set_xlabel('Time', fontsize=12)
     ax.set_ylabel('Period', fontsize=12)
     ax.set_title(f'Wavelet Coherence: {col1} vs {col2}\n'
