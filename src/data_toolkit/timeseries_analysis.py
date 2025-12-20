@@ -818,7 +818,7 @@ class TimeSeriesAnalysis:
                                                    sampling_rate=sampling_rate, nperseg=nperseg)
 
     def cross_wavelet_transform(self, column1: str, column2: str, scales: np.ndarray = None,
-                                 wavelet: str = 'morl', sampling_rate: float = 1.0) -> Dict[str, Any]:
+                                 wavelet: str = 'cmor1.5-1.0', sampling_rate: float = 1.0) -> Dict[str, Any]:
         """
         Compute Cross-Wavelet Transform (XWT) between two time series.
         
@@ -828,7 +828,7 @@ class TimeSeriesAnalysis:
             column1: First signal column
             column2: Second signal column
             scales: Wavelet scales (auto-generated if None)
-            wavelet: Wavelet type (default: 'morl')
+            wavelet: Wavelet type (default: 'cmor1.5-1.0' Complex Morlet for phase)
             sampling_rate: Sampling frequency
             
         Returns:
@@ -841,7 +841,7 @@ class TimeSeriesAnalysis:
                                                         sampling_rate=sampling_rate)
 
     def wavelet_coherence(self, column1: str, column2: str, scales: np.ndarray = None,
-                          wavelet: str = 'morl', sampling_rate: float = 1.0,
+                          wavelet: str = 'cmor1.5-1.0', sampling_rate: float = 1.0,
                           smooth_factor: int = 5) -> Dict[str, Any]:
         """
         Compute Wavelet Coherence (WTC) between two time series.
@@ -853,7 +853,7 @@ class TimeSeriesAnalysis:
             column1: First signal column
             column2: Second signal column
             scales: Wavelet scales
-            wavelet: Wavelet type
+            wavelet: Wavelet type (default: 'cmor1.5-1.0' Complex Morlet for phase)
             sampling_rate: Sampling frequency
             smooth_factor: Smoothing window size
             
@@ -904,6 +904,38 @@ class TimeSeriesAnalysis:
     def plot_harmonic_analysis(self, results: Dict[str, Any]) -> plt.Figure:
         """Plot harmonic analysis results"""
         return signal_analysis.plot_harmonic_analysis(results)
+
+    # ===== PLOTLY VERSIONS OF WAVELET PLOTS =====
+
+    def plot_wavelet_torrence_plotly(self, cwt_results: Dict[str, Any], column: str,
+                                      y_scale: str = 'log', significance_level: float = 0.95,
+                                      show_coi: bool = True, wavelet: str = None):
+        """Plotly version of Torrence & Compo wavelet power plot.
+        
+        Returns an interactive Plotly Figure with 3 panels:
+        - Main heatmap with COI
+        - Global power spectrum (right)
+        - Scale-averaged power (bottom)
+        """
+        return signal_analysis.plot_wavelet_torrence_plotly(
+            cwt_results, column,
+            y_scale=y_scale, significance_level=significance_level,
+            show_coi=show_coi, wavelet=wavelet
+        )
+
+    def plot_cross_wavelet_plotly(self, results: Dict[str, Any], show_phase_arrows: bool = True):
+        """Plotly version of Cross-Wavelet Transform plot.
+        
+        Returns an interactive Plotly Figure with phase arrows.
+        """
+        return signal_analysis.plot_cross_wavelet_plotly(results, show_phase_arrows=show_phase_arrows)
+
+    def plot_wavelet_coherence_plotly(self, results: Dict[str, Any], show_phase_arrows: bool = True):
+        """Plotly version of Wavelet Coherence plot.
+        
+        Returns an interactive Plotly Figure with phase arrows where coherence > 0.5.
+        """
+        return signal_analysis.plot_wavelet_coherence_plotly(results, show_phase_arrows=show_phase_arrows)
 
     # ===== MULTIVARIATE TIME SERIES METHODS =====
     

@@ -632,7 +632,7 @@ def plot_coherence(results: Dict[str, Any]) -> plt.Figure:
 
 
 def cross_wavelet_transform(df, column1: str, column2: str, scales: np.ndarray = None,
-                            wavelet: str = 'morl', sampling_rate: float = 1.0) -> Dict[str, Any]:
+                            wavelet: str = 'cmor1.5-1.0', sampling_rate: float = 1.0) -> Dict[str, Any]:
     """
     Compute Cross-Wavelet Transform (XWT) between two time series.
     
@@ -644,7 +644,9 @@ def cross_wavelet_transform(df, column1: str, column2: str, scales: np.ndarray =
         column1: First signal column name
         column2: Second signal column name
         scales: Wavelet scales to analyze
-        wavelet: Wavelet type (default: 'morl' for Morlet)
+        wavelet: Wavelet type (default: 'cmor1.5-1.0' for Complex Morlet).
+                 Must be a complex wavelet to compute phase relationships.
+                 Options: 'cmor1.5-1.0', 'cmor2.0-1.0', 'cgau1', etc.
         sampling_rate: Sampling frequency
         
     Returns:
@@ -670,7 +672,7 @@ def cross_wavelet_transform(df, column1: str, column2: str, scales: np.ndarray =
         scales = np.arange(1, min(128, n // 2))
     
     try:
-        # Compute CWT for both signals
+        # Compute CWT for both signals using complex wavelet
         coeffs1, freqs1 = pywt.cwt(data1, scales, wavelet)
         coeffs2, freqs2 = pywt.cwt(data2, scales, wavelet)
         
@@ -680,15 +682,16 @@ def cross_wavelet_transform(df, column1: str, column2: str, scales: np.ndarray =
         # Cross-wavelet power
         xwt_power = np.abs(xwt)
         
-        # Phase difference
+        # Phase difference - requires complex coefficients for full -pi to pi range
         phase_diff = np.angle(xwt)
         
-        # Convert scales to periods (for Morlet wavelet)
+        # Convert scales to periods using Fourier factor (consistent with CWT)
+        # Use standard Morlet formula for consistency
         omega0 = 6.0
         fourier_factor = (4.0 * np.pi) / (omega0 + np.sqrt(2.0 + omega0 ** 2))
         periods = scales * fourier_factor * dt
         
-        # Cone of influence
+        # Cone of influence (consistent with CWT)
         half = n // 2
         if n % 2 == 0:
             left = np.arange(0, half)
@@ -699,6 +702,7 @@ def cross_wavelet_transform(df, column1: str, column2: str, scales: np.ndarray =
         coi_time = dt * np.concatenate((left, right))
         if coi_time.shape[0] != n:
             coi_time = dt * np.linspace(0, (n - 1) * 0.5, n)
+        # COI uses same Fourier factor as period calculation
         coi_period = coi_time * fourier_factor
         
         # Compute individual powers for normalization
@@ -729,7 +733,7 @@ def cross_wavelet_transform(df, column1: str, column2: str, scales: np.ndarray =
 
 
 def wavelet_coherence(df, column1: str, column2: str, scales: np.ndarray = None,
-                      wavelet: str = 'morl', sampling_rate: float = 1.0,
+                      wavelet: str = 'cmor1.5-1.0', sampling_rate: float = 1.0,
                       smooth_factor: int = 5) -> Dict[str, Any]:
     """
     Compute Wavelet Coherence (WTC) between two time series.
@@ -743,7 +747,8 @@ def wavelet_coherence(df, column1: str, column2: str, scales: np.ndarray = None,
         column1: First signal column name
         column2: Second signal column name
         scales: Wavelet scales to analyze
-        wavelet: Wavelet type
+        wavelet: Wavelet type (default: 'cmor1.5-1.0' for Complex Morlet).
+                 Must be a complex wavelet to compute phase relationships.
         sampling_rate: Sampling frequency
         smooth_factor: Smoothing window size for coherence estimation
         
@@ -808,9 +813,22 @@ def wavelet_coherence(df, column1: str, column2: str, scales: np.ndarray = None,
     return results
 
 
-def plot_cross_wavelet(results: Dict[str, Any], show_phase_arrows: bool = True) -> plt.Figure:
+def plot_cross_wavelet(results: Dict[str, Any], show_phase_arrows: bool = True,
+                       arrow_density: tuple = (3, 3)) -> plt.Figure:
     """
     Plot Cross-Wavelet Transform with phase arrows.
+    
+    Phase arrow convention follows Torrence and Webster (1999) / Grinsted et al. (2004):
+    - ↑ (up/N): In-phase (0°) - signals move together
+    - ↓ (down/S): Anti-phase (180°) - signals move opposite
+    - → (right/E): X leads Y by 90°
+    - ← (left/W): Y leads X by 90° (X lags)
+    
+    Args:
+        results: Dictionary from cross_wavelet_transform()
+        show_phase_arrows: Whether to display phase arrows
+        arrow_density: Tuple (y_skip, x_skip) controlling arrow density.
+                       Higher values = fewer arrows. Default (3, 3).
     """
     xwt_power = results.get('xwt_power')
     phase_diff = results.get('phase_difference')
@@ -825,53 +843,96 @@ def plot_cross_wavelet(results: Dict[str, Any], show_phase_arrows: bool = True) 
     
     fig, ax = plt.subplots(figsize=(14, 8))
     
-    # Plot log of cross-wavelet power
+    # Plot log of cross-wavelet power using log2 transform on both power and y-axis
     log_power = np.log2(xwt_power + 1e-10)
-    im = ax.pcolormesh(time, periods, log_power, cmap='jet', shading='auto')
+    log_periods = np.log2(periods)
     
-    ax.set_yscale('log')
-    ax.set_ylim([periods[-1] * 1.1, periods[0] * 0.9])
+    im = ax.contourf(time, log_periods, log_power, 32, cmap='jet', extend='both')
     
-    # COI
+    # Set axis limits: small periods (high freq) at top, large periods at bottom
+    # periods[0] is smallest, periods[-1] is largest
+    # ylim[0] = bottom, ylim[1] = top, so we want large at bottom, small at top
+    ax.set_xlim([time[0], time[-1]])
+    ax.set_ylim([log_periods[-1], log_periods[0]])  # Large periods at bottom, small at top
+    
+    # COI - shade area where edge effects are significant
     if coi is not None and len(coi) == len(time):
-        ax.fill_between(time, coi, periods[-1] * 2,
-                        facecolor='white', alpha=0.3, hatch='///', edgecolor='gray')
-        ax.plot(time, coi, 'k--', linewidth=2)
+        coi_clipped = np.clip(coi, periods[0], periods[-1])
+        log_coi = np.log2(coi_clipped)
+        # Fill from COI down to largest period (bottom of plot)
+        ax.fill_between(time, log_coi, log_periods[-1],
+                        facecolor='white', alpha=0.4,
+                        hatch='///', edgecolor='gray')
+        ax.plot(time, log_coi, 'k--', linewidth=1.5, label='COI')
     
-    # Phase arrows (subsampled for clarity)
+    # Phase arrows using quiver - following pycwt convention exactly
+    # angle = 0.5*pi - phase transforms so arrows rotate with 'north' origin:
+    # - In-phase (0°) -> UP, Anti-phase (180°) -> DOWN
+    # - X leads 90° -> RIGHT, Y leads 90° -> LEFT
     if show_phase_arrows and phase_diff is not None:
-        step_t = max(1, len(time) // 20)
-        step_s = max(1, len(periods) // 15)
+        angle = 0.5 * np.pi - phase_diff
+        u_full = np.cos(angle)
+        v_full = np.sin(angle)
         
-        for i in range(0, len(periods), step_s):
-            for j in range(0, len(time), step_t):
-                # Arrow direction based on phase
-                angle = phase_diff[i, j]
-                dx = np.cos(angle) * 0.3
-                dy = np.sin(angle) * 0.3
-                
-                # Only show arrows where coherence is significant
-                if xwt_power[i, j] > np.percentile(xwt_power, 50):
-                    ax.annotate('', xy=(time[j] + dx, periods[i]),
-                               xytext=(time[j], periods[i]),
-                               arrowprops=dict(arrowstyle='->', color='black', lw=0.5))
+        # Adaptive sampling: ~12 rows, ~20 columns total for uniform visual density
+        n_rows_target = 12
+        n_cols_target = 20
+        
+        row_indices = np.linspace(0, len(periods) - 1, n_rows_target).astype(int)
+        col_step = max(1, len(time) // n_cols_target)
+        col_indices = np.arange(0, len(time), col_step)
+        
+        # Extract sampled data
+        t_sample = time[col_indices]
+        p_sample = log_periods[row_indices]
+        u_sample = u_full[np.ix_(row_indices, col_indices)]
+        v_sample = v_full[np.ix_(row_indices, col_indices)]
+        
+        # Create meshgrid for quiver positions
+        T, P = np.meshgrid(t_sample, p_sample)
+        
+        # Use width parameter (fraction of plot width) for thin arrows
+        ax.quiver(T, P, u_sample, v_sample,
+                  units='width', angles='uv', pivot='mid',
+                  width=0.002, color='black',
+                  headwidth=4, headlength=4, headaxislength=3,
+                  scale=35)
     
+    # Set y-axis ticks to show actual period values
+    y_ticks = np.log2(periods[::max(1, len(periods)//8)])
+    ax.set_yticks(y_ticks)
+    ax.set_yticklabels([f'{2**y:.2f}' for y in y_ticks])
     ax.set_xlabel('Time', fontsize=12)
     ax.set_ylabel('Period', fontsize=12)
-    ax.set_title(f'Cross-Wavelet Transform: {col1} vs {col2}', fontsize=14)
+    ax.set_title(f'Cross-Wavelet Transform: {col1} vs {col2}\n'
+                 f'(↑ in-phase, ↓ anti-phase, → {col1} leads 90°, ← {col2} leads 90°)', fontsize=12)
     
     cbar = plt.colorbar(im, ax=ax)
-    cbar.set_label('Log2(Power)', fontsize=10)
+    cbar.set_label('Log₂(Power)', fontsize=10)
     
     plt.tight_layout()
     return fig
 
 
-def plot_wavelet_coherence(results: Dict[str, Any], show_phase_arrows: bool = True) -> plt.Figure:
+def plot_wavelet_coherence(results: Dict[str, Any], show_phase_arrows: bool = True,
+                           arrow_density: tuple = (3, 3)) -> plt.Figure:
     """
     Plot Wavelet Coherence with phase arrows.
     
     Similar to Torrence & Compo style but for coherence between two signals.
+    Uses jet colormap for coherence (0-1).
+    
+    Phase arrow convention follows Torrence and Webster (1999) / Grinsted et al. (2004):
+    - ↑ (up/N): In-phase (0°) - signals move together
+    - ↓ (down/S): Anti-phase (180°) - signals move opposite
+    - → (right/E): X leads Y by 90°
+    - ← (left/W): Y leads X by 90° (X lags)
+    
+    Args:
+        results: Dictionary from wavelet_coherence()
+        show_phase_arrows: Whether to display phase arrows
+        arrow_density: Tuple (y_skip, x_skip) controlling arrow density.
+                       Higher values = fewer arrows. Default (3, 3).
     """
     wtc = results.get('coherence')
     phase_diff = results.get('phase_difference')
@@ -884,42 +945,78 @@ def plot_wavelet_coherence(results: Dict[str, Any], show_phase_arrows: bool = Tr
     if wtc is None or time is None or periods is None:
         return None
     
+    # Clip extreme values for cleaner visualization
+    wtc_clipped = np.clip(wtc, 0, 1)
+    log_periods = np.log2(periods)
+    
     fig, ax = plt.subplots(figsize=(14, 8))
     
-    # Plot coherence (0 to 1 scale)
-    im = ax.pcolormesh(time, periods, wtc, cmap='hot_r', shading='auto', vmin=0, vmax=1)
+    # Plot coherence with jet colormap (standard for coherence)
+    im = ax.contourf(time, log_periods, wtc_clipped, 32, cmap='jet', 
+                     extend='both', vmin=0, vmax=1)
     
-    # Add significance contour (e.g., 0.5 threshold)
-    ax.contour(time, periods, wtc, levels=[0.5], colors='black', linewidths=1.5)
+    # Add significance contour at 0.5 (single clean line)
+    try:
+        cs = ax.contour(time, log_periods, wtc_clipped, levels=[0.5], colors='black', linewidths=1.5)
+    except Exception:
+        pass  # Skip if contour fails
     
-    ax.set_yscale('log')
-    ax.set_ylim([periods[-1] * 1.1, periods[0] * 0.9])
+    # Set axis limits: small periods (high freq) at top, large periods at bottom
+    ax.set_xlim([time[0], time[-1]])
+    ax.set_ylim([log_periods[-1], log_periods[0]])  # Large periods at bottom, small at top
     
-    # COI
+    # COI - shade area where edge effects are significant
     if coi is not None and len(coi) == len(time):
-        ax.fill_between(time, coi, periods[-1] * 2,
-                        facecolor='white', alpha=0.3, hatch='///', edgecolor='gray')
-        ax.plot(time, coi, 'k--', linewidth=2)
+        coi_clipped = np.clip(coi, periods[0], periods[-1])
+        log_coi = np.log2(coi_clipped)
+        # Fill from COI down to largest period (bottom of plot)
+        ax.fill_between(time, log_coi, log_periods[-1],
+                        facecolor='white', alpha=0.4,
+                        hatch='///', edgecolor='gray')
+        ax.plot(time, log_coi, 'k--', linewidth=1.5, label='COI')
     
-    # Phase arrows
+    # Phase arrows using quiver - following pycwt convention exactly
+    # angle = 0.5*pi - phase transforms so arrows rotate with 'north' origin:
+    # - In-phase (0°) -> UP, Anti-phase (180°) -> DOWN
+    # - X leads 90° -> RIGHT, Y leads 90° -> LEFT
     if show_phase_arrows and phase_diff is not None:
-        step_t = max(1, len(time) // 20)
-        step_s = max(1, len(periods) // 15)
+        angle = 0.5 * np.pi - phase_diff
+        u_full = np.cos(angle)
+        v_full = np.sin(angle)
         
-        for i in range(0, len(periods), step_s):
-            for j in range(0, len(time), step_t):
-                # Only show arrows where coherence is significant
-                if wtc[i, j] > 0.5:
-                    angle = phase_diff[i, j]
-                    dx = np.cos(angle) * 0.4
-                    dy = np.sin(angle) * 0.4
-                    ax.annotate('', xy=(time[j] + dx, periods[i]),
-                               xytext=(time[j], periods[i]),
-                               arrowprops=dict(arrowstyle='->', color='white', lw=0.8))
+        # Adaptive sampling: ~12 rows, ~20 columns total for uniform visual density
+        n_rows_target = 12
+        n_cols_target = 20
+        
+        row_indices = np.linspace(0, len(periods) - 1, n_rows_target).astype(int)
+        col_step = max(1, len(time) // n_cols_target)
+        col_indices = np.arange(0, len(time), col_step)
+        
+        # Extract sampled data
+        t_sample = time[col_indices]
+        p_sample = log_periods[row_indices]
+        u_sample = u_full[np.ix_(row_indices, col_indices)]
+        v_sample = v_full[np.ix_(row_indices, col_indices)]
+        
+        # Create meshgrid for quiver positions
+        T, P = np.meshgrid(t_sample, p_sample)
+        
+        # Use width parameter (fraction of plot width) for thin arrows
+        ax.quiver(T, P, u_sample, v_sample,
+                  units='width', angles='uv', pivot='mid',
+                  width=0.002, color='black',
+                  headwidth=4, headlength=4, headaxislength=3,
+                  scale=35)
+    
+    # Set y-axis ticks to show actual period values
+    y_ticks = np.log2(periods[::max(1, len(periods)//8)])
+    ax.set_yticks(y_ticks)
+    ax.set_yticklabels([f'{2**y:.2f}' for y in y_ticks])
     
     ax.set_xlabel('Time', fontsize=12)
     ax.set_ylabel('Period', fontsize=12)
-    ax.set_title(f'Wavelet Coherence: {col1} vs {col2}\n(Arrows show phase relationship)', fontsize=14)
+    ax.set_title(f'Wavelet Coherence: {col1} vs {col2}\n'
+                 f'(↑ in-phase, ↓ anti-phase, → {col1} leads 90°, ← {col2} leads 90°)', fontsize=12)
     
     cbar = plt.colorbar(im, ax=ax)
     cbar.set_label('Coherence', fontsize=10)
@@ -1100,4 +1197,505 @@ def plot_harmonic_analysis(results: Dict[str, Any]) -> plt.Figure:
     axes[-1].set_xlabel('Time', fontsize=11)
     
     plt.tight_layout()
+    return fig
+
+
+# =============================================================================
+# PLOTLY VERSIONS OF WAVELET PLOTS (for Streamlit interactive charts)
+# =============================================================================
+
+def _downsample_wavelet_data(z, x, y, max_size=150):
+    """
+    Downsample wavelet data for faster Plotly rendering.
+    Returns downsampled z, x, y arrays.
+    """
+    from scipy.ndimage import zoom
+    
+    n_scales, n_times = z.shape
+    
+    # Calculate downsampling factors
+    scale_factor = min(1.0, max_size / n_scales)
+    time_factor = min(1.0, max_size / n_times)
+    
+    if scale_factor < 1.0 or time_factor < 1.0:
+        # Downsample z using zoom (faster than interpolation)
+        z_down = zoom(z, (scale_factor, time_factor), order=1)
+        
+        # Downsample x and y to match
+        new_n_times = z_down.shape[1]
+        new_n_scales = z_down.shape[0]
+        
+        x_indices = np.linspace(0, len(x) - 1, new_n_times).astype(int)
+        y_indices = np.linspace(0, len(y) - 1, new_n_scales).astype(int)
+        
+        x_down = x[x_indices]
+        y_down = y[y_indices]
+        
+        return z_down, x_down, y_down
+    
+    return z, x, y
+
+
+def plot_wavelet_torrence_plotly(cwt_results: Dict[str, Any], column: str,
+                                  y_scale: str = 'log', significance_level: float = 0.95,
+                                  show_coi: bool = True, wavelet: str = None):
+    """
+    Plotly version of Torrence & Compo style wavelet power plot.
+    
+    Creates a 3-panel layout:
+    - Main: Power spectrum heatmap with COI
+    - Right: Global wavelet power spectrum
+    - Bottom: Scale-averaged power (variance over time)
+    
+    Returns a Plotly Figure object for use with st.plotly_chart().
+    """
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+    
+    power = cwt_results.get('power')
+    time = cwt_results.get('time')
+    periods = cwt_results.get('periods')
+    coi = cwt_results.get('coi')
+    
+    if power is None or periods is None or time is None:
+        return None
+    
+    # Normalize power for better visualization
+    coefficients = cwt_results.get('coefficients', power)
+    if np.iscomplexobj(coefficients):
+        variance = np.var(coefficients.real)
+    else:
+        variance = np.var(coefficients)
+    if variance == 0:
+        variance = 1.0
+    normalized_power = power / variance
+    log_power = np.log2(normalized_power + 1e-10)
+    
+    # Downsample for performance
+    log_power_ds, time_ds, periods_ds = _downsample_wavelet_data(log_power, time, periods)
+    
+    # Compute global power (mean across time) - use original for accuracy
+    global_power = np.mean(normalized_power, axis=1)
+    
+    # Compute scale-averaged power (mean across scales)
+    scale_avg_power = np.mean(normalized_power, axis=0)
+    # Downsample scale_avg_power to match time_ds
+    if len(scale_avg_power) > 150:
+        indices = np.linspace(0, len(scale_avg_power) - 1, 150).astype(int)
+        scale_avg_power_ds = scale_avg_power[indices]
+        time_avg_ds = time[indices]
+    else:
+        scale_avg_power_ds = scale_avg_power
+        time_avg_ds = time
+    
+    # Create subplots: main heatmap (large), global power (right), scale-avg (bottom)
+    fig = make_subplots(
+        rows=2, cols=2,
+        column_widths=[0.85, 0.15],
+        row_heights=[0.75, 0.25],
+        specs=[[{"type": "heatmap"}, {"type": "scatter"}],
+               [{"type": "scatter"}, None]],
+        horizontal_spacing=0.02,
+        vertical_spacing=0.08
+    )
+    
+    # ═══════════════════════════════════════════════════════════════
+    # MAIN HEATMAP - use go.Heatmap (faster than Contour)
+    # ═══════════════════════════════════════════════════════════════
+    fig.add_trace(
+        go.Heatmap(
+            z=log_power_ds,
+            x=time_ds,
+            y=periods_ds,
+            colorscale='Viridis',
+            colorbar=dict(
+                title=dict(text='Log₂(Power/Var)', side='right'),
+                len=0.65,
+                y=0.7,
+                yanchor='middle',
+                thickness=15
+            ),
+            hovertemplate='Time: %{x:.2f}<br>Period: %{y:.2f}<br>Log₂Power: %{z:.2f}<extra></extra>'
+        ),
+        row=1, col=1
+    )
+    
+    # Add COI line
+    if show_coi and coi is not None and len(coi) == len(time):
+        # Clip COI to period range
+        coi_clipped = np.clip(coi, periods[0], periods[-1])
+        
+        fig.add_trace(
+            go.Scatter(
+                x=time,
+                y=coi_clipped,
+                mode='lines',
+                line=dict(color='white', width=2, dash='dash'),
+                name='COI',
+                showlegend=True,
+                hovertemplate='COI at time %{x:.2f}: %{y:.2f}<extra></extra>'
+            ),
+            row=1, col=1
+        )
+        
+        # Add shaded region below COI (unreliable zone) - for inverted y-axis
+        fig.add_trace(
+            go.Scatter(
+                x=np.concatenate([time, time[::-1]]),
+                y=np.concatenate([coi_clipped, np.full(len(time), periods[-1])]),
+                fill='toself',
+                fillcolor='rgba(200, 200, 200, 0.4)',
+                line=dict(color='rgba(0,0,0,0)'),
+                name='Unreliable region',
+                showlegend=False,
+                hoverinfo='skip'
+            ),
+            row=1, col=1
+        )
+    
+    # ═══════════════════════════════════════════════════════════════
+    # GLOBAL POWER (row 1, col 2)
+    # ═══════════════════════════════════════════════════════════════
+    fig.add_trace(
+        go.Scatter(
+            x=global_power,
+            y=periods,
+            mode='lines',
+            line=dict(color='blue', width=1.5),
+            name='Global Power',
+            showlegend=False,
+            hovertemplate='Power: %{x:.2f}<br>Period: %{y:.2f}<extra></extra>'
+        ),
+        row=1, col=2
+    )
+    
+    # Add significance line for global power
+    try:
+        mean_power_scale = np.mean(power, axis=1)
+        chi2_crit = chi2.ppf(significance_level, df=2)
+        signif = mean_power_scale * chi2_crit / 2.0
+        dof = max(2, len(time) - len(periods))
+        chi2_crit_global = chi2.ppf(significance_level, df=dof)
+        global_signif = np.mean(signif) * chi2_crit_global / dof
+        fig.add_trace(
+            go.Scatter(
+                x=[global_signif, global_signif],
+                y=[periods[0], periods[-1]],
+                mode='lines',
+                line=dict(color='red', width=1, dash='dash'),
+                name=f'{int(significance_level*100)}% signif',
+                showlegend=True,
+                hoverinfo='skip'
+            ),
+            row=1, col=2
+        )
+    except Exception:
+        pass
+    
+    # ═══════════════════════════════════════════════════════════════
+    # SCALE-AVERAGED POWER (row 2, col 1)
+    # ═══════════════════════════════════════════════════════════════
+    fig.add_trace(
+        go.Scatter(
+            x=time_avg_ds,
+            y=scale_avg_power_ds,
+            mode='lines',
+            fill='tozeroy',
+            fillcolor='rgba(0, 100, 200, 0.3)',
+            line=dict(color='blue', width=1),
+            name='Scale-Avg Power',
+            showlegend=False,
+            hovertemplate='Time: %{x:.2f}<br>Avg Power: %{y:.2f}<extra></extra>'
+        ),
+        row=2, col=1
+    )
+    
+    # ═══════════════════════════════════════════════════════════════
+    # LAYOUT CONFIGURATION
+    # ═══════════════════════════════════════════════════════════════
+    title = f'Wavelet Power Spectrum (Torrence & Compo) - {column}'
+    if wavelet:
+        title += f' [{wavelet}]'
+    
+    fig.update_layout(
+        title=dict(text=title, font=dict(size=14)),
+        height=700,
+        showlegend=True,
+        legend=dict(x=1.02, y=0.5, xanchor='left'),
+        template='plotly_white'
+    )
+    
+    # Main heatmap axes - log scale with reversed range (small periods at top)
+    fig.update_xaxes(title_text='', row=1, col=1, showticklabels=False)
+    fig.update_yaxes(
+        title_text='Period',
+        type='log' if y_scale == 'log' else 'linear',
+        autorange='reversed',
+        row=1, col=1
+    )
+    
+    # Global power axes - match main plot
+    fig.update_xaxes(title_text='Power', row=1, col=2)
+    fig.update_yaxes(
+        type='log' if y_scale == 'log' else 'linear',
+        autorange='reversed',
+        showticklabels=False,
+        row=1, col=2
+    )
+    
+    # Scale-averaged power axes
+    fig.update_xaxes(title_text='Time', row=2, col=1)
+    fig.update_yaxes(title_text='Avg Power', row=2, col=1)
+    
+    return fig
+
+
+def plot_cross_wavelet_plotly(results: Dict[str, Any], show_phase_arrows: bool = True):
+    """
+    Plotly version of Cross-Wavelet Transform plot.
+    
+    Shows cross-wavelet power with optional phase arrows indicating
+    the phase relationship between the two signals.
+    
+    Returns a Plotly Figure object.
+    """
+    import plotly.graph_objects as go
+    
+    xwt_power = results.get('xwt_power')
+    phase_diff = results.get('phase_difference')
+    time = results.get('time')
+    periods = results.get('periods')
+    coi = results.get('coi')
+    col1 = results.get('column1', 'Signal 1')
+    col2 = results.get('column2', 'Signal 2')
+    
+    if xwt_power is None or time is None or periods is None:
+        return None
+    
+    log_power = np.log2(xwt_power + 1e-10)
+    
+    # Downsample for performance
+    log_power_ds, time_ds, periods_ds = _downsample_wavelet_data(log_power, time, periods)
+    
+    fig = go.Figure()
+    
+    # Main heatmap (faster than Contour)
+    fig.add_trace(
+        go.Heatmap(
+            z=log_power_ds,
+            x=time_ds,
+            y=periods_ds,
+            colorscale='Turbo',
+            colorbar=dict(
+                title=dict(text='Log₂(XWT Power)', side='right'),
+                y=0.5,
+                yanchor='middle',
+                thickness=15
+            ),
+            hovertemplate='Time: %{x:.2f}<br>Period: %{y:.2f}<br>Log₂Power: %{z:.2f}<extra></extra>'
+        )
+    )
+    
+    # COI line and shaded region - use original time for accuracy
+    if coi is not None and len(coi) == len(time):
+        # Downsample COI to match
+        coi_indices = np.linspace(0, len(coi) - 1, min(150, len(coi))).astype(int)
+        coi_ds = coi[coi_indices]
+        time_coi_ds = time[coi_indices]
+        coi_clipped = np.clip(coi_ds, periods[0], periods[-1])
+        
+        fig.add_trace(
+            go.Scatter(
+                x=time_coi_ds,
+                y=coi_clipped,
+                mode='lines',
+                line=dict(color='white', width=2, dash='dash'),
+                name='COI',
+                hovertemplate='COI: %{y:.2f}<extra></extra>'
+            )
+        )
+    
+    # Phase arrows (fewer for performance)
+    if show_phase_arrows and phase_diff is not None:
+        step_t = max(1, len(time) // 8)
+        step_s = max(1, len(periods) // 6)
+        
+        annotations = []
+        threshold = np.percentile(xwt_power, 70)
+        
+        for i in range(step_s, len(periods) - step_s, step_s):
+            for j in range(step_t, len(time) - step_t, step_t):
+                if coi is not None and periods[i] > coi[j]:
+                    continue
+                    
+                if xwt_power[i, j] > threshold:
+                    # Transform angle following pycwt convention:
+                    # 90° - phase_diff rotates arrows so north = X leads Y
+                    angle = 0.5 * np.pi - phase_diff[i, j]
+                    t_center = time[j]
+                    p_center = periods[i]
+                    
+                    arrow_len_t = (time[-1] - time[0]) * 0.015
+                    log_dp = 0.04
+                    
+                    dx = np.cos(angle) * arrow_len_t
+                    dy_log = np.sin(angle) * log_dp
+                    new_p = 10 ** (np.log10(periods[i]) + dy_log)
+                    
+                    new_p = np.clip(new_p, periods[0], periods[-1])
+                    new_t = np.clip(t_center + dx, time[0], time[-1])
+                    
+                    annotations.append(dict(
+                        x=new_t, y=new_p,
+                        ax=t_center, ay=p_center,
+                        xref='x', yref='y', axref='x', ayref='y',
+                        showarrow=True, arrowhead=2,
+                        arrowsize=1, arrowwidth=1.5,
+                        arrowcolor='black'
+                    ))
+        
+        if len(annotations) > 40:
+            annotations = annotations[::len(annotations) // 40]
+        
+        fig.update_layout(annotations=annotations)
+    
+    fig.update_layout(
+        title=f'Cross-Wavelet Transform: {col1} vs {col2}<br><sup>Arrows: → in-phase, ← anti-phase</sup>',
+        xaxis_title='Time',
+        yaxis_title='Period',
+        yaxis=dict(type='log', autorange='reversed'),
+        height=550,
+        template='plotly_white',
+        margin=dict(r=80)
+    )
+    
+    return fig
+
+
+def plot_wavelet_coherence_plotly(results: Dict[str, Any], show_phase_arrows: bool = True):
+    """
+    Plotly version of Wavelet Coherence plot.
+    
+    Shows wavelet coherence (0-1) with significance contour at 0.5
+    and optional phase arrows where coherence is significant.
+    
+    Returns a Plotly Figure object.
+    """
+    import plotly.graph_objects as go
+    
+    wtc = results.get('coherence')
+    phase_diff = results.get('phase_difference')
+    time = results.get('time')
+    periods = results.get('periods')
+    coi = results.get('coi')
+    col1 = results.get('column1', 'Signal 1')
+    col2 = results.get('column2', 'Signal 2')
+    
+    if wtc is None or time is None or periods is None:
+        return None
+    
+    # Downsample for performance
+    wtc_ds, time_ds, periods_ds = _downsample_wavelet_data(wtc, time, periods)
+    
+    fig = go.Figure()
+    
+    # Main heatmap - Green to Red colorscale (RdYlGn reversed)
+    # Custom green-to-red: low coherence = green, high = red
+    green_to_red = [
+        [0.0, 'rgb(0, 128, 0)'],      # Green
+        [0.25, 'rgb(144, 238, 144)'], # Light green
+        [0.5, 'rgb(255, 255, 0)'],    # Yellow
+        [0.75, 'rgb(255, 165, 0)'],   # Orange
+        [1.0, 'rgb(255, 0, 0)']       # Red
+    ]
+    
+    fig.add_trace(
+        go.Heatmap(
+            z=wtc_ds,
+            x=time_ds,
+            y=periods_ds,
+            colorscale=green_to_red,
+            zmin=0,
+            zmax=1,
+            colorbar=dict(
+                title=dict(text='Coherence', side='right'),
+                y=0.5,
+                yanchor='middle',
+                thickness=15
+            ),
+            hovertemplate='Time: %{x:.2f}<br>Period: %{y:.2f}<br>Coherence: %{z:.3f}<extra></extra>'
+        )
+    )
+    
+    # COI line - use downsampled version
+    if coi is not None and len(coi) == len(time):
+        coi_indices = np.linspace(0, len(coi) - 1, min(150, len(coi))).astype(int)
+        coi_ds = coi[coi_indices]
+        time_coi_ds = time[coi_indices]
+        coi_clipped = np.clip(coi_ds, periods[0], periods[-1])
+        
+        fig.add_trace(
+            go.Scatter(
+                x=time_coi_ds,
+                y=coi_clipped,
+                mode='lines',
+                line=dict(color='black', width=2, dash='dash'),
+                name='COI',
+                hovertemplate='COI: %{y:.2f}<extra></extra>'
+            )
+        )
+    
+    # Phase arrows where coherence is significant (> 0.5) - fewer for performance
+    if show_phase_arrows and phase_diff is not None:
+        step_t = max(1, len(time) // 8)
+        step_s = max(1, len(periods) // 6)
+        
+        annotations = []
+        
+        for i in range(step_s, len(periods) - step_s, step_s):
+            for j in range(step_t, len(time) - step_t, step_t):
+                if coi is not None and periods[i] > coi[j]:
+                    continue
+                    
+                if wtc[i, j] > 0.5:
+                    # Transform angle following pycwt convention:
+                    # 90° - phase_diff rotates arrows so north = X leads Y
+                    angle = 0.5 * np.pi - phase_diff[i, j]
+                    t_center = time[j]
+                    p_center = periods[i]
+                    
+                    arrow_len_t = (time[-1] - time[0]) * 0.015
+                    log_dp = 0.04
+                    
+                    dx = np.cos(angle) * arrow_len_t
+                    dy_log = np.sin(angle) * log_dp
+                    new_p = 10 ** (np.log10(periods[i]) + dy_log)
+                    
+                    new_p = np.clip(new_p, periods[0], periods[-1])
+                    new_t = np.clip(t_center + dx, time[0], time[-1])
+                    
+                    annotations.append(dict(
+                        x=new_t, y=new_p,
+                        ax=t_center, ay=p_center,
+                        xref='x', yref='y', axref='x', ayref='y',
+                        showarrow=True, arrowhead=2,
+                        arrowsize=1, arrowwidth=1.5,
+                        arrowcolor='black'
+                    ))
+        
+        if len(annotations) > 35:
+            annotations = annotations[::len(annotations) // 35]
+        
+        fig.update_layout(annotations=annotations)
+    
+    fig.update_layout(
+        title=f'Wavelet Coherence: {col1} vs {col2}<br><sup>Arrows: → in-phase, ← anti-phase (where coherence > 0.5)</sup>',
+        xaxis_title='Time',
+        yaxis_title='Period',
+        yaxis=dict(type='log', autorange='reversed'),
+        height=550,
+        template='plotly_white',
+        margin=dict(r=80)
+    )
+    
     return fig

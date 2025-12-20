@@ -87,7 +87,8 @@ def render_signal_analysis_tab():
         else:
             sampling_rate = 1.0
 
-        wavelet_type = st.selectbox("Wavelet Type", ["morl", "mexh", "gaus1", "gaus2", "cgau1"], index=0, help="Select the wavelet function for CWT.")
+        wavelet_type = st.selectbox("Wavelet Type", ["morl", "cmor1.5-1.0", "mexh", "gaus1", "gaus2", "cgau1"], index=0, 
+                                     help="Morlet (morl) for power analysis. Complex Morlet (cmor) needed for phase.")
         cwt_scales = st.slider("CWT Scales (max)", 16, 256, 64, help="Maximum number of scales for CWT.")
         y_scale = st.selectbox("CWT Y-axis scale", ["log", "linear"], index=0, help="Y-axis scale for wavelet power plot.")
         significance_level = st.slider("Significance level", 0.80, 0.999, 0.95, step=0.01, help="Significance threshold for Torrence & Compo plot.")
@@ -174,7 +175,8 @@ def render_signal_analysis_tab():
                         st.error(f"Coherence failed: {results['error']}")
         
         elif analysis_type == "Cross-Wavelet Transform":
-            xwt_wavelet = st.selectbox("Wavelet Type", ["morl", "mexh", "cgau1"], index=0, help="Wavelet for cross-wavelet transform")
+            xwt_wavelet = st.selectbox("Wavelet Type", ["cmor1.5-1.0", "morl", "mexh", "cgau1"], index=0, 
+                                       help="Complex Morlet (cmor) required for phase arrows. Real wavelets (morl, mexh) only give up/down arrows.")
             xwt_scales = st.slider("Max Scales (XWT)", 16, 256, 64, help="Maximum number of scales")
             if selected_col and selected_col2 and st.button("🌊 Cross-Wavelet Transform", width='stretch'):
                 with st.spinner("Computing cross-wavelet transform..."):
@@ -191,7 +193,8 @@ def render_signal_analysis_tab():
                         st.error(f"XWT failed: {results['error']}")
         
         elif analysis_type == "Wavelet Coherence":
-            wtc_wavelet = st.selectbox("Wavelet Type", ["morl", "mexh", "cgau1"], index=0, help="Wavelet for coherence analysis")
+            wtc_wavelet = st.selectbox("Wavelet Type", ["cmor1.5-1.0", "morl", "mexh", "cgau1"], index=0, 
+                                       help="Complex Morlet (cmor) required for phase arrows. Real wavelets (morl, mexh) only give up/down arrows.")
             wtc_scales = st.slider("Max Scales (WTC)", 16, 256, 64, help="Maximum number of scales")
             smooth_factor = st.slider("Smoothing Factor", 1, 10, 3, help="Smoothing window size for coherence")
             if selected_col and selected_col2 and st.button("🔗 Wavelet Coherence", width='stretch'):
@@ -364,7 +367,7 @@ def render_signal_analysis_tab():
                 show_coi_opt = cwt_opts.get('show_coi', True)
                 wavelet_type_opt = cwt_opts.get('wavelet_type', 'morl')
 
-                # Create and display CWT plot
+                # Create CWT plot using matplotlib (more reliable than Plotly for wavelets)
                 fig = ts.plot_wavelet_torrence(
                     results,
                     selected_col,
@@ -374,7 +377,19 @@ def render_signal_analysis_tab():
                     wavelet=wavelet_type_opt
                 )
                 if fig:
-                    st.pyplot(fig, width='stretch')
+                    st.pyplot(fig, use_container_width=True)
+                    
+                    # Download button for high-res PNG
+                    import io
+                    buf = io.BytesIO()
+                    fig.savefig(buf, format='png', dpi=200, bbox_inches='tight', facecolor='white')
+                    buf.seek(0)
+                    st.download_button(
+                        label="📥 Download CWT Plot (PNG)",
+                        data=buf.getvalue(),
+                        file_name="cwt_wavelet_plot.png",
+                        mime="image/png"
+                    )
                     plt.close(fig)
 
                 # Export CWT results
@@ -505,7 +520,19 @@ def render_signal_analysis_tab():
                 from data_toolkit import signal_analysis as sa
                 fig = sa.plot_cross_wavelet(results, show_phase_arrows=True)
                 if fig:
-                    st.pyplot(fig, width='stretch')
+                    st.pyplot(fig, use_container_width=True)
+                    
+                    # Download button for high-res PNG
+                    import io
+                    buf = io.BytesIO()
+                    fig.savefig(buf, format='png', dpi=200, bbox_inches='tight', facecolor='white')
+                    buf.seek(0)
+                    st.download_button(
+                        label="📥 Download XWT Plot (PNG)",
+                        data=buf.getvalue(),
+                        file_name="cross_wavelet_plot.png",
+                        mime="image/png"
+                    )
                     plt.close(fig)
             except Exception as e:
                 st.error(f"XWT plotting failed: {str(e)}")
@@ -537,7 +564,19 @@ def render_signal_analysis_tab():
                 from data_toolkit import signal_analysis as sa
                 fig = sa.plot_wavelet_coherence(results, show_phase_arrows=True)
                 if fig:
-                    st.pyplot(fig, width='stretch')
+                    st.pyplot(fig, use_container_width=True)
+                    
+                    # Download button for high-res PNG
+                    import io
+                    buf = io.BytesIO()
+                    fig.savefig(buf, format='png', dpi=200, bbox_inches='tight', facecolor='white')
+                    buf.seek(0)
+                    st.download_button(
+                        label="📥 Download WTC Plot (PNG)",
+                        data=buf.getvalue(),
+                        file_name="wavelet_coherence_plot.png",
+                        mime="image/png"
+                    )
                     plt.close(fig)
             except Exception as e:
                 st.error(f"WTC plotting failed: {str(e)}")

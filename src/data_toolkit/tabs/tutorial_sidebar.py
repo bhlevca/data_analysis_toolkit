@@ -1284,25 +1284,8 @@ def render_tutorial_sidebar():
                 comp_topics = comp.get_all_topics()
                 cur = st.session_state.current_tutorial
                 
-                # Mapping from sidebar keys to comprehensive tutorial keys
-                SIDEBAR_TO_COMP = {
-                    "pca": "pca_analysis",
-                    "image_recognition": "image_recognition",
-                    "anova_extended": "anova_extended",
-                    "probability_distributions": "probability_distributions",
-                    "spectral_extended": "spectral_extended",
-                    "arima_sarima": "arima_sarima",
-                    "multivariate_ts": "multivariate_ts",
-                    "biomass_segmentation": "biomass_segmentation",
-                }
-
-                comp_topic = None
-                # Prefer exact comprehensive key match
-                if cur in comp_topics:
-                    comp_topic = cur
-                # Allow explicit mapping for the set above
-                elif cur in SIDEBAR_TO_COMP and SIDEBAR_TO_COMP[cur] in comp_topics:
-                    comp_topic = SIDEBAR_TO_COMP[cur]
+                # Keys are now identical between sidebar and comprehensive tutorials
+                comp_topic = cur if cur in comp_topics else None
 
                 if use_comprehensive and comp_topic:
                     source_text = "📖 Comprehensive Guide"

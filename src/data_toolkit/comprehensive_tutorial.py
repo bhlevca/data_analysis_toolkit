@@ -10,7 +10,286 @@ Version: 2.0
 # Dictionary of comprehensive tutorials
 COMPREHENSIVE_TUTORIALS = {
     # =========================================================================
-    # STATISTICAL ANALYSIS
+    # GETTING STARTED & DATA LOADING
+    # =========================================================================
+
+    "getting_started": """
+## 🚀 Getting Started
+
+### Welcome to the Advanced Data Analysis Toolkit!
+
+This toolkit provides a comprehensive suite of statistical, machine learning,
+and signal processing tools in an intuitive Streamlit interface.
+
+### Quick Start
+1. **Load Data**: Use the Data tab to load CSV, Excel, or Parquet files
+2. **Explore**: Check the Statistics tab for descriptive statistics and distributions
+3. **Analyze**: Choose from ML, Time Series, Signal Processing, and more
+4. **Visualize**: All results come with interactive Plotly visualizations
+5. **Export**: Download results, models, and reports
+
+### Navigation Tips
+- Use the sidebar to switch between analysis tabs
+- Click the 📚 Help toggle to access tutorials
+- Toggle between Quick Reference and Comprehensive help modes
+- Most analysis tabs have parameter explanations built-in
+
+### Getting Help
+- Each tab has contextual tutorials in the sidebar
+- Hover over parameters for tooltips
+- Check the docs/ folder for detailed guides
+""",
+
+    "data_loading": """
+## 📂 Data Loading
+
+### Supported Formats
+- **CSV**: Most common format, comma or tab-delimited
+- **Excel**: .xlsx and .xls formats
+- **Parquet**: Efficient columnar storage for large datasets
+
+### How to Load Data
+1. Navigate to the Data tab
+2. Choose file source (upload or local path)
+3. Configure parsing options if needed
+4. Preview the loaded data
+
+### Data Quality Checks
+After loading, the toolkit automatically shows:
+- Column types (numeric, categorical, datetime)
+- Missing value counts
+- Basic statistics
+
+### Tips
+- For large files (>100MB), consider Parquet format
+- Ensure datetime columns are properly parsed
+- Check for encoding issues with international characters
+- Use the column selector to focus on relevant variables
+""",
+
+    "machine_learning": """
+## 🤖 Machine Learning Overview
+
+### Supervised Learning
+
+**Classification** (Categorical targets):
+- Random Forest, SVM, Logistic Regression
+- Metrics: Accuracy, Precision, Recall, F1, AUC-ROC
+
+**Regression** (Continuous targets):
+- Linear Regression, Random Forest, Gradient Boosting
+- Metrics: R², MAE, MSE, RMSE
+
+### Unsupervised Learning
+
+**Clustering**:
+- K-Means, Hierarchical, DBSCAN, Gaussian Mixture
+- Metrics: Silhouette Score, Davies-Bouldin Index
+
+**Dimensionality Reduction**:
+- PCA, t-SNE, UMAP
+- Use for visualization and feature extraction
+
+### Workflow
+1. Select features and target variable
+2. Choose train/test split ratio
+3. Configure model hyperparameters
+4. Train and evaluate
+5. Optionally save the model
+
+### Tips
+- Always check for class imbalance in classification
+- Standardize features for distance-based algorithms
+- Use cross-validation for robust evaluation
+""",
+
+    "bayesian": """
+## 📊 Bayesian Analysis
+
+### What is Bayesian Analysis?
+Bayesian methods combine prior knowledge with observed data
+to update beliefs about parameters.
+
+### Key Concepts
+
+**Prior Distribution**: Initial beliefs before seeing data
+**Likelihood**: How well data fits given parameters
+**Posterior Distribution**: Updated beliefs after seeing data
+
+**Bayes' Theorem**: P(θ|data) ∝ P(data|θ) × P(θ)
+
+### Available Methods
+- Bayesian Parameter Estimation
+- Credible Intervals (not confidence intervals!)
+- Posterior Predictive Checks
+- Bayesian Model Comparison
+
+### Interpretation
+- **Credible Interval**: 95% CI means 95% probability parameter is in range
+- **Highest Density Interval (HDI)**: Most likely parameter values
+- **Bayes Factor**: Evidence ratio between models
+
+### When to Use
+- Small sample sizes where priors help
+- When you have genuine prior knowledge
+- Need probabilistic statements about parameters
+- Want to avoid p-value pitfalls
+""",
+
+    "uncertainty": """
+## 📏 Uncertainty Quantification
+
+### Why Uncertainty Matters
+Every measurement and estimate has uncertainty.
+Quantifying it is essential for reliable conclusions.
+
+### Types of Uncertainty
+
+**Aleatory (Random)**:
+- Inherent variability in data
+- Cannot be reduced by more data
+- Example: Measurement noise
+
+**Epistemic (Knowledge)**:
+- Due to limited knowledge/data
+- Can be reduced with more information
+- Example: Parameter estimation error
+
+### Methods Available
+- Bootstrap Confidence Intervals
+- Monte Carlo Simulation
+- Bayesian Credible Intervals
+- Prediction Intervals vs Confidence Intervals
+
+### Interpretation Guide
+- **Confidence Interval**: Frequentist, covers true value X% of time
+- **Credible Interval**: Bayesian, X% probability parameter is in range
+- **Prediction Interval**: Range for future observations (wider than CI)
+
+### Best Practices
+- Always report uncertainty with estimates
+- Propagate uncertainty through calculations
+- Use appropriate interval type for your question
+""",
+
+    "nonlinear": """
+## 🔀 Nonlinear Analysis
+
+### When Linear Isn't Enough
+Many real-world relationships are nonlinear.
+This toolkit provides methods to detect and model them.
+
+### Available Methods
+
+**Polynomial Regression**:
+- Fit polynomial curves (quadratic, cubic, etc.)
+- Risk of overfitting with high degrees
+
+**Spline Regression**:
+- Piecewise polynomial fitting
+- Flexible without extreme polynomials
+
+**GAM (Generalized Additive Models)**:
+- Smooth functions of predictors
+- Interpretable nonlinear effects
+
+**Kernel Methods**:
+- SVM with nonlinear kernels
+- Gaussian processes
+
+### Detecting Nonlinearity
+- Residual plots showing curves
+- Significant higher-order terms
+- Improved fit with nonlinear models
+- Domain knowledge suggesting nonlinearity
+
+### Interpretation Tips
+- Visualize fitted curves
+- Check for overfitting (cross-validation)
+- Consider mechanistic models if theory suggests specific form
+""",
+
+    "visualization": """
+## 📊 Visualization Guide
+
+### Interactive Plotly Charts
+All visualizations are interactive:
+- Zoom, pan, and hover for details
+- Download as PNG or SVG
+- Toggle series visibility
+
+### Chart Types Available
+
+**Distribution Plots**:
+- Histograms, KDE, Box plots, Violin plots
+- Q-Q plots for normality checking
+
+**Relationship Plots**:
+- Scatter plots with regression lines
+- Heatmaps for correlation matrices
+- Pair plots for multivariate exploration
+
+**Time Series Plots**:
+- Line charts with trend overlays
+- Seasonal decomposition plots
+- Spectral analysis visualizations
+
+**Clustering & Dimensionality**:
+- 2D/3D scatter for reduced dimensions
+- Dendrograms for hierarchical clustering
+- Silhouette plots for cluster quality
+
+### Best Practices
+- Choose appropriate chart for data type
+- Label axes clearly with units
+- Use consistent color schemes
+- Don't overplot (consider sampling)
+""",
+
+    "neural_networks": """
+## 🧠 Neural Networks
+
+### Overview
+Deep learning models for complex pattern recognition.
+Use when traditional ML methods underperform.
+
+### Available Architectures
+
+**Dense (Fully Connected)**:
+- General-purpose networks
+- Good for tabular data
+- Configure layers and neurons
+
+**CNN (Convolutional)**:
+- Image and spatial data
+- Feature extraction built-in
+- See Image Recognition tab
+
+**LSTM/RNN**:
+- Sequential and time series data
+- Captures temporal dependencies
+- Variable length sequences
+
+### Training Configuration
+- **Epochs**: Number of full dataset passes
+- **Batch Size**: Samples per gradient update
+- **Learning Rate**: Step size for optimization
+- **Optimizer**: Adam (default), SGD, RMSprop
+
+### Regularization
+- **Dropout**: Randomly drop neurons during training
+- **Early Stopping**: Stop when validation loss plateaus
+- **L1/L2 Regularization**: Penalize large weights
+
+### Tips
+- Start simple, add complexity as needed
+- Monitor validation loss for overfitting
+- Use GPU for faster training
+- Normalize input features
+""",
+
+    # =========================================================================
+    # IMAGE RECOGNITION (moved here for better organization)
     # =========================================================================
 
     "image_recognition": """
@@ -65,8 +344,8 @@ Tips
 - Use validation monitoring and early stopping to pick the best model automatically.
 """,
 
-    "descriptive_stats": """
-## Descriptive Statistics
+    "statistical": """
+## 📊 Descriptive Statistics
 
 ### What & Why
 Descriptive statistics summarize key characteristics of your data.
@@ -89,10 +368,8 @@ Use them as the first step to understand your dataset.
 - If data is skewed → Consider transformation (log, sqrt, Box-Cox)
 - If variance is high → Investigate outliers or subgroups
 - If distribution is non-normal → Use non-parametric tests
-""",
 
-    "correlation_analysis": """
-## 🔗 Correlation Analysis
+### 🔗 Correlation Analysis
 
 ### What & Why
 Correlation measures the linear (Pearson), monotonic (Spearman), or ordinal (Kendall)
@@ -123,10 +400,8 @@ relationship between two variables.
 - Significant correlation → Investigate causality with lag analysis or causal models
 - Weak/no correlation → Variables are independent
 - Very high correlation → Check for multicollinearity in regression
-""",
 
-    "distribution_analysis": """
-## 📈 Distribution Analysis
+### 📈 Distribution Analysis
 
 ### What & Why
 Understanding data distribution helps choose the right statistical tests
@@ -157,7 +432,7 @@ and transformations.
 - Multiple modes → Investigate subgroups in data
 """,
 
-    "statistical_tests": """
+    "tests": """
 ## 🧪 Statistical Hypothesis Tests
 
 ### Choosing the Right Test
@@ -194,8 +469,8 @@ and transformations.
 - Large p-value → Variables are independent
 """,
 
-    "outlier_detection": """
-## 🎯 Outlier Detection
+    "anomaly": """
+## 🎯 Anomaly & Outlier Detection
 
 ### Methods
 
@@ -226,7 +501,7 @@ and transformations.
     # MACHINE LEARNING - CLUSTERING
     # =========================================================================
 
-    "kmeans_clustering": """
+    "clustering": """
 ## 🎯 K-Means Clustering
 
 ### What & Why
@@ -262,10 +537,8 @@ Use when you want to discover natural groups in unsupervised data.
 - Use for customer segmentation, pattern discovery
 - Try different K values if clusters aren't interpretable
 - Compare with Hierarchical Clustering for confirmation
-""",
 
-    "hierarchical_clustering": """
-## 🌳 Hierarchical Clustering (Agglomerative)
+### 🌳 Hierarchical Clustering (Agglomerative) (Agglomerative)
 
 ### What & Why
 Creates a dendrogram showing how observations merge into clusters.
@@ -295,10 +568,8 @@ Better than K-Means when cluster structure is unknown.
 - Choose cutting height based on dendrogram structure
 - Compare cluster assignments with domain knowledge
 - Use for taxonomy/hierarchy discovery
-""",
 
-    "dbscan_clustering": """
-## 📍 DBSCAN (Density-Based Clustering)
+### 📍 DBSCAN (Density-Based Clustering)
 
 ### What & Why
 Groups points that are closely packed, marks outliers as noise.
@@ -329,10 +600,8 @@ Excellent for finding arbitrarily-shaped clusters.
 - Investigate noise points (outliers)
 - Adjust eps for different granularity
 - Use silhouette score to validate quality
-""",
 
-    "gaussian_mixture_model": """
-## 🔵 Gaussian Mixture Model (GMM)
+### 🔵 Gaussian Mixture Model (GMM)
 
 ### What & Why
 Probabilistic model assuming data from mixture of Gaussians.
@@ -369,12 +638,46 @@ Gives probability of membership rather than hard assignment.
     # DIMENSIONALITY REDUCTION
     # =========================================================================
 
-    "pca_analysis": """
+    "pca": """
 ## 📉 Principal Component Analysis (PCA)
 
 ### What & Why
-Linear transformation finding orthogonal directions of maximum variance.
+PCA is a linear transformation that finds orthogonal directions of maximum variance.
 Use to reduce dimensions while preserving information.
+
+### How to Use
+1. Select numerical features
+2. Toolkit standardizes automatically
+3. Review explained variance plot
+4. Choose components for 90-95% variance threshold
+
+### Key Concepts
+- **Explained Variance Ratio**: % variance explained by each PC
+- **Scree Plot**: Shows drop-off point (elbow) for component selection
+- **Loadings**: Which original features contribute to each PC
+- **Scores**: Transformed data in PC space
+
+### When to Use
+- Dimensionality reduction before ML
+- Multicollinearity in regression
+- Visualization of high-dimensional data
+- Feature extraction and compression
+
+### Limitations
+- Only captures linear relationships
+- Components can be hard to interpret
+- Sensitive to scaling (automatic in toolkit)
+
+### What to Do Next
+- Use PC scores as features for ML models
+- Visualize 2D PCA plot for cluster identification
+- For non-linear patterns, try t-SNE or UMAP (see Dimensionality Reduction)
+""",
+
+    "dim_reduction": """
+## 📊 Dimensionality Reduction Overview
+
+### 📉 Principal Component Analysis (PCA)
 
 ### How to Use
 1. Select numerical features
@@ -410,10 +713,8 @@ Use to reduce dimensions while preserving information.
 - Use PC components as features for ML models
 - Visualize 2D PCA plot for cluster identification
 - Compare with t-SNE/UMAP for non-linear relationships
-""",
 
-    "tsne_analysis": """
-## 🎨 t-Distributed Stochastic Neighbor Embedding (t-SNE)
+### 🎨 t-SNE
 
 ### What & Why
 Non-linear dimensionality reduction excellent for visualization.
@@ -453,10 +754,8 @@ Preserves local structure - similar points stay close.
 - Identify clusters visually before formal analysis
 - Try different perplexity values
 - Compare with UMAP for faster alternative
-""",
 
-    "umap_analysis": """
-## 🌐 UMAP (Uniform Manifold Approximation and Projection)
+### 🌐 UMAP (Uniform Manifold Approximation and Projection)
 
 ### What & Why
 Modern alternative to t-SNE: faster, preserves more global structure.
@@ -498,58 +797,11 @@ Excellent for large datasets and interactive visualization.
 - Compare cluster separation with other methods
 """,
 
-    "anomaly_detection": """
-## 🚨 Anomaly Detection
-
-### What & Why
-Identifies unusual points that deviate from normal patterns.
-Critical for fraud detection, quality control, medical diagnosis.
-
-### Methods
-
-#### Isolation Forest
-- **How**: Isolates anomalies using random partitions
-- **Best for**: Multivariate outliers, irregular anomalies
-- **Speed**: Very fast, scales well
-- **Advantages**: Works without assuming distribution
-
-#### Local Outlier Factor (LOF)
-- **How**: Measures local density deviation
-- **Best for**: Local anomalies in dense regions
-- **Advantages**: Finds contextual outliers
-- **Limitation**: Slower on large datasets
-
-#### Minimum Covariance Determinant (MCD)
-- **How**: Robust estimation of data distribution
-- **Best for**: Scientific data, proteomics
-- **Advantages**: Statistical foundation, handles multivariate data
-- **Limitation**: Assumes roughly Gaussian data
-
-### Interpretation
-- **Anomaly Score**: Lower = more anomalous (Isolation Forest)
-- **Contamination**: Expected proportion of anomalies (0.01-0.1)
-- **Anomaly Indices**: Which rows are anomalous
-
-### Causes & Actions
-| Cause | Action |
-|-------|--------|
-| Data entry error | Fix or remove |
-| Measurement error | Remove or flag |
-| Real anomaly | Investigate, may be valuable |
-| Rare event | Keep for analysis |
-
-### What to Do Next
-- Investigate top anomalies manually
-- Compare methods (often give different results)
-- Use contamination parameter based on domain knowledge
-- Combine with visualization (PCA, t-SNE)
-""",
-
     # =========================================================================
     # TIME SERIES ANALYSIS
     # =========================================================================
 
-    "fourier_analysis": """
+    "signal_analysis": """
 ## 🔊 Signal Analysis — Fourier & Wavelet (FFT & Wavelet)
 
 ### What & Why
@@ -590,10 +842,8 @@ Reveals dominant frequencies and periodicities.
 - Use PSD (Welch) for cleaner estimate
 - Compare with wavelet analysis for time-varying frequencies
 - Use dominant frequencies for forecasting
-""",
 
-    "wavelet_analysis": """
-## 🌊 Wavelet Analysis (part of Signal Analysis)
+### 🌊 Wavelet Analysis
 
 ### What & Why
 Analyzes time-varying frequencies in non-stationary signals.
@@ -645,7 +895,7 @@ Better than Fourier for signals with changing characteristics.
 - Combine with classical time series methods
 """,
 
-    "stationarity_testing": """
+    "timeseries": """
 ## 🔄 Stationarity Testing
 
 ### What & Why
@@ -681,10 +931,8 @@ Required for many time series models (ARIMA, etc.).
 - If non-stationary, apply transformations
 - Re-test until stationary
 - Then apply ARIMA or other models
-""",
 
-    "arima_modeling": """
-## 📊 ARIMA Modeling
+### 📊 ARIMA Modeling
 
 ### What & Why
 Autoregressive Integrated Moving Average - powerful forecasting model.
@@ -726,11 +974,7 @@ Works for stationary (or made-stationary) time series.
 - Consider SARIMA for seasonal data
 """,
 
-    # =========================================================================
-    # ASSOCIATION RULES & CAUSALITY
-    # =========================================================================
-
-    "association_rules": """
+    "causality": """
 ## 🔗 Association Rule Learning (Apriori)
 
 ### What & Why
@@ -779,10 +1023,8 @@ Used in market basket analysis, medical diagnosis, recommendation systems.
 - Investigate top rules manually
 - Test rules on new data
 - Consider temporal aspects
-""",
 
-    "causality_analysis": """
-## 🔬 Causality Analysis
+### 🔬 Causality Analysis
 
 ### What & Why
 Determines if X causes Y (not just correlated).
