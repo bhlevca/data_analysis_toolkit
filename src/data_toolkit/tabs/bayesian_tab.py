@@ -42,7 +42,7 @@ def render_bayesian_tab():
     col1, col2 = st.columns(2)
 
     with col1:
-        if st.button("🎲 Bayesian Regression", use_container_width=True):
+        if st.button("🎲 Bayesian Regression", width='stretch'):
             with st.spinner("Fitting Bayesian model..."):
                 # Correct API: bayesian_regression(features, target)
                 results = bayesian.bayesian_regression(features, target)
@@ -50,7 +50,7 @@ def render_bayesian_tab():
 
     with col2:
         confidence = st.slider("Confidence Level", 0.80, 0.99, 0.95)
-        if st.button("📊 Credible Intervals", use_container_width=True):
+        if st.button("📊 Credible Intervals", width='stretch'):
             with st.spinner("Computing intervals..."):
                 # Correct API: credible_intervals(features, target, confidence)
                 results = bayesian.credible_intervals(features, target, confidence)
@@ -78,7 +78,7 @@ def render_bayesian_tab():
                     '95% CI Lower': ci_lower,
                     '95% CI Upper': ci_upper
                 })
-                st.dataframe(coef_df, use_container_width=True)
+                st.dataframe(coef_df, width='stretch')
 
                 # Plot coefficients with error bars
                 fig = go.Figure()
@@ -91,7 +91,7 @@ def render_bayesian_tab():
                 ))
                 fig.update_layout(title='Posterior Coefficients with 95% CI',
                                 template=PLOTLY_TEMPLATE, height=400)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
     if 'credible' in st.session_state.analysis_results:
         results = st.session_state.analysis_results['credible']

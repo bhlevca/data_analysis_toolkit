@@ -60,7 +60,7 @@ def render_clustering_tab():
             cov_type = st.selectbox("Covariance Type", ["full", "tied", "diag", "spherical"])
 
     with col3:
-        if st.button("🎯 Run Clustering", use_container_width=True):
+        if st.button("🎯 Run Clustering", width='stretch'):
             with st.spinner("Clustering..."):
                 try:
                     if method == "K-Means":
@@ -101,7 +101,7 @@ def render_clustering_tab():
                                  labels={'x': 'Component 1', 'y': 'Component 2'},
                                  template=PLOTLY_TEMPLATE)
                 fig.update_layout(height=500)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
             elif len(features) >= 2:
                 # Fall back to raw feature scatter
                 x_data = df[features[0]]
@@ -115,7 +115,7 @@ def render_clustering_tab():
                     template=PLOTLY_TEMPLATE
                 )
                 fig.update_layout(height=500)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
             # Export clustering results
             st.subheader("📥 Export Clustering Results")

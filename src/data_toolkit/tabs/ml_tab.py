@@ -97,7 +97,7 @@ def render_ml_tab():
         with col_a:
             # Disable train button if classification data is invalid
             train_disabled = task_type == "Classification" and classification_data_invalid
-            if st.button("🎯 Train Model", use_container_width=True, disabled=train_disabled):
+            if st.button("🎯 Train Model", width='stretch', disabled=train_disabled):
                 with st.spinner("Training..."):
                     results = ml.train_model(features, target, model_type, test_size=test_size)
                     st.session_state.analysis_results['ml_model'] = results
@@ -113,7 +113,7 @@ def render_ml_tab():
                         st.error(f"Training failed: {results['error']}")
 
         with col_b:
-            if st.button("🔄 Cross-Validation", use_container_width=True):
+            if st.button("🔄 Cross-Validation", width='stretch'):
                 with st.spinner("Running CV..."):
                     # Correct API: cross_validation(features, target, cv, model_name)
                     cv_results = ml.cross_validation(features, target, cv=cv_folds, model_name=model_type)
@@ -121,7 +121,7 @@ def render_ml_tab():
                     st.success("Cross-validation complete!")
 
         with col_c:
-            if st.button("📊 Feature Importance", use_container_width=True):
+            if st.button("📊 Feature Importance", width='stretch'):
                 with st.spinner("Calculating..."):
                     # Correct API: feature_importance(features, target)
                     importance = ml.feature_importance(features, target)
@@ -171,7 +171,7 @@ def render_ml_tab():
                         template=PLOTLY_TEMPLATE,
                         height=400
                     )
-                    st.plotly_chart(fig_cm, use_container_width=True)
+                    st.plotly_chart(fig_cm, width='stretch')
 
                 # Classification Report
                 if 'classification_report' in results:
@@ -200,7 +200,7 @@ def render_ml_tab():
                             'Feature': list(results['coefficients'].keys()),
                             'Coefficient': list(results['coefficients'].values())
                         })
-                        st.dataframe(coef_df, use_container_width=True)
+                        st.dataframe(coef_df, width='stretch')
                         if 'intercept' in results:
                             st.write(f"**Intercept:** {results['intercept']:.4f}")
 
@@ -282,7 +282,7 @@ def render_ml_tab():
                             height=500,
                             legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.99)
                         )
-                        st.plotly_chart(fig_train, use_container_width=True)
+                        st.plotly_chart(fig_train, width='stretch')
 
                         # Residual info
                         residuals = y_test_sorted - y_pred_sorted
@@ -324,7 +324,7 @@ def render_ml_tab():
 
     # Always show predict button (disabled state handled by logic)
     predict_disabled = trained_model is None
-    if st.button("🔮 Predict", use_container_width=True, disabled=predict_disabled):
+    if st.button("🔮 Predict", width='stretch', disabled=predict_disabled):
         if new_df is None:
             st.error("No data available for prediction")
         else:
@@ -422,7 +422,7 @@ def render_ml_tab():
                                     template=PLOTLY_TEMPLATE,
                                     height=400
                                 )
-                                st.plotly_chart(fig_cm, use_container_width=True)
+                                st.plotly_chart(fig_cm, width='stretch')
                                 
                             except Exception as e:
                                 st.error(f"Error computing classification metrics: {e}")
@@ -501,7 +501,7 @@ def render_ml_tab():
                                 template=PLOTLY_TEMPLATE,
                                 height=400
                             )
-                        st.plotly_chart(fig_dist, use_container_width=True)
+                        st.plotly_chart(fig_dist, width='stretch')
                         
                         # Summary stats
                         col1, col2, col3, col4 = st.columns(4)
@@ -576,7 +576,7 @@ def render_ml_tab():
                                     height=500,
                                     legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.99)
                                 )
-                                st.plotly_chart(fig_pred, use_container_width=True)
+                                st.plotly_chart(fig_pred, width='stretch')
                             else:
                                 # Fallback: plot by index
                                 st.caption("🔴 Red diamonds = Model predictions")
@@ -596,11 +596,11 @@ def render_ml_tab():
                                     template=PLOTLY_TEMPLATE,
                                     height=450
                                 )
-                                st.plotly_chart(fig_pred, use_container_width=True)
+                                st.plotly_chart(fig_pred, width='stretch')
 
                     # Data table
                     with st.expander("📋 Predictions Table (first 100 rows)", expanded=False):
-                        st.dataframe(preview_df.head(100), use_container_width=True)
+                        st.dataframe(preview_df.head(100), width='stretch')
 
                         # Download button
                         csv = preview_df.to_csv(index=False)
@@ -615,9 +615,9 @@ def render_ml_tab():
                     st.error(f"Visualization error: {e}")
                     import traceback
                     st.code(traceback.format_exc())
-                    st.dataframe(pd.DataFrame({'prediction': preds['predictions']}).head(100), use_container_width=True)
+                    st.dataframe(pd.DataFrame({'prediction': preds['predictions']}).head(100), width='stretch')
             else:
-                st.dataframe(pd.DataFrame({'prediction': preds['predictions']}).head(100), use_container_width=True)
+                st.dataframe(pd.DataFrame({'prediction': preds['predictions']}).head(100), width='stretch')
 
     if 'cv_results' in st.session_state.analysis_results:
         cv = st.session_state.analysis_results['cv_results']
@@ -630,7 +630,7 @@ def render_ml_tab():
         ])
         fig.add_hline(y=cv['mean'], line_dash='dash', line_color='red')
         fig.update_layout(title='CV Scores by Fold', template=PLOTLY_TEMPLATE, height=400)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     if 'feature_importance' in st.session_state.analysis_results:
         importance = st.session_state.analysis_results['feature_importance']
@@ -641,6 +641,6 @@ def render_ml_tab():
                   orientation='h', marker_color='steelblue')
         ])
         fig.update_layout(title='Feature Importance', template=PLOTLY_TEMPLATE, height=400)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
 

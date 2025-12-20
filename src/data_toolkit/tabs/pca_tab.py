@@ -69,7 +69,7 @@ def render_pca_tab():
         scale_loadings = st.slider("Loading vector scale", 1.0, 5.0, 2.5,
                                    help="Scale factor for loading vectors in biplot")
 
-    if st.button("🔬 Run PCA Analysis", use_container_width=True):
+    if st.button("🔬 Run PCA Analysis", width='stretch'):
         with st.spinner("Running PCA..."):
             results = ml.pca_analysis(features, variance_threshold=variance_threshold)
             st.session_state.analysis_results['pca'] = results
@@ -138,7 +138,7 @@ def render_pca_tab():
             fig_scree.update_layout(height=400, template=PLOTLY_TEMPLATE, showlegend=False)
             fig_scree.update_yaxes(title_text='Variance (%)', row=1, col=1)
             fig_scree.update_yaxes(title_text='Cumulative Variance (%)', row=1, col=2)
-            st.plotly_chart(fig_scree, use_container_width=True)
+            st.plotly_chart(fig_scree, width='stretch')
 
             # ═══════════════════════════════════════════════════════════════
             # 2D SCORE PLOT WITH LOADING VECTORS
@@ -222,7 +222,7 @@ def render_pca_tab():
                     xaxis=dict(scaleanchor='y', scaleratio=1),
                     legend=dict(title='Original Variables', yanchor='top', y=0.99, xanchor='left', x=1.15)
                 )
-                st.plotly_chart(fig_scores, use_container_width=True)
+                st.plotly_chart(fig_scores, width='stretch')
 
                 with st.expander("📖 How to interpret this plot"):
                     st.markdown("""
@@ -324,7 +324,7 @@ def render_pca_tab():
                     height=600,
                     xaxis=dict(scaleanchor='y', scaleratio=1)
                 )
-                st.plotly_chart(fig_biplot, use_container_width=True)
+                st.plotly_chart(fig_biplot, width='stretch')
 
                 # Interpretation help
                 with st.expander("📖 How to interpret the Biplot"):
@@ -442,7 +442,7 @@ def render_pca_tab():
                         x=1.05
                     )
                 )
-                st.plotly_chart(fig_3d, use_container_width=True)
+                st.plotly_chart(fig_3d, width='stretch')
 
                 with st.expander("📖 Understanding the 3D Score Plot"):
                     st.markdown("""
@@ -493,11 +493,11 @@ def render_pca_tab():
                 template=PLOTLY_TEMPLATE,
                 height=max(300, len(feature_names) * 30)
             )
-            st.plotly_chart(fig_heat, use_container_width=True)
+            st.plotly_chart(fig_heat, width='stretch')
 
             # Loadings table
             with st.expander("📋 Detailed Loading Values"):
-                st.dataframe(loadings_df.round(4), use_container_width=True)
+                st.dataframe(loadings_df.round(4), width='stretch')
 
             # ═══════════════════════════════════════════════════════════════
             # EXPORT PCA RESULTS

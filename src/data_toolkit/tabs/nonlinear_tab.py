@@ -42,14 +42,14 @@ def render_nonlinear_tab():
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        if st.button("📊 Distance Correlation", use_container_width=True):
+        if st.button("📊 Distance Correlation", width='stretch'):
             with st.spinner("Computing..."):
                 # Correct API: distance_correlation(features, target)
                 results = nonlinear.distance_correlation(features, target)
                 st.session_state.analysis_results['dist_corr'] = results
 
     with col2:
-        if st.button("🔮 Mutual Information", use_container_width=True):
+        if st.button("🔮 Mutual Information", width='stretch'):
             with st.spinner("Computing..."):
                 # Correct API: mutual_information(features, target)
                 results = nonlinear.mutual_information(features, target)
@@ -57,7 +57,7 @@ def render_nonlinear_tab():
 
     with col3:
         max_degree = st.slider("Max Polynomial Degree", 2, 5, 3)
-        if st.button("📈 Polynomial Regression", use_container_width=True):
+        if st.button("📈 Polynomial Regression", width='stretch'):
             with st.spinner("Fitting polynomials..."):
                 # Correct API: polynomial_regression(features, target, max_degree)
                 results = nonlinear.polynomial_regression(features, target, max_degree)
@@ -82,7 +82,7 @@ def render_nonlinear_tab():
         })
         comparison_df['Non-linearity'] = comparison_df['Distance Corr'] - comparison_df['Pearson |r|']
 
-        st.dataframe(comparison_df, use_container_width=True)
+        st.dataframe(comparison_df, width='stretch')
 
         fig = go.Figure(data=[
             go.Bar(name='|Pearson|', x=features, y=comparison_df['Pearson |r|'], marker_color='steelblue'),
@@ -90,7 +90,7 @@ def render_nonlinear_tab():
         ])
         fig.update_layout(barmode='group', title='Pearson vs Distance Correlation',
                          template=PLOTLY_TEMPLATE, height=400)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
         st.info("💡 Large difference suggests non-linear relationships!")
 
@@ -102,7 +102,7 @@ def render_nonlinear_tab():
             go.Bar(x=list(mi.keys()), y=list(mi.values()), marker_color='teal')
         ])
         fig.update_layout(title='Mutual Information Scores', template=PLOTLY_TEMPLATE, height=400)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     if 'polynomial' in st.session_state.analysis_results:
         st.subheader("📈 Polynomial Regression Results")
@@ -112,11 +112,11 @@ def render_nonlinear_tab():
             {'Degree': deg, 'R²': vals['r2'], 'RMSE': vals['rmse']}
             for deg, vals in poly_results.items()
         ])
-        st.dataframe(poly_df, use_container_width=True)
+        st.dataframe(poly_df, width='stretch')
 
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=poly_df['Degree'], y=poly_df['R²'], mode='lines+markers', name='R²'))
         fig.update_layout(title='R² vs Polynomial Degree', template=PLOTLY_TEMPLATE, height=400)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
 

@@ -65,7 +65,7 @@ def render_visualization_tab():
                 y_reg = st.selectbox("Y variable (dependent)", features, index=min(1, len(features)-1), key="reg_y")
             show_ci = st.checkbox("Show 95% Confidence Interval", value=True, key="reg_ci")
 
-    if st.button("📊 Generate Plot", use_container_width=True):
+    if st.button("📊 Generate Plot", width='stretch'):
         with st.spinner("Creating visualization..."):
 
             if plot_type == "Scatter Matrix":
@@ -76,7 +76,7 @@ def render_visualization_tab():
                 )
                 fig.update_traces(diagonal_visible=True)
                 fig.update_layout(height=800)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
             elif plot_type == "Correlation Heatmap":
                 corr = df[features].corr(method=corr_method)
@@ -88,28 +88,28 @@ def render_visualization_tab():
                     title=f'{corr_method.capitalize()} Correlation Heatmap'
                 )
                 fig.update_layout(height=600, template=PLOTLY_TEMPLATE)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
             elif plot_type == "Box Plots":
                 box_data = df[features].melt(var_name='Feature', value_name='Value')
                 fig = px.box(box_data, x='Feature', y='Value',
                            title='Box Plots', template=PLOTLY_TEMPLATE, points='outliers')
                 fig.update_layout(height=500)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
             elif plot_type == "Distribution Plots":
                 for col in features[:4]:
                     fig = px.histogram(df, x=col, marginal='box',
                                       title=f'Distribution of {col}', template=PLOTLY_TEMPLATE)
                     fig.update_layout(height=400)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
 
             elif plot_type == "3D Scatter":
                 if len(features) >= 3:
                     fig = px.scatter_3d(df, x=x_3d, y=y_3d, z=z_3d,
                                        title=f'3D Scatter', template=PLOTLY_TEMPLATE)
                     fig.update_layout(height=600)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
                 else:
                     st.warning("Need at least 3 features")
 
@@ -120,7 +120,7 @@ def render_visualization_tab():
                     template=PLOTLY_TEMPLATE
                 )
                 fig.update_layout(height=500)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
             elif plot_type == "Linear Regression Plot (with Statistics)":
                 # Import scipy for regression statistics
@@ -215,7 +215,7 @@ def render_visualization_tab():
                         legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
                     )
 
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
 
                     # Display statistics in a clear table
                     st.markdown("### 📊 Regression Statistics")
