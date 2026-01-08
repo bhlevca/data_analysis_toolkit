@@ -51,12 +51,6 @@ from statistical_analysis import StatisticalAnalysis
 from timeseries_analysis import TimeSeriesAnalysis
 from uncertainty_analysis import UncertaintyAnalysis
 from visualization_methods import VisualizationMethods
-from tabs.image_tab import render_image_tab
-from tabs.biomass_tab import render_biomass_tab
-from tabs.signal_analysis_tab import render_signal_analysis_tab
-from tabs.statistical_tests_tab import render_statistical_tests_tab
-from tabs.timeseries_tab import render_timeseries_tab
-from tabs.statistical_tab import render_statistical_tab
 
 # =============================================================================
 # PLOTLY THEME CONFIGURATION
@@ -174,11 +168,11 @@ TUTORIALS = {
     "getting_started": """
 ## 🚀 Getting Started with the Advanced Data Analysis Toolkit
 
-Welcome! This toolkit provides comprehensive data analysis capabilities organized into **7 main tabs** with **subtabs** inside each group.
+Welcome! This toolkit provides comprehensive data analysis capabilities organized into **6 main tabs** with **subtabs** inside each group.
 
 ---
 
-### 📂 Tab Structure (7 Main Tabs → Subtabs)
+### 📂 Tab Structure (6 Main Tabs → Subtabs)
 
 **Click a main tab, then click a subtab inside to access specific features:**
 
@@ -188,9 +182,8 @@ Welcome! This toolkit provides comprehensive data analysis capabilities organize
 | **📊 Statistics** | Descriptive Statistics, Hypothesis Tests, Bayesian Inference, Uncertainty Analysis |
 | **🔊 Signal Processing** | FFT/Wavelet (frequency and time-frequency analysis) |
 | **⏱️ Time Series** | Time Series Analysis, Causality (Granger) |
-| **🤖 Machine Learning** | Regression/Classification, PCA, Clustering, Anomaly Detection, Dimensionality Reduction, Non-Linear Analysis, Image Recognition |
+| **🤖 Machine Learning** | Regression/Classification, PCA, Clustering, Anomaly Detection, Dimensionality Reduction, Non-Linear Analysis |
 | **📈 Visualization** | Interactive Plots (scatter, box, 3D, regression lines) |
-| **🖼️ Image** | Image Recognition (training, prediction, dataset formats) |
 
 ---
 
@@ -220,24 +213,8 @@ Welcome! This toolkit provides comprehensive data analysis capabilities organize
 | Find clusters? | 🤖 ML → Clustering |
 | Find outliers? | 🤖 ML → Anomaly Detection |
 | Visualize data? | 📈 Visualization → Plots |
-| Image classification? | 🖼️ Image → Image Recognition (Streamlit Image tab) |
 
 ---
-
-### 🖼️ Image Recognition (quick guide)
-
-Use the **Image** tab for image classification workflows (training, prediction, and saving models).
-
-1. Click the **Image** main tab, then **Image Recognition** subtab.
-2. Select a data folder containing either:
-    - subfolders named by class (one folder per class), or
-    - a CSV mapping filenames to labels (see the folder picker for uploading CSV).
-3. Preview sample images, choose image size and batch size, then Train using the CNN or Transfer Learning options.
-4. If training completes, use the optional Save model checkbox or the Save button to export a `.keras` model (recommended).
-5. Use the Predict controls to run single-image or batch predictions; if class names are missing the UI will fall back to numeric labels.
-
-Troubleshooting: If a saved model fails to load, ensure any custom layers are registered or re-save the model in `.keras` format. CSV filename mismatches are skipped with warnings — check the preview to confirm your file paths.
-
 
 ### 📈 Interactive Charts (Plotly)
 
@@ -456,19 +433,6 @@ PCA finds eigenvectors of the covariance matrix:
 - Eigenvalues → Variance explained by each component
 
 💡 **Tip**: Always standardize data before PCA (handled automatically)!
-""",
-
-    "image_recognition": """
-## 🖼️ Image Recognition (Streamlit Image Tab)
-
-Use the **Image** tab for image classification workflows (training, prediction, and saving models).
-
-1. Click **Image** → **Image Recognition**.
-2. Provide a dataset as class-labelled subfolders or upload a `labels.csv` mapping filenames to labels (paths may be absolute or relative to the selected folder).
-3. Preview samples, set `image_size` and `batch_size`, then train using CNN or Transfer Learning.
-4. Save models as `.keras` (recommended). If class names are missing, predictions will use numeric labels.
-
-Troubleshooting: If a saved model fails to load, ensure any custom layers are registered or re-save in `.keras` format. The loader skips missing CSV entries and warns.
 """,
 
     "bayesian": """
@@ -1045,13 +1009,80 @@ def init_session_state():
 # TUTORIAL SIDEBAR
 # =============================================================================
 def render_tutorial_sidebar():
-    """Delegate rendering of the tutorial sidebar to the centralized implementation
-    in `data_toolkit.tabs.tutorial_sidebar`. This avoids duplication and ensures
-    a single source of truth for sidebar behaviour and content.
-    """
-    # Local import to avoid circular imports at module import time
-    from data_toolkit.tabs.tutorial_sidebar import render_tutorial_sidebar as _render
-    _render()
+    """Render the tutorial sidebar matching the tab/subtab structure"""
+    with st.sidebar:
+        st.markdown("# 📚 Help & Documentation")
+
+        st.session_state.show_tutorial = st.checkbox(
+            "Show Documentation Panel",
+            value=st.session_state.show_tutorial
+        )
+
+        if st.session_state.show_tutorial:
+            st.markdown("---")
+
+            # Match the exact tab/subtab structure
+            st.markdown("**Select a topic:**")
+
+            tutorial_topics = {
+                # Getting started
+                "getting_started": "🚀 Getting Started",
+                # Data group
+                "data_loading": "📁 Data › Data Loading",
+                # Statistics group
+                "statistical": "📊 Statistics › Descriptive Statistics",
+                "tests": "📊 Statistics › Hypothesis Tests",
+                "bayesian": "📊 Statistics › Bayesian Inference",
+                "uncertainty": "📊 Statistics › Uncertainty Analysis",
+                # Signal Processing group
+                "signal_analysis": "🔊 Signal Processing › FFT/Wavelet",
+                # Time Series group
+                "timeseries": "⏱️ Time Series › Analysis",
+                "causality": "⏱️ Time Series › Causality (Granger)",
+                # Machine Learning group
+                "machine_learning": "🤖 ML › Regression/Classification",
+                "pca": "🤖 ML › PCA (Principal Components)",
+                "clustering": "🤖 ML › Clustering",
+                "anomaly": "🤖 ML › Anomaly Detection",
+                "dim_reduction": "🤖 ML › Dimensionality Reduction",
+                "nonlinear": "🤖 ML › Non-Linear Analysis",
+                # Visualization group
+                "visualization": "📈 Visualization › Plots",
+            }
+
+            selected = st.selectbox(
+                "Documentation Topic",
+                options=list(tutorial_topics.keys()),
+                format_func=lambda x: tutorial_topics[x],
+                index=list(tutorial_topics.keys()).index(st.session_state.current_tutorial)
+            )
+            st.session_state.current_tutorial = selected
+
+            st.markdown("---")
+            st.markdown(TUTORIALS[selected])
+
+        st.markdown("---")
+
+        # Backend toggle
+        st.markdown("### ⚡ Performance")
+        rust_available = is_rust_available()
+
+        if rust_available:
+            use_rust = st.checkbox(
+                "🦀 Rust Acceleration",
+                value=st.session_state.use_rust,
+                help="Enable Rust backend for 10-50x speedup"
+            )
+            st.session_state.use_rust = use_rust
+            AccelerationSettings.set_use_rust(use_rust)
+
+            if use_rust:
+                st.success("⚡ Using Rust (Fast)")
+            else:
+                st.info("🐍 Using Python")
+        else:
+            st.warning("🐍 Python only")
+            st.caption("Run `maturin develop --release` in rust_extensions/ for speedup")
 
 
 # =============================================================================
@@ -1081,6 +1112,9 @@ def render_data_tab():
                 # Detect and convert date/time columns to numeric
                 st.session_state.df = detect_and_convert_datetime_columns(st.session_state.df)
 
+                # Clear cached analysis results when loading new data
+                st.session_state.analysis_results = {}
+
                 st.success(f"✅ Loaded: {uploaded_file.name}")
             except Exception as e:
                 st.error(f"Error loading file: {e}")
@@ -1104,6 +1138,9 @@ def render_data_tab():
 
             # Detect and convert any date/time columns in sample data
             st.session_state.df = detect_and_convert_datetime_columns(st.session_state.df)
+
+            # Clear cached analysis results when generating new data
+            st.session_state.analysis_results = {}
 
             st.success("✅ Sample data generated!")
 
@@ -1189,7 +1226,7 @@ def render_data_tab():
 
         # Data preview
         st.markdown("### Data Preview")
-        st.dataframe(df.head(10), width='stretch')
+        st.dataframe(df.head(10), use_container_width=True)
 
         # Quick plot with Plotly - only if valid selection
         if len(st.session_state.feature_cols) >= 1:
@@ -1224,15 +1261,92 @@ def render_data_tab():
                     fig.update_layout(height=500,
                                     xaxis_title=x_col,
                                     yaxis_title=y_col)
-                    st.plotly_chart(fig, width='stretch')
+                    st.plotly_chart(fig, use_container_width=True)
                 except Exception as e:
                     st.warning(f"Could not generate quick visualization: {e}")
 
 
 # =============================================================================
-# STATISTICAL ANALYSIS TAB - IMPORTED FROM tabs/statistical_tab.py
+# STATISTICAL ANALYSIS TAB
 # =============================================================================
-# render_statistical_tab() is imported from tabs.statistical_tab
+def render_statistical_tab():
+    """Render statistical analysis tab"""
+    st.header("📊 Descriptive Statistics & Correlation Analysis")
+    st.caption("Compute summary statistics, correlation matrices, and detect outliers")
+
+    if st.session_state.df is None:
+        st.warning("⚠️ Please load data first in the Data Loading tab.")
+        return
+
+    if not st.session_state.feature_cols:
+        st.warning("⚠️ Please select feature columns in the Data Loading tab.")
+        return
+
+    df = st.session_state.df
+    features = st.session_state.feature_cols
+
+    # Initialize analyzer with dataframe
+    stats = StatisticalAnalysis(df)
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        if st.button("📈 Descriptive Statistics", use_container_width=True):
+            st.session_state.analysis_results['descriptive'] = stats.descriptive_stats(features)
+
+    with col2:
+        corr_method = st.selectbox("Correlation Method", ['pearson', 'spearman', 'kendall'])
+        if st.button("🔗 Correlation Matrix", use_container_width=True):
+            st.session_state.analysis_results['correlation'] = stats.correlation_matrix(features, method=corr_method)
+
+    with col3:
+        outlier_method = st.selectbox("Outlier Method", ['iqr', 'zscore'])
+        if st.button("🎯 Outlier Detection", use_container_width=True):
+            # Correct method name: outlier_detection
+            st.session_state.analysis_results['outliers'] = stats.outlier_detection(features, method=outlier_method)
+
+    st.markdown("---")
+
+    # Display results
+    if 'descriptive' in st.session_state.analysis_results:
+        st.subheader("📈 Descriptive Statistics")
+        st.dataframe(st.session_state.analysis_results['descriptive'], use_container_width=True)
+
+    if 'correlation' in st.session_state.analysis_results:
+        st.subheader("🔗 Correlation Matrix")
+        corr_data = st.session_state.analysis_results['correlation']
+
+        fig = px.imshow(
+            corr_data,
+            text_auto='.2f',
+            aspect='auto',
+            color_continuous_scale='RdBu_r',
+            zmin=-1, zmax=1,
+            title='Correlation Heatmap'
+        )
+        fig.update_layout(height=600, template=PLOTLY_TEMPLATE)
+        st.plotly_chart(fig, use_container_width=True)
+
+    if 'outliers' in st.session_state.analysis_results:
+        st.subheader("🎯 Outlier Detection Results")
+        outlier_data = st.session_state.analysis_results['outliers']
+
+        # Box plots
+        # Use unique column names to avoid conflicts with existing DataFrame columns
+        box_data = df[features].melt(var_name='_Feature_', value_name='_Value_')
+        fig = px.box(box_data, x='_Feature_', y='_Value_', title='Box Plots with Outliers',
+                    template=PLOTLY_TEMPLATE, points='outliers')
+        fig.update_layout(height=500)
+        st.plotly_chart(fig, use_container_width=True)
+
+        for col, info in outlier_data.items():
+            n_outliers = info.get('n_outliers', 0)
+            pct = info.get('percentage', 0)
+            with st.expander(f"**{col}**: {n_outliers} outliers ({pct:.1f}%)"):
+                if 'lower_bound' in info:
+                    st.write(f"Lower bound: {info['lower_bound']:.4f}")
+                if 'upper_bound' in info:
+                    st.write(f"Upper bound: {info['upper_bound']:.4f}")
 
 
 # =============================================================================
@@ -1315,7 +1429,7 @@ def render_ml_tab():
         with col_a:
             # Disable train button if classification data is invalid
             train_disabled = task_type == "Classification" and classification_data_invalid
-            if st.button("🎯 Train Model", width='stretch', disabled=train_disabled):
+            if st.button("🎯 Train Model", use_container_width=True, disabled=train_disabled):
                 with st.spinner("Training..."):
                     results = ml.train_model(features, target, model_type, test_size=test_size)
                     st.session_state.analysis_results['ml_model'] = results
@@ -1331,7 +1445,7 @@ def render_ml_tab():
                         st.error(f"Training failed: {results['error']}")
 
         with col_b:
-            if st.button("🔄 Cross-Validation", width='stretch'):
+            if st.button("🔄 Cross-Validation", use_container_width=True):
                 with st.spinner("Running CV..."):
                     # Correct API: cross_validation(features, target, cv, model_name)
                     cv_results = ml.cross_validation(features, target, cv=cv_folds, model_name=model_type)
@@ -1339,7 +1453,7 @@ def render_ml_tab():
                     st.success("Cross-validation complete!")
 
         with col_c:
-            if st.button("📊 Feature Importance", width='stretch'):
+            if st.button("📊 Feature Importance", use_container_width=True):
                 with st.spinner("Calculating..."):
                     # Correct API: feature_importance(features, target)
                     importance = ml.feature_importance(features, target)
@@ -1389,7 +1503,7 @@ def render_ml_tab():
                         template=PLOTLY_TEMPLATE,
                         height=400
                     )
-                    st.plotly_chart(fig_cm, width='stretch')
+                    st.plotly_chart(fig_cm, use_container_width=True)
 
                 # Classification Report
                 if 'classification_report' in results:
@@ -1418,7 +1532,7 @@ def render_ml_tab():
                             'Feature': list(results['coefficients'].keys()),
                             'Coefficient': list(results['coefficients'].values())
                         })
-                        st.dataframe(coef_df, width='stretch')
+                        st.dataframe(coef_df, use_container_width=True)
                         if 'intercept' in results:
                             st.write(f"**Intercept:** {results['intercept']:.4f}")
 
@@ -1500,7 +1614,7 @@ def render_ml_tab():
                             height=500,
                             legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.99)
                         )
-                        st.plotly_chart(fig_train, width='stretch')
+                        st.plotly_chart(fig_train, use_container_width=True)
 
                         # Residual info
                         residuals = y_test_sorted - y_pred_sorted
@@ -1542,7 +1656,7 @@ def render_ml_tab():
 
     # Always show predict button (disabled state handled by logic)
     predict_disabled = trained_model is None
-    if st.button("🔮 Predict", width='stretch', disabled=predict_disabled):
+    if st.button("🔮 Predict", use_container_width=True, disabled=predict_disabled):
         if new_df is None:
             st.error("No data available for prediction")
         else:
@@ -1673,7 +1787,7 @@ def render_ml_tab():
                                 height=500,
                                 legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.99)
                             )
-                            st.plotly_chart(fig_pred, width='stretch')
+                            st.plotly_chart(fig_pred, use_container_width=True)
                         else:
                             # Fallback: plot by index
                             st.caption("🔴 Red diamonds = Model predictions")
@@ -1693,11 +1807,11 @@ def render_ml_tab():
                                 template=PLOTLY_TEMPLATE,
                                 height=450
                             )
-                            st.plotly_chart(fig_pred, width='stretch')
+                            st.plotly_chart(fig_pred, use_container_width=True)
 
                     # Data table
                     with st.expander("📋 Predictions Table (first 100 rows)", expanded=False):
-                        st.dataframe(preview_df.head(100), width='stretch')
+                        st.dataframe(preview_df.head(100), use_container_width=True)
 
                         # Download button
                         csv = preview_df.to_csv(index=False)
@@ -1712,9 +1826,9 @@ def render_ml_tab():
                     st.error(f"Visualization error: {e}")
                     import traceback
                     st.code(traceback.format_exc())
-                    st.dataframe(pd.DataFrame({'prediction': preds['predictions']}).head(100), width='stretch')
+                    st.dataframe(pd.DataFrame({'prediction': preds['predictions']}).head(100), use_container_width=True)
             else:
-                st.dataframe(pd.DataFrame({'prediction': preds['predictions']}).head(100), width='stretch')
+                st.dataframe(pd.DataFrame({'prediction': preds['predictions']}).head(100), use_container_width=True)
 
     if 'cv_results' in st.session_state.analysis_results:
         cv = st.session_state.analysis_results['cv_results']
@@ -1727,7 +1841,7 @@ def render_ml_tab():
         ])
         fig.add_hline(y=cv['mean'], line_dash='dash', line_color='red')
         fig.update_layout(title='CV Scores by Fold', template=PLOTLY_TEMPLATE, height=400)
-        st.plotly_chart(fig, width='stretch')
+        st.plotly_chart(fig, use_container_width=True)
 
     if 'feature_importance' in st.session_state.analysis_results:
         importance = st.session_state.analysis_results['feature_importance']
@@ -1738,7 +1852,7 @@ def render_ml_tab():
                   orientation='h', marker_color='steelblue')
         ])
         fig.update_layout(title='Feature Importance', template=PLOTLY_TEMPLATE, height=400)
-        st.plotly_chart(fig, width='stretch')
+        st.plotly_chart(fig, use_container_width=True)
 
 
 # =============================================================================
@@ -1792,7 +1906,7 @@ def render_pca_tab():
         scale_loadings = st.slider("Loading vector scale", 1.0, 5.0, 2.5,
                                    help="Scale factor for loading vectors in biplot")
 
-    if st.button("🔬 Run PCA Analysis", width='stretch'):
+    if st.button("🔬 Run PCA Analysis", use_container_width=True):
         with st.spinner("Running PCA..."):
             results = ml.pca_analysis(features, variance_threshold=variance_threshold)
             st.session_state.analysis_results['pca'] = results
@@ -1861,7 +1975,7 @@ def render_pca_tab():
             fig_scree.update_layout(height=400, template=PLOTLY_TEMPLATE, showlegend=False)
             fig_scree.update_yaxes(title_text='Variance (%)', row=1, col=1)
             fig_scree.update_yaxes(title_text='Cumulative Variance (%)', row=1, col=2)
-            st.plotly_chart(fig_scree, width='stretch')
+            st.plotly_chart(fig_scree, use_container_width=True)
 
             # ═══════════════════════════════════════════════════════════════
             # 2D SCORE PLOT WITH LOADING VECTORS
@@ -1945,7 +2059,7 @@ def render_pca_tab():
                     xaxis=dict(scaleanchor='y', scaleratio=1),
                     legend=dict(title='Original Variables', yanchor='top', y=0.99, xanchor='left', x=1.15)
                 )
-                st.plotly_chart(fig_scores, width='stretch')
+                st.plotly_chart(fig_scores, use_container_width=True)
 
                 with st.expander("📖 How to interpret this plot"):
                     st.markdown("""
@@ -2047,7 +2161,7 @@ def render_pca_tab():
                     height=600,
                     xaxis=dict(scaleanchor='y', scaleratio=1)
                 )
-                st.plotly_chart(fig_biplot, width='stretch')
+                st.plotly_chart(fig_biplot, use_container_width=True)
 
                 # Interpretation help
                 with st.expander("📖 How to interpret the Biplot"):
@@ -2165,7 +2279,7 @@ def render_pca_tab():
                         x=1.05
                     )
                 )
-                st.plotly_chart(fig_3d, width='stretch')
+                st.plotly_chart(fig_3d, use_container_width=True)
 
                 with st.expander("📖 Understanding the 3D Score Plot"):
                     st.markdown("""
@@ -2216,11 +2330,11 @@ def render_pca_tab():
                 template=PLOTLY_TEMPLATE,
                 height=max(300, len(feature_names) * 30)
             )
-            st.plotly_chart(fig_heat, width='stretch')
+            st.plotly_chart(fig_heat, use_container_width=True)
 
             # Loadings table
             with st.expander("📋 Detailed Loading Values"):
-                st.dataframe(loadings_df.round(4), width='stretch')
+                st.dataframe(loadings_df.round(4), use_container_width=True)
 
             # ═══════════════════════════════════════════════════════════════
             # EXPORT PCA RESULTS
@@ -2294,7 +2408,7 @@ def render_bayesian_tab():
     col1, col2 = st.columns(2)
 
     with col1:
-        if st.button("🎲 Bayesian Regression", width='stretch'):
+        if st.button("🎲 Bayesian Regression", use_container_width=True):
             with st.spinner("Fitting Bayesian model..."):
                 # Correct API: bayesian_regression(features, target)
                 results = bayesian.bayesian_regression(features, target)
@@ -2302,7 +2416,7 @@ def render_bayesian_tab():
 
     with col2:
         confidence = st.slider("Confidence Level", 0.80, 0.99, 0.95)
-        if st.button("📊 Credible Intervals", width='stretch'):
+        if st.button("📊 Credible Intervals", use_container_width=True):
             with st.spinner("Computing intervals..."):
                 # Correct API: credible_intervals(features, target, confidence)
                 results = bayesian.credible_intervals(features, target, confidence)
@@ -2330,7 +2444,7 @@ def render_bayesian_tab():
                     '95% CI Lower': ci_lower,
                     '95% CI Upper': ci_upper
                 })
-                st.dataframe(coef_df, width='stretch')
+                st.dataframe(coef_df, use_container_width=True)
 
                 # Plot coefficients with error bars
                 fig = go.Figure()
@@ -2343,7 +2457,7 @@ def render_bayesian_tab():
                 ))
                 fig.update_layout(title='Posterior Coefficients with 95% CI',
                                 template=PLOTLY_TEMPLATE, height=400)
-                st.plotly_chart(fig, width='stretch')
+                st.plotly_chart(fig, use_container_width=True)
 
     if 'credible' in st.session_state.analysis_results:
         results = st.session_state.analysis_results['credible']
@@ -2390,21 +2504,21 @@ def render_uncertainty_tab():
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        if st.button("🔄 Bootstrap CI", width='stretch'):
+        if st.button("🔄 Bootstrap CI", use_container_width=True):
             with st.spinner(f"Running {n_bootstrap} bootstrap iterations..."):
                 # Correct API: bootstrap_ci(features, target, n_bootstrap, confidence)
                 results = uncertainty.bootstrap_ci(features, target, n_bootstrap, confidence)
                 st.session_state.analysis_results['bootstrap'] = results
 
     with col2:
-        if st.button("🎯 Residual Analysis", width='stretch'):
+        if st.button("🎯 Residual Analysis", use_container_width=True):
             with st.spinner("Analyzing residuals..."):
                 # Correct API: residual_analysis(features, target)
                 results = uncertainty.residual_analysis(features, target)
                 st.session_state.analysis_results['residuals'] = results
 
     with col3:
-        if st.button("🎲 Monte Carlo", width='stretch'):
+        if st.button("🎲 Monte Carlo", use_container_width=True):
             with st.spinner(f"Running {n_simulations} simulations..."):
                 # Correct API: monte_carlo(features, target, n_simulations, confidence)
                 results = uncertainty.monte_carlo_analysis(features, target, n_simulations, confidence)
@@ -2427,7 +2541,7 @@ def render_uncertainty_tab():
                 'CI Lower': results.get('ci_lower', []),
                 'CI Upper': results.get('ci_upper', [])
             })
-            st.dataframe(boot_df, width='stretch')
+            st.dataframe(boot_df, use_container_width=True)
 
     if 'residuals' in st.session_state.analysis_results:
         results = st.session_state.analysis_results['residuals']
@@ -2462,7 +2576,7 @@ def render_uncertainty_tab():
                 )
 
                 fig.update_layout(height=400, template=PLOTLY_TEMPLATE, showlegend=False)
-                st.plotly_chart(fig, width='stretch')
+                st.plotly_chart(fig, use_container_width=True)
 
     if 'monte_carlo' in st.session_state.analysis_results:
         results = st.session_state.analysis_results['monte_carlo']
@@ -2502,14 +2616,14 @@ def render_nonlinear_tab():
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        if st.button("📊 Distance Correlation", width='stretch'):
+        if st.button("📊 Distance Correlation", use_container_width=True):
             with st.spinner("Computing..."):
                 # Correct API: distance_correlation(features, target)
                 results = nonlinear.distance_correlation(features, target)
                 st.session_state.analysis_results['dist_corr'] = results
 
     with col2:
-        if st.button("🔮 Mutual Information", width='stretch'):
+        if st.button("🔮 Mutual Information", use_container_width=True):
             with st.spinner("Computing..."):
                 # Correct API: mutual_information(features, target)
                 results = nonlinear.mutual_information(features, target)
@@ -2517,7 +2631,7 @@ def render_nonlinear_tab():
 
     with col3:
         max_degree = st.slider("Max Polynomial Degree", 2, 5, 3)
-        if st.button("📈 Polynomial Regression", width='stretch'):
+        if st.button("📈 Polynomial Regression", use_container_width=True):
             with st.spinner("Fitting polynomials..."):
                 # Correct API: polynomial_regression(features, target, max_degree)
                 results = nonlinear.polynomial_regression(features, target, max_degree)
@@ -2542,7 +2656,7 @@ def render_nonlinear_tab():
         })
         comparison_df['Non-linearity'] = comparison_df['Distance Corr'] - comparison_df['Pearson |r|']
 
-        st.dataframe(comparison_df, width='stretch')
+        st.dataframe(comparison_df, use_container_width=True)
 
         fig = go.Figure(data=[
             go.Bar(name='|Pearson|', x=features, y=comparison_df['Pearson |r|'], marker_color='steelblue'),
@@ -2550,7 +2664,7 @@ def render_nonlinear_tab():
         ])
         fig.update_layout(barmode='group', title='Pearson vs Distance Correlation',
                          template=PLOTLY_TEMPLATE, height=400)
-        st.plotly_chart(fig, width='stretch')
+        st.plotly_chart(fig, use_container_width=True)
 
         st.info("💡 Large difference suggests non-linear relationships!")
 
@@ -2562,7 +2676,7 @@ def render_nonlinear_tab():
             go.Bar(x=list(mi.keys()), y=list(mi.values()), marker_color='teal')
         ])
         fig.update_layout(title='Mutual Information Scores', template=PLOTLY_TEMPLATE, height=400)
-        st.plotly_chart(fig, width='stretch')
+        st.plotly_chart(fig, use_container_width=True)
 
     if 'polynomial' in st.session_state.analysis_results:
         st.subheader("📈 Polynomial Regression Results")
@@ -2572,18 +2686,164 @@ def render_nonlinear_tab():
             {'Degree': deg, 'R²': vals['r2'], 'RMSE': vals['rmse']}
             for deg, vals in poly_results.items()
         ])
-        st.dataframe(poly_df, width='stretch')
+        st.dataframe(poly_df, use_container_width=True)
 
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=poly_df['Degree'], y=poly_df['R²'], mode='lines+markers', name='R²'))
         fig.update_layout(title='R² vs Polynomial Degree', template=PLOTLY_TEMPLATE, height=400)
-        st.plotly_chart(fig, width='stretch')
+        st.plotly_chart(fig, use_container_width=True)
 
 
 # =============================================================================
-# TIME SERIES TAB - IMPORTED FROM tabs/timeseries_tab.py
+# TIME SERIES TAB
 # =============================================================================
-# render_timeseries_tab() is imported from tabs.timeseries_tab
+def render_timeseries_tab():
+    """Render time series analysis tab"""
+    st.header("⏱️ Time Series Analysis")
+    st.caption("ACF/PACF plots, ADF stationarity test, seasonal decomposition, rolling statistics, and ARIMA modeling")
+
+    if st.session_state.df is None:
+        st.warning("⚠️ Please load data first.")
+        return
+
+    if not st.session_state.feature_cols:
+        st.warning("⚠️ Please select at least one column.")
+        return
+
+    df = st.session_state.df
+    features = st.session_state.feature_cols
+    all_numeric = df.select_dtypes(include=[np.number]).columns.tolist()
+
+    ts = TimeSeriesAnalysis(df)
+
+    col1, col2 = st.columns([1, 3])
+
+    with col1:
+        st.markdown("#### Axis Selection")
+
+        # X-axis selection
+        x_options = ['Index (Row Number)'] + all_numeric
+        x_col = st.selectbox("X-axis (Time/Index)", x_options,
+                            help="Select a column for X-axis (typically time/date) or use row index")
+
+        # Y-axis selection
+        selected_col = st.selectbox("Y-axis (Value)", features)
+
+        max_lag = st.slider("Max Lag", 5, 50, 20)
+
+    # Plot the time series
+    st.subheader("📈 Time Series Plot")
+    series = df[selected_col].dropna()
+
+    fig = go.Figure()
+
+    if x_col == 'Index (Row Number)':
+        # Use row index as X-axis
+        fig.add_trace(go.Scatter(x=series.index, y=series, mode='lines', name=selected_col))
+        fig.update_layout(xaxis_title='Index', yaxis_title=selected_col)
+    else:
+        # Use selected column as X-axis
+        x_data = df[x_col].loc[series.index]  # Match indices with non-null Y values
+        fig.add_trace(go.Scatter(x=x_data, y=series, mode='lines', name=selected_col))
+        fig.update_layout(xaxis_title=x_col, yaxis_title=selected_col)
+
+    fig.update_layout(title=f'Time Series: {selected_col}', template=PLOTLY_TEMPLATE, height=400)
+    st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        col_a, col_b, col_c, col_d = st.columns(4)
+
+        with col_a:
+            if st.button("📊 ACF", use_container_width=True):
+                # Correct API: acf_analysis(column, lags)
+                results = ts.acf_analysis(selected_col, max_lag)
+                st.session_state.analysis_results['acf'] = results
+
+        with col_b:
+            if st.button("📈 PACF", use_container_width=True):
+                # Correct API: pacf_analysis(column, lags)
+                results = ts.pacf_analysis(selected_col, max_lag)
+                st.session_state.analysis_results['pacf'] = results
+
+        with col_c:
+            if st.button("🔬 Stationarity", use_container_width=True):
+                # Correct API: stationarity_test([columns])
+                results = ts.stationarity_test([selected_col])
+                st.session_state.analysis_results['adf'] = results.get(selected_col, {})
+
+        with col_d:
+            default_win = min(30, max(1, len(series)//5))
+            window = st.number_input("Rolling window (samples)", min_value=1, max_value=max(1, len(series)), value=default_win, step=1)
+            if st.button("🔄 Rolling Stats", use_container_width=True):
+                # Correct API: rolling_statistics(column, window)
+                results = ts.rolling_statistics(selected_col, int(window))
+                st.session_state.analysis_results['rolling'] = results
+
+    st.markdown("---")
+
+    if 'adf' in st.session_state.analysis_results:
+        results = st.session_state.analysis_results['adf']
+
+        if 'error' in results:
+            st.error(results['error'])
+        else:
+            st.subheader("🔬 Augmented Dickey-Fuller Test")
+
+            col1, col2, col3 = st.columns(3)
+            col1.metric("ADF Statistic", f"{results.get('adf_statistic', 0):.4f}")
+            col2.metric("p-value", f"{results.get('p_value', 0):.4f}")
+
+            if results.get('is_stationary', False):
+                col3.success("✅ Stationary")
+            else:
+                col3.warning("⚠️ Non-stationary")
+
+    if 'acf' in st.session_state.analysis_results:
+        results = st.session_state.analysis_results['acf']
+        acf_values = results.get('acf', [])
+        conf_upper = results.get('conf_int_upper', 0)
+
+        if len(acf_values) > 0:
+            st.subheader("📊 ACF")
+
+            fig = go.Figure()
+            fig.add_trace(go.Bar(x=list(range(len(acf_values))), y=acf_values, marker_color='steelblue'))
+            fig.add_hline(y=conf_upper, line_dash='dash', line_color='red')
+            fig.add_hline(y=-conf_upper, line_dash='dash', line_color='red')
+            fig.update_layout(title='Autocorrelation Function', template=PLOTLY_TEMPLATE, height=400)
+            st.plotly_chart(fig, use_container_width=True)
+
+    if 'pacf' in st.session_state.analysis_results:
+        results = st.session_state.analysis_results['pacf']
+        pacf_values = results.get('pacf', [])
+        conf_upper = results.get('conf_int_upper', 0)
+
+        if len(pacf_values) > 0:
+            st.subheader("📈 PACF")
+
+            fig = go.Figure()
+            fig.add_trace(go.Bar(x=list(range(len(pacf_values))), y=pacf_values, marker_color='teal'))
+            fig.add_hline(y=conf_upper, line_dash='dash', line_color='red')
+            fig.add_hline(y=-conf_upper, line_dash='dash', line_color='red')
+            fig.update_layout(title='Partial Autocorrelation Function', template=PLOTLY_TEMPLATE, height=400)
+            st.plotly_chart(fig, use_container_width=True)
+
+    if 'rolling' in st.session_state.analysis_results:
+        results = st.session_state.analysis_results['rolling']
+
+        if 'error' not in results:
+            st.subheader("🔄 Rolling Statistics")
+
+            original = results.get('original', [])
+            rolling_mean = results.get('rolling_mean', [])
+            rolling_std = results.get('rolling_std', [])
+
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(y=original, mode='lines', name='Original', opacity=0.7))
+            fig.add_trace(go.Scatter(y=rolling_mean, mode='lines', name='Rolling Mean', line=dict(color='red')))
+            fig.add_trace(go.Scatter(y=rolling_std, mode='lines', name='Rolling Std', line=dict(color='green')))
+            fig.update_layout(title='Rolling Statistics', template=PLOTLY_TEMPLATE, height=400)
+            st.plotly_chart(fig, use_container_width=True)
 
 
 # =============================================================================
@@ -2618,7 +2878,7 @@ def render_causality_tab():
         col_a, col_b = st.columns(2)
 
         with col_a:
-            if st.button("🔬 Granger Causality", width='stretch'):
+            if st.button("🔬 Granger Causality", use_container_width=True):
                 with st.spinner("Testing..."):
                     # Correct API: granger_causality([features], target, max_lag)
                     results = causality.granger_causality([selected_feature], target, max_lag)
@@ -2626,7 +2886,7 @@ def render_causality_tab():
                     st.session_state.analysis_results['granger_feature'] = selected_feature
 
         with col_b:
-            if st.button("⏱️ Lead-Lag Analysis", width='stretch'):
+            if st.button("⏱️ Lead-Lag Analysis", use_container_width=True):
                 with st.spinner("Computing..."):
                     # Correct API: lead_lag_analysis([features], target, max_lag)
                     results = causality.lead_lag_analysis([selected_feature], target, max_lag)
@@ -2653,7 +2913,7 @@ def render_causality_tab():
                 }
                 for lag, data in results.items() if isinstance(data, dict)
             ])
-            st.dataframe(granger_df, width='stretch')
+            st.dataframe(granger_df, use_container_width=True)
 
             # Plot p-values
             lags = [lag for lag in results.keys() if isinstance(results[lag], dict)]
@@ -2663,7 +2923,7 @@ def render_causality_tab():
             fig.add_trace(go.Scatter(x=lags, y=pvals, mode='lines+markers'))
             fig.add_hline(y=0.05, line_dash='dash', line_color='red', annotation_text='p=0.05')
             fig.update_layout(title='Granger Causality p-values', template=PLOTLY_TEMPLATE, height=400)
-            st.plotly_chart(fig, width='stretch')
+            st.plotly_chart(fig, use_container_width=True)
 
     if 'lead_lag' in st.session_state.analysis_results:
         results = st.session_state.analysis_results['lead_lag']
@@ -2692,7 +2952,7 @@ def render_causality_tab():
             fig.add_trace(go.Bar(x=lags, y=corrs, marker_color='steelblue'))
             fig.add_vline(x=best_lag, line_dash='dash', line_color='red')
             fig.update_layout(title='Cross-correlation at Different Lags', template=PLOTLY_TEMPLATE, height=400)
-            st.plotly_chart(fig, width='stretch')
+            st.plotly_chart(fig, use_container_width=True)
 
 
 # =============================================================================
@@ -2743,7 +3003,7 @@ def render_visualization_tab():
                 y_reg = st.selectbox("Y variable (dependent)", features, index=min(1, len(features)-1), key="reg_y")
             show_ci = st.checkbox("Show 95% Confidence Interval", value=True, key="reg_ci")
 
-    if st.button("📊 Generate Plot", width='stretch'):
+    if st.button("📊 Generate Plot", use_container_width=True):
         with st.spinner("Creating visualization..."):
 
             if plot_type == "Scatter Matrix":
@@ -2754,7 +3014,7 @@ def render_visualization_tab():
                 )
                 fig.update_traces(diagonal_visible=True)
                 fig.update_layout(height=800)
-                st.plotly_chart(fig, width='stretch')
+                st.plotly_chart(fig, use_container_width=True)
 
             elif plot_type == "Correlation Heatmap":
                 corr = df[features].corr(method=corr_method)
@@ -2766,28 +3026,28 @@ def render_visualization_tab():
                     title=f'{corr_method.capitalize()} Correlation Heatmap'
                 )
                 fig.update_layout(height=600, template=PLOTLY_TEMPLATE)
-                st.plotly_chart(fig, width='stretch')
+                st.plotly_chart(fig, use_container_width=True)
 
             elif plot_type == "Box Plots":
                 box_data = df[features].melt(var_name='Feature', value_name='Value')
                 fig = px.box(box_data, x='Feature', y='Value',
                            title='Box Plots', template=PLOTLY_TEMPLATE, points='outliers')
                 fig.update_layout(height=500)
-                st.plotly_chart(fig, width='stretch')
+                st.plotly_chart(fig, use_container_width=True)
 
             elif plot_type == "Distribution Plots":
                 for col in features[:4]:
                     fig = px.histogram(df, x=col, marginal='box',
                                       title=f'Distribution of {col}', template=PLOTLY_TEMPLATE)
                     fig.update_layout(height=400)
-                    st.plotly_chart(fig, width='stretch')
+                    st.plotly_chart(fig, use_container_width=True)
 
             elif plot_type == "3D Scatter":
                 if len(features) >= 3:
                     fig = px.scatter_3d(df, x=x_3d, y=y_3d, z=z_3d,
                                        title=f'3D Scatter', template=PLOTLY_TEMPLATE)
                     fig.update_layout(height=600)
-                    st.plotly_chart(fig, width='stretch')
+                    st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.warning("Need at least 3 features")
 
@@ -2798,7 +3058,7 @@ def render_visualization_tab():
                     template=PLOTLY_TEMPLATE
                 )
                 fig.update_layout(height=500)
-                st.plotly_chart(fig, width='stretch')
+                st.plotly_chart(fig, use_container_width=True)
 
             elif plot_type == "Linear Regression Plot (with Statistics)":
                 # Import scipy for regression statistics
@@ -2893,7 +3153,7 @@ def render_visualization_tab():
                         legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
                     )
 
-                    st.plotly_chart(fig, width='stretch')
+                    st.plotly_chart(fig, use_container_width=True)
 
                     # Display statistics in a clear table
                     st.markdown("### 📊 Regression Statistics")
@@ -2988,7 +3248,7 @@ def render_clustering_tab():
             cov_type = st.selectbox("Covariance Type", ["full", "tied", "diag", "spherical"])
 
     with col3:
-        if st.button("🎯 Run Clustering", width='stretch'):
+        if st.button("🎯 Run Clustering", use_container_width=True):
             with st.spinner("Clustering..."):
                 try:
                     if method == "K-Means":
@@ -3029,26 +3289,40 @@ def render_clustering_tab():
                                  labels={'x': 'Component 1', 'y': 'Component 2'},
                                  template=PLOTLY_TEMPLATE)
                 fig.update_layout(height=500)
-                st.plotly_chart(fig, width='stretch')
+                st.plotly_chart(fig, use_container_width=True)
             elif len(features) >= 2:
-                # Fall back to raw feature scatter
-                x_data = df[features[0]]
-                y_data = df[features[1] if len(features) > 1 else features[0]]
+                # Fall back to raw feature scatter - use cleaned data matching cluster length
+                df_clean = df[features].dropna()
+                n_clusters_len = len(clusters) if hasattr(clusters, '__len__') else 0
+                if n_clusters_len > 0 and n_clusters_len <= len(df_clean):
+                    x_data = df_clean.iloc[:n_clusters_len][features[0]]
+                    y_data = df_clean.iloc[:n_clusters_len][features[1] if len(features) > 1 else features[0]]
+                else:
+                    x_data = df_clean[features[0]]
+                    y_data = df_clean[features[1] if len(features) > 1 else features[0]]
 
                 fig = px.scatter(
                     x=x_data, y=y_data,
-                    color=clusters,
+                    color=clusters[:len(x_data)] if len(clusters) > len(x_data) else clusters,
                     title=f'{method} Clustering Results (feature space)',
                     labels={f'x': features[0], f'y': features[1] if len(features) > 1 else features[0]},
                     template=PLOTLY_TEMPLATE
                 )
                 fig.update_layout(height=500)
-                st.plotly_chart(fig, width='stretch')
+                st.plotly_chart(fig, use_container_width=True)
 
             # Export clustering results
             st.subheader("📥 Export Clustering Results")
-            df_cluster_results = df[features].dropna().copy()
-            df_cluster_results['Cluster'] = clusters[:len(df_cluster_results)]
+            df_clean = df[features].dropna()
+            # Ensure cluster array length matches the cleaned dataframe
+            n_clusters_len = len(clusters) if hasattr(clusters, '__len__') else 0
+            if n_clusters_len > 0 and n_clusters_len <= len(df_clean):
+                df_cluster_results = df_clean.iloc[:n_clusters_len].copy()
+                df_cluster_results['Cluster'] = clusters
+            else:
+                # Fallback: if lengths don't match, use what we have
+                df_cluster_results = df_clean.copy()
+                df_cluster_results['Cluster'] = np.resize(clusters, len(df_clean)) if n_clusters_len > 0 else -1
 
             csv_clusters = df_cluster_results.to_csv(index=True)
             st.download_button(
@@ -3091,7 +3365,7 @@ def render_anomaly_tab():
             n_estimators = st.slider("N Estimators", 50, 500, 100)
 
     with col3:
-        if st.button("🚨 Detect Anomalies", width='stretch'):
+        if st.button("🚨 Detect Anomalies", use_container_width=True):
             with st.spinner("Detecting anomalies..."):
                 try:
                     if method == "Isolation Forest":
@@ -3195,7 +3469,7 @@ def render_anomaly_tab():
                         height=500,
                         legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.99)
                     )
-                    st.plotly_chart(fig, width='stretch')
+                    st.plotly_chart(fig, use_container_width=True)
 
                     # Show anomaly details table
                     st.subheader("🔍 Anomaly Details")
@@ -3209,7 +3483,7 @@ def render_anomaly_tab():
                     df_anomalies = df_results[df_results['Status'] == '🔴 Anomaly'].copy()
                     if len(df_anomalies) > 0:
                         st.write(f"**Showing {len(df_anomalies)} anomalies:**")
-                        st.dataframe(df_anomalies, width='stretch')
+                        st.dataframe(df_anomalies, use_container_width=True)
                     else:
                         st.info("No anomalies detected with current settings.")
 
@@ -3240,17 +3514,419 @@ def render_anomaly_tab():
 
 
 # =============================================================================
-# ADVANCED STATISTICAL TESTS TAB - IMPORTED FROM tabs/statistical_tests_tab.py
+# ADVANCED STATISTICAL TESTS TAB (NEW)
 # =============================================================================
-# render_statistical_tests_tab() is imported from tabs.statistical_tests_tab
-# Contains: Extended ANOVA (Two-Way, Repeated Measures, Post-Hoc), t-tests, Chi-square, etc.
+def render_statistical_tests_tab():
+    """Render advanced statistical tests tab"""
+    st.header("🧪 Statistical Hypothesis Tests")
+    st.caption("t-tests, ANOVA, Chi-square, normality tests (Shapiro-Wilk), and correlation significance tests")
+
+    if st.session_state.df is None:
+        st.warning("⚠️ Please load data first.")
+        return
+
+    if not st.session_state.feature_cols:
+        st.warning("⚠️ Please select feature columns.")
+        return
+
+    df = st.session_state.df
+    features = st.session_state.feature_cols
+    stats = StatisticalAnalysis(df)
+
+    st.subheader("Test Distributions & PDFs")
+
+    col1, col2 = st.columns(2)
+
+    st.markdown("---")
+
+    st.subheader("Hypothesis Tests")
+
+    test_type = st.selectbox(
+        "Test Type",
+        ["Compare 2 Groups", "Compare 3+ Groups", "Chi-Square", "Normality", "Correlation"]
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if test_type == "Compare 2 Groups":
+            col1_test = st.selectbox("Column 1", features, key='col1_test')
+            col2_test = st.selectbox("Column 2", [f for f in features if f != col1_test], key='col2_test')
+            test_subtype = st.radio("Test", ["Independent t-test", "Paired t-test", "Mann-Whitney U"])
+
+            if st.button("🧪 Run Test", use_container_width=True):
+                try:
+                    if test_subtype == "Independent t-test":
+                        results = stats.ttest_independent(col1_test, col2_test)
+                    elif test_subtype == "Paired t-test":
+                        results = stats.ttest_paired(col1_test, col2_test)
+                    else:
+                        results = stats.mann_whitney_u(col1_test, col2_test)
+                    st.session_state.analysis_results['hypothesis_test'] = results
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
+
+    st.markdown("---")
+
+    if 'distributions' in st.session_state.analysis_results:
+        st.subheader("Distribution Fitting Results")
+        dist_results = st.session_state.analysis_results['distributions']
+
+        if 'distributions' in dist_results:
+            for dist_name, dist_data in dist_results['distributions'].items():
+                with st.expander(f"**{dist_name.upper()}**"):
+                    col1, col2 = st.columns(2)
+                    col1.metric("Parameters", str(dist_data.get('params', {}))[:50])
+                    col2.metric("KS Statistic", f"{dist_data.get('ks_statistic', 0):.4f}")
+
+    if 'hypothesis_test' in st.session_state.analysis_results:
+        st.subheader("Test Results")
+        test_results = st.session_state.analysis_results['hypothesis_test']
+
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Statistic", f"{test_results.get('statistic', 0):.4f}")
+        col2.metric("p-value", f"{test_results.get('p_value', 0):.4f}")
+
+        if test_results.get('p_value', 1) < 0.05:
+            col3.success("✅ Significant (p < 0.05)")
+        else:
+            col3.info("❌ Not Significant (p ≥ 0.05)")
 
 
 # =============================================================================
-# FOURIER & WAVELET TAB - IMPORTED FROM tabs/signal_analysis_tab.py
+# FOURIER & WAVELET TAB (NEW)
 # =============================================================================
-# render_signal_analysis_tab() is imported from tabs.signal_analysis_tab
-# Contains: FFT, PSD, CWT, DWT, Coherence, Cross-Wavelet, Harmonic Analysis
+def render_signal_analysis_tab():
+    """Render Signal Analysis tab (Fourier & Wavelet)"""
+    st.header("🔊 Signal Processing: FFT, PSD & Wavelet Analysis")
+    st.caption("FFT (Fast Fourier Transform), PSD (Power Spectral Density), CWT (Continuous Wavelet), DWT (Discrete Wavelet)")
+
+    if st.session_state.df is None:
+        st.warning("⚠️ Please load data first.")
+        return
+
+    if not st.session_state.feature_cols:
+        st.warning("⚠️ Please select a column.")
+        return
+
+    df = st.session_state.df
+    features = st.session_state.feature_cols
+    ts = TimeSeriesAnalysis(df)
+
+    col1, col2 = st.columns([1, 3])
+
+    with col1:
+        # Exclude 'time' column from signal analysis (it's used for sampling rate detection)
+        signal_features = [f for f in features if f.lower() != 'time']
+        if not signal_features:
+            signal_features = features
+        selected_col = st.selectbox("Select Time Series Column", signal_features)
+        analysis_type = st.selectbox(
+            "Analysis Type",
+            ["FFT (Fourier)", "Power Spectral Density", "Continuous Wavelet", "Discrete Wavelet"]
+        )
+
+        # Auto-detect sampling rate from data
+        if 'time' in df.columns:
+            time_diff = df['time'].diff().dropna()
+            if len(time_diff) > 0:
+                avg_dt = time_diff.mean()
+                sampling_rate = 1.0 / avg_dt if avg_dt > 0 else 1.0
+                st.success(f"✅ Sampling rate: **{sampling_rate:.1f} Hz** (auto-detected from 'time' column)")
+            else:
+                sampling_rate = 1.0
+                st.warning("⚠️ Could not detect sampling rate from 'time' column. Using 1.0 Hz default.")
+        else:
+            # Calculate from number of samples assuming 1 second duration
+            n_samples = len(df[selected_col].dropna())
+            sampling_rate = float(n_samples)
+            st.info(f"📊 No 'time' column found. Assuming {n_samples} samples over 1 second → {sampling_rate:.1f} Hz")
+
+        wavelet_type = st.selectbox("Wavelet Type", ["morl", "mexh", "gaus1", "gaus2", "cgau1"], index=0, help="Select the wavelet function for CWT.")
+        cwt_scales = st.slider("CWT Scales (max)", 16, 256, 64, help="Maximum number of scales for CWT.")
+        y_scale = st.selectbox("CWT Y-axis scale", ["log", "linear"], index=0, help="Y-axis scale for wavelet power plot.")
+        significance_level = st.slider("Significance level", 0.80, 0.999, 0.95, step=0.01, help="Significance threshold for Torrence & Compo plot.")
+        show_coi = st.checkbox("Show COI (Cone of Influence)", value=True, help="Display Cone of Influence on wavelet plot.")
+
+    with col2:
+        # Data quality check
+        n_samples = len(df[selected_col].dropna())
+        nyquist_freq = sampling_rate / 2.0
+
+        if n_samples < 100:
+            st.warning(f"⚠️ Only {n_samples} samples - may not be enough for reliable frequency analysis. Consider using test_data/signal_analysis_sample.csv")
+
+        st.info(f"📊 {n_samples} samples at **{sampling_rate:.1f} Hz** → Nyquist: {nyquist_freq:.1f} Hz (max detectable frequency)")
+
+        # Clear cache button
+        if st.button("🗑️ Clear Cached Results", help="Clear all previous analysis results"):
+            st.session_state.analysis_results = {}
+            st.success("✅ Cache cleared! Run analysis again.")
+            st.rerun()
+
+        # Only show the relevant button for the selected analysis type
+        if analysis_type == "FFT (Fourier)":
+            if st.button("🔍 FFT Analysis", width='stretch'):
+                with st.spinner("Computing FFT from loaded data..."):
+                    # Use the actual data from the selected column
+                    results = ts.fourier_transform(selected_col, sampling_rate=float(sampling_rate))
+                    st.session_state.analysis_results['fft'] = results
+                    st.success(f"✅ FFT computed: {n_samples} samples at **{sampling_rate:.1f} Hz** → Dominant: {results.get('dominant_frequency', 0):.2f} Hz")
+        elif analysis_type == "Power Spectral Density":
+            if st.button("📊 PSD Analysis", width='stretch'):
+                with st.spinner("Computing PSD..."):
+                    # Use the actual data from the selected column
+                    results = ts.power_spectral_density(selected_col, sampling_rate=float(sampling_rate))
+                    st.session_state.analysis_results['psd'] = results
+                    st.success(f"✅ PSD computed on {len(df[selected_col].dropna())} samples from column '{selected_col}' at {sampling_rate} Hz")
+        elif analysis_type == "Continuous Wavelet":
+            if st.button("🌊 CWT Analysis", width='stretch'):
+                with st.spinner("Computing Continuous Wavelet Transform..."):
+                    results = ts.continuous_wavelet_transform(selected_col, scales=None, wavelet=wavelet_type, sampling_rate=float(sampling_rate))
+                    if 'error' in results:
+                        st.error(f"CWT failed: {results['error']}")
+                    else:
+                        st.session_state.analysis_results['cwt'] = results
+                        st.session_state.analysis_results['cwt_options'] = {
+                            'y_scale': y_scale,
+                            'significance_level': significance_level,
+                            'show_coi': show_coi,
+                            'wavelet_type': wavelet_type
+                        }
+                        power = results.get('power', np.array([]))
+                        st.success(f"✅ CWT computed: {power.shape[1]} time points × {power.shape[0]} scales using '{wavelet_type}' wavelet")
+        elif analysis_type == "Discrete Wavelet":
+            dwt_wavelet_type = st.selectbox("Wavelet Type (Discrete)", ["db4", "db8", "sym4", "coif1", "haar"], index=0, help="Select discrete wavelet for DWT. Common choices: db4 (Daubechies 4), haar (simplest)")
+            level = st.slider("Decomposition Level", 1, 5, 3, help="Level of wavelet decomposition.")
+            if st.button("🌀 DWT Analysis", width='stretch'):
+                with st.spinner("Computing DWT..."):
+                    # Use the actual data from the selected column with discrete wavelet
+                    results = ts.discrete_wavelet_transform(selected_col, wavelet=dwt_wavelet_type, level=level)
+                    st.session_state.analysis_results['dwt'] = results
+                    st.session_state.analysis_results['dwt_wavelet'] = dwt_wavelet_type
+                    st.success(f"✅ DWT computed on {len(df[selected_col].dropna())} samples from column '{selected_col}'")
+
+    st.markdown("---")
+    # ...existing code...
+
+    # Display results
+    # Combined FFT and PSD panel plot
+    fft_res = st.session_state.analysis_results.get('fft')
+    psd_res = st.session_state.analysis_results.get('psd')
+    if fft_res and psd_res and ('error' not in fft_res) and ('error' not in psd_res):
+        st.subheader("🔍 FFT & 📊 Power Spectral Density (Combined)")
+        col1, col2 = st.columns(2)
+        col1.metric("Dominant Frequency (FFT)", f"{fft_res.get('dominant_frequency', 0):.4f}")
+        col2.metric("Dominant Frequency (PSD)", f"{psd_res.get('dominant_frequency', 0):.4f}")
+
+        # Prepare subplots
+        from plotly.subplots import make_subplots
+        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08,
+                            subplot_titles=("FFT Magnitude Spectrum", "Power Spectral Density"))
+        # FFT panel
+        frequencies = fft_res.get('frequencies', [])
+        magnitude = fft_res.get('magnitude', [])
+        if len(frequencies) > 0 and len(magnitude) > 0:
+            fig.add_trace(
+                go.Scatter(x=frequencies[:len(frequencies)//2], y=magnitude[:len(magnitude)//2],
+                           mode='lines', fill='tozeroy', name='FFT'),
+                row=1, col=1
+            )
+        # PSD panel
+        psd_freq = psd_res.get('frequencies', [])
+        psd_vals = psd_res.get('power_spectral_density', [])
+        if len(psd_freq) > 0 and len(psd_vals) > 0:
+            fig.add_trace(
+                go.Scatter(x=psd_freq, y=psd_vals, mode='lines', fill='tozeroy', name='PSD', line=dict(color='orange')),
+                row=2, col=1
+            )
+        fig.update_layout(height=700, template=PLOTLY_TEMPLATE)
+        fig.update_xaxes(title_text="Frequency", row=2, col=1)
+        fig.update_yaxes(title_text="Magnitude", row=1, col=1)
+        fig.update_yaxes(title_text="Power", row=2, col=1)
+        st.plotly_chart(fig, use_container_width=True)
+
+    else:
+        # Fallback: show FFT or PSD individually if only one is present
+        if fft_res and ('error' not in fft_res):
+            st.subheader("🔍 FFT Analysis")
+            col1, col2 = st.columns(2)
+            col1.metric("Dominant Frequency (Hz)", f"{fft_res.get('dominant_frequency', 0):.2f}")
+            col2.metric("Peak Power", f"{fft_res.get('peak_power', 0):.2e}")
+
+            # Plot FFT spectrum
+            frequencies = fft_res.get('positive_frequencies', [])
+            magnitude = fft_res.get('magnitude', [])
+
+            if len(frequencies) > 0 and len(magnitude) > 0:
+                # Use only positive frequencies for cleaner plot
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    x=frequencies,
+                    y=magnitude,
+                    mode='lines',
+                    fill='tozeroy',
+                    name='FFT Magnitude',
+                    line=dict(color='steelblue')
+                ))
+                fig.update_layout(
+                    title='FFT Magnitude Spectrum (Positive Frequencies)',
+                    xaxis_title='Frequency (Hz)',
+                    yaxis_title='Magnitude',
+                    template=PLOTLY_TEMPLATE,
+                    height=400,
+                    hovermode='x unified'
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
+                # Show top frequencies
+                st.write("**Top 5 Dominant Frequencies:**")
+                top_freqs = fft_res.get('dominant_frequencies', [])
+                top_powers = fft_res.get('dominant_powers', [])
+                for i, (f, p) in enumerate(zip(top_freqs[:5], top_powers[:5]), 1):
+                    st.write(f"{i}. {f:.2f} Hz - Power: {p:.2e}")
+        if psd_res and ('error' not in psd_res):
+            st.subheader("📊 Power Spectral Density")
+            col1, col2 = st.columns(2)
+            col1.metric("Dominant Frequency", f"{psd_res.get('dominant_frequency', 0):.4f}")
+            col2.metric("Total Power", f"{psd_res.get('total_power', 0):.4f}")
+            psd_freq = psd_res.get('frequencies', [])
+            psd_vals = psd_res.get('power_spectral_density', [])
+            if len(psd_freq) > 0 and len(psd_vals) > 0:
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(x=psd_freq, y=psd_vals, mode='lines', fill='tozeroy', line=dict(color='orange')))
+                fig.update_layout(title='Power Spectral Density', xaxis_title='Frequency',
+                                yaxis_title='Power', template=PLOTLY_TEMPLATE, height=400)
+                st.plotly_chart(fig, use_container_width=True)
+
+    # Export FFT/PSD results
+    if fft_res or psd_res:
+        st.subheader("📥 Export Spectral Analysis Results")
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if fft_res and 'error' not in fft_res:
+                fft_df = pd.DataFrame({
+                    'Frequency_Hz': fft_res.get('positive_frequencies', []),
+                    'Magnitude': fft_res.get('magnitude', []),
+                    'Power': fft_res.get('power', [])
+                })
+                csv_fft = fft_df.to_csv(index=False)
+                st.download_button(
+                    label="📥 FFT Results (CSV)",
+                    data=csv_fft,
+                    file_name="fft_results.csv",
+                    mime="text/csv"
+                )
+
+        with col2:
+            if psd_res and 'error' not in psd_res:
+                psd_df = pd.DataFrame({
+                    'Frequency_Hz': psd_res.get('frequencies', []),
+                    'Power_Spectral_Density': psd_res.get('power_spectral_density', [])
+                })
+                csv_psd = psd_df.to_csv(index=False)
+                st.download_button(
+                    label="📥 PSD Results (CSV)",
+                    data=csv_psd,
+                    file_name="psd_results.csv",
+                    mime="text/csv"
+                )
+
+    if 'cwt' in st.session_state.analysis_results:
+        results = st.session_state.analysis_results['cwt']
+        if 'error' not in results:
+            st.subheader("🌊 Continuous Wavelet Transform")
+            st.info("Time-frequency analysis showing power at each frequency over time")
+            try:
+                cwt_opts = st.session_state.analysis_results.get('cwt_options', {})
+                y_scale_opt = cwt_opts.get('y_scale', 'log')
+                signif_opt = cwt_opts.get('significance_level', 0.95)
+                show_coi_opt = cwt_opts.get('show_coi', True)
+                wavelet_type_opt = cwt_opts.get('wavelet_type', 'morl')
+
+                # Create and display CWT plot
+                fig = ts.plot_wavelet_torrence(
+                    results,
+                    selected_col,
+                    y_scale=y_scale_opt,
+                    significance_level=signif_opt,
+                    show_coi=show_coi_opt,
+                    wavelet=wavelet_type_opt
+                )
+                if fig:
+                    st.pyplot(fig, use_container_width=True)
+                    plt.close(fig)
+
+                # Export CWT results
+                st.subheader("📥 Export CWT Results")
+                col1, col2 = st.columns(2)
+                with col1:
+                    cwt_summary_df = pd.DataFrame({
+                        'Scale': results.get('scales', []),
+                        'Period': results.get('periods', []),
+                        'Global_Power': np.mean(results.get('power', np.array([[0]])), axis=1)
+                    })
+                    csv_cwt = cwt_summary_df.to_csv(index=False)
+                    st.download_button(
+                        label="📥 CWT Summary (CSV)",
+                        data=csv_cwt,
+                        file_name="cwt_summary.csv",
+                        mime="text/csv"
+                    )
+                with col2:
+                    scale_avg_power = np.mean(results.get('power', np.array([[0]])), axis=0)
+                    cwt_time_df = pd.DataFrame({
+                        'Time': results.get('time', []),
+                        'Scale_Averaged_Power': scale_avg_power
+                    })
+                    csv_cwt_time = cwt_time_df.to_csv(index=False)
+                    st.download_button(
+                        label="📥 CWT Time Series (CSV)",
+                        data=csv_cwt_time,
+                        file_name="cwt_time_series.csv",
+                        mime="text/csv"
+                    )
+            except Exception as e:
+                st.error(f"CWT plotting failed: {str(e)}")
+
+    if 'dwt' in st.session_state.analysis_results:
+        results = st.session_state.analysis_results['dwt']
+        if 'error' not in results:
+            st.subheader("🌀 Discrete Wavelet Transform")
+            try:
+                fig = ts.plot_discrete_wavelet(results, selected_col)
+                if fig:
+                    st.pyplot(fig, use_container_width=True)
+                    plt.close(fig)
+                else:
+                    st.info("DWT data available but no plot generated")
+
+                # Export DWT results
+                st.subheader("📥 Export DWT Results")
+                coefficients = results.get('coefficients', [])
+                if coefficients:
+                    # Create summary of DWT decomposition
+                    dwt_summary = []
+                    for c in coefficients:
+                        dwt_summary.append({
+                            'Level': c['level'],
+                            'Detail_Length': c['detail_length'],
+                            'Approx_Length': c['approximation_length'],
+                            'Detail_RMS': np.sqrt(np.mean(np.array(c['detail'])**2)),
+                            'Detail_Max': np.max(np.abs(c['detail'])),
+                            'Detail_Energy': np.sum(np.array(c['detail'])**2)
+                        })
+                    dwt_df = pd.DataFrame(dwt_summary)
+                    csv_dwt = dwt_df.to_csv(index=False)
+                    st.download_button(
+                        label="📥 DWT Summary (CSV)",
+                        data=csv_dwt,
+                        file_name="dwt_summary.csv",
+                        mime="text/csv"
+                    )
+            except Exception as e:
+                st.error(f"DWT plotting failed: {str(e)}")
 
 
 # =============================================================================
@@ -3292,21 +3968,21 @@ def render_dimreduction_tab():
 
     with col1:
         if method == "PCA":
-            if st.button("🔬 PCA", width='stretch'):
+            if st.button("🔬 PCA", use_container_width=True):
                 with st.spinner("Computing PCA..."):
                     results = ml.pca_analysis(features, n_components=n_components)
                     st.session_state.analysis_results['pca_new'] = results
 
     with col2:
         if method == "t-SNE":
-            if st.button("📊 t-SNE", width='stretch'):
+            if st.button("📊 t-SNE", use_container_width=True):
                 with st.spinner("Computing t-SNE..."):
                     results = ml.tsne_analysis(features, n_components=n_components)
                     st.session_state.analysis_results['tsne'] = results
 
     with col3:
         if method == "UMAP":
-            if st.button("🔷 UMAP", width='stretch'):
+            if st.button("🔷 UMAP", use_container_width=True):
                 with st.spinner("Computing UMAP..."):
                     results = ml.umap_analysis(features, n_components=n_components)
                     st.session_state.analysis_results['umap'] = results
@@ -3314,14 +3990,14 @@ def render_dimreduction_tab():
     col4, col5 = st.columns(2)
     with col4:
         if method == "SVD":
-            if st.button("📐 SVD", width='stretch'):
+            if st.button("📐 SVD", use_container_width=True):
                 with st.spinner("Computing SVD..."):
                     results = ml.svd_analysis(features, n_components=n_components)
                     st.session_state.analysis_results['svd'] = results
 
     with col5:
         if method == "ICA":
-            if st.button("🔀 ICA", width='stretch'):
+            if st.button("🔀 ICA", use_container_width=True):
                 with st.spinner("Computing ICA..."):
                     results = ml.ica_analysis(features, n_components=n_components)
                     st.session_state.analysis_results['ica'] = results
@@ -3339,7 +4015,7 @@ def render_dimreduction_tab():
             if len(explained_var) > 0:
                 fig = px.bar(x=[f'PC{i+1}' for i in range(len(explained_var))], y=explained_var,
                             title='Explained Variance per Component', template=PLOTLY_TEMPLATE)
-                st.plotly_chart(fig, width='stretch')
+                st.plotly_chart(fig, use_container_width=True)
 
             # Enhanced Cartesian biplot with feature vectors
             transformed = results.get('transformed_data')
@@ -3361,7 +4037,7 @@ def render_dimreduction_tab():
                         feature_names,
                         scale_factor=3.0
                     )
-                    st.plotly_chart(fig_biplot, width='stretch')
+                    st.plotly_chart(fig_biplot, use_container_width=True)
 
                     # Display insights
                     st.markdown("### 📊 Vector Interpretation Guide")
@@ -3400,7 +4076,7 @@ def render_dimreduction_tab():
                                         labels={'x': 'PC1', 'y': 'PC2'},
                                         template=PLOTLY_TEMPLATE)
                     fig_pc.update_layout(height=500)
-                    st.plotly_chart(fig_pc, width='stretch')
+                    st.plotly_chart(fig_pc, use_container_width=True)
 
     if 'tsne' in st.session_state.analysis_results:
         results = st.session_state.analysis_results['tsne']
@@ -3411,7 +4087,7 @@ def render_dimreduction_tab():
                 fig = px.scatter(x=data[:, 0], y=data[:, 1] if data.shape[1] > 1 else data[:, 0],
                                title='t-SNE Projection', template=PLOTLY_TEMPLATE)
                 fig.update_layout(height=500)
-                st.plotly_chart(fig, width='stretch')
+                st.plotly_chart(fig, use_container_width=True)
 
     if 'umap' in st.session_state.analysis_results:
         results = st.session_state.analysis_results['umap']
@@ -3422,7 +4098,7 @@ def render_dimreduction_tab():
                 fig = px.scatter(x=data[:, 0], y=data[:, 1] if data.shape[1] > 1 else data[:, 0],
                                title='UMAP Projection', template=PLOTLY_TEMPLATE)
                 fig.update_layout(height=500)
-                st.plotly_chart(fig, width='stretch')
+                st.plotly_chart(fig, use_container_width=True)
 
     if 'svd' in st.session_state.analysis_results:
         results = st.session_state.analysis_results['svd']
@@ -3433,7 +4109,7 @@ def render_dimreduction_tab():
                 fig = px.scatter(x=data[:, 0], y=data[:, 1] if data.shape[1] > 1 else data[:, 0],
                                title='SVD Projection', template=PLOTLY_TEMPLATE)
                 fig.update_layout(height=500)
-                st.plotly_chart(fig, width='stretch')
+                st.plotly_chart(fig, use_container_width=True)
 
     if 'ica' in st.session_state.analysis_results:
         results = st.session_state.analysis_results['ica']
@@ -3444,7 +4120,7 @@ def render_dimreduction_tab():
                 fig = px.scatter(x=data[:, 0], y=data[:, 1] if data.shape[1] > 1 else data[:, 0],
                                title='ICA Projection', template=PLOTLY_TEMPLATE)
                 fig.update_layout(height=500)
-                st.plotly_chart(fig, width='stretch')
+                st.plotly_chart(fig, use_container_width=True)
 
 
 # =============================================================================
@@ -3538,9 +4214,7 @@ def main():
             "🎯 Clustering",
             "🚨 Anomaly Detection",
             "📉 Dimensionality Reduction",
-            "🔀 Non-Linear Analysis",
-            "🖼️ Image Recognition",
-            "🌿 Biomass Segmentation"
+            "🔀 Non-Linear Analysis"
         ])
 
         with ml_subtabs[0]:
@@ -3555,10 +4229,6 @@ def main():
             render_dimreduction_tab()
         with ml_subtabs[5]:
             render_nonlinear_tab()
-        with ml_subtabs[6]:
-            render_image_tab()
-        with ml_subtabs[7]:
-            render_biomass_tab()
 
     # =========================================================================
     # 📈 VISUALIZATION GROUP
