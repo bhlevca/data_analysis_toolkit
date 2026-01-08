@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Optional pre-rebase hook: aborts rebase to prevent rewriting published branch history.
+# Enable locally with: git config core.hooksPath .githooks
+
+branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+if [ "$branch" = "" ]; then
+  echo "[pre-rebase] Could not determine current branch. Aborting rebase as a safety measure."
+  exit 1
+fi
+
+# Only block rebase on shared branches; add more names as needed.
+if [ "$branch" = "main" ] || [ "$branch" = "developer" ]; then
+  echo "[pre-rebase] Rebasing branch '$branch' is disallowed by project policy."
+  echo "[pre-rebase] If you need to rebase, discuss with the team or enable temporary override." 
+  exit 1
+fi
+
+# Otherwise allow rebase to proceed
+exit 0
