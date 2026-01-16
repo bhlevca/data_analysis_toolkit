@@ -24,6 +24,20 @@ This directory contains synthetic datasets designed to test all features of the 
 | `twoway_anova_data.csv` | 30 | 3 | Two-Way ANOVA (treatment × gender) |
 | `repeated_measures_anova_data.csv` | 40 | 3 | Repeated-Measures ANOVA (within-subjects) |
 
+### v4.0 Scientific Research Demo Files
+
+| File | Rows | Columns | Primary Use |
+|------|------|---------|-------------|
+| `survival_demo_data.csv` | 60 | 10 | Kaplan-Meier, Cox regression, survival analysis |
+| `effect_sizes_demo_data.csv` | 50 | 9 | Cohen's d, Hedges' g, effect size calculations |
+| `data_quality_demo_data.csv` | 50 | 10 | Missing data analysis, outlier detection, imputation |
+| `feature_selection_demo_data.csv` | 50 | 18 | RFE, Boruta, SHAP feature selection |
+| `interpretability_demo_data.csv` | 50 | 13 | SHAP, LIME, model interpretability |
+| `advanced_timeseries_demo_data.csv` | 90 | 7 | Prophet, changepoint detection, DTW |
+| `model_validation_demo_data.csv` | 100 | 9 | Cross-validation, learning curves, calibration |
+| `domain_ecology_demo_data.csv` | 48 | 16 | Mann-Kendall, ecology, environmental analysis |
+| `domain_clinical_demo_data.csv` | 50 | 11 | Bland-Altman, clinical agreement, ROC |
+
 ---
 
 ## Detailed Descriptions
@@ -582,6 +596,243 @@ The following files were added to support new features:
 - ✅ SARIMA modeling
 - ✅ Forecast with confidence intervals
 - ✅ Seasonal decomposition
+
+---
+
+## v4.0 Scientific Research Edition Demo Files
+
+The following files were added in v4.0 to demonstrate the new scientific research features.
+
+### survival_demo_data.csv
+**Purpose**: Survival analysis demonstrations (Kaplan-Meier, Cox regression)
+
+**Columns**:
+- `patient_id`: Unique patient identifier
+- `age`: Patient age (36-74 years)
+- `gender`: M/F
+- `treatment`: drug_a, drug_b, or placebo
+- `stage`: Disease stage (1, 2, or 3)
+- `time_to_event`: Days until event or censoring
+- `event`: 1 = event occurred, 0 = censored
+- `biomarker_a`, `biomarker_b`: Biomarker values
+- `comorbidity_score`: Comorbidity index (0-3)
+
+**Test These Features**:
+- ✅ Kaplan-Meier survival curves by treatment group
+- ✅ Cox proportional hazards regression
+- ✅ Log-rank test for group comparisons
+- ✅ Hazard ratio estimation
+
+---
+
+### effect_sizes_demo_data.csv
+**Purpose**: Effect size calculations for treatment comparisons
+
+**Columns**:
+- `subject_id`: Unique subject identifier
+- `group`: control or treatment
+- `treatment`: placebo or drug
+- `pre_score`, `post_score`: Pre/post measurements
+- `improvement`: Post - Pre difference
+- `reaction_time`: Response time (ms)
+- `accuracy`: Accuracy score (0-1)
+- `satisfaction`: Satisfaction rating (1-5)
+
+**Test These Features**:
+- ✅ Cohen's d for group comparisons
+- ✅ Hedges' g (bias-corrected)
+- ✅ Glass's Δ
+- ✅ Effect size confidence intervals
+- ✅ Power analysis
+
+**Expected Results**:
+- Large effect size (d > 1.0) for post_score between groups
+- Treatment group shows ~11 point improvement vs ~1.5 for control
+
+---
+
+### data_quality_demo_data.csv
+**Purpose**: Data quality assessment with intentional issues
+
+**Columns**:
+- `id`: Record identifier
+- `age`: Age with some outliers (e.g., 200) and missing values
+- `income`: Income with negative values and missing
+- `education_years`: Education with missing values
+- `employment_status`: Categorical with missing
+- `health_score`: Health score with missing values
+- `satisfaction`: Rating with missing values
+- `response_time`: Response time with missing values
+- `category`: Categorical variable
+- `measurement`: Measurement with extreme outliers
+
+**Test These Features**:
+- ✅ Missing data pattern analysis (MCAR/MAR/MNAR)
+- ✅ Imputation (mean, median, KNN, MICE)
+- ✅ Outlier detection (IQR, Z-score, isolation forest)
+- ✅ Data validation rules
+
+**Expected Issues**:
+- ~15% missing values across various columns
+- Age outlier at row 26 (age=200)
+- Income outlier at row 41 (income=-5000)
+- Measurement outlier at row 11 (value=350.2)
+
+---
+
+### feature_selection_demo_data.csv
+**Purpose**: Feature selection method comparison
+
+**Columns**:
+- `id`: Record identifier
+- `important_feature_1,2,3`: Strong predictors (high importance)
+- `moderate_feature_1,2`: Moderate predictors
+- `weak_feature_1,2`: Weak predictors
+- `noise_1,2,3,4,5`: Random noise (no signal)
+- `correlated_1,2`: Highly correlated with important features
+- `interaction_1,2`: Features with interaction effects
+- `target`: Continuous target variable
+
+**Test These Features**:
+- ✅ RFE (Recursive Feature Elimination)
+- ✅ Boruta feature selection
+- ✅ SHAP-based selection
+- ✅ Lasso regularization
+- ✅ Statistical feature selection (F-test, MI)
+
+**Expected Results**:
+- important_feature_* should rank highest
+- noise_* should be eliminated
+- correlated_* may be redundant with important_*
+
+---
+
+### interpretability_demo_data.csv
+**Purpose**: Model interpretability demonstrations (SHAP, LIME)
+
+**Columns**:
+- `id`: Record identifier
+- `feature_1` to `feature_10`: Numeric predictors
+- `category`: Binary category (A/B)
+- `target`: Binary target (0/1)
+
+**Test These Features**:
+- ✅ SHAP summary plots
+- ✅ SHAP force plots for individual predictions
+- ✅ LIME explanations
+- ✅ Permutation feature importance
+- ✅ Partial dependence plots
+
+**Expected Results**:
+- feature_1, feature_2, feature_4 should show highest SHAP importance
+- Clear separation between category A (target=1) and B (target=0)
+
+---
+
+### advanced_timeseries_demo_data.csv
+**Purpose**: Advanced time series analysis (Prophet, changepoints, DTW)
+
+**Columns**:
+- `date`: Daily dates (2020-01-01 to 2020-03-31)
+- `value`: Main time series with trend and changepoints
+- `temperature`: External regressor
+- `rainfall`: External regressor
+- `trend_component`: True trend (for validation)
+- `seasonal_component`: True seasonal pattern
+- `noise_component`: Noise added
+
+**Test These Features**:
+- ✅ Prophet forecasting
+- ✅ Changepoint detection (PELT, Binary Segmentation)
+- ✅ DTW similarity to reference series
+- ✅ Trend analysis
+
+**Expected Changepoints**:
+- Around day 21: Shift from ~100 to ~125
+- Around day 41: Shift from ~130 to ~175
+
+---
+
+### model_validation_demo_data.csv
+**Purpose**: Comprehensive model validation demonstrations
+
+**Columns**:
+- `id`: Record identifier
+- `feature_1` to `feature_5`: Numeric predictors
+- `numeric_target`: Continuous target for regression
+- `binary_target`: Binary target (0/1) for classification
+- `multiclass_target`: Multi-class target (A/B/C)
+
+**Test These Features**:
+- ✅ K-fold cross-validation
+- ✅ Nested cross-validation
+- ✅ Learning curve analysis
+- ✅ Calibration plots
+- ✅ Residual diagnostics
+
+**Use Cases**:
+- Regression: Predict `numeric_target` from features
+- Binary classification: Predict `binary_target`
+- Multiclass: Predict `multiclass_target`
+
+---
+
+### domain_ecology_demo_data.csv
+**Purpose**: Ecological and environmental data analysis
+
+**Columns**:
+- `site_id`: Sampling site identifier
+- `year`: Year of observation (2015-2020)
+- `temperature`: Water temperature (°C)
+- `ph`: Water pH
+- `dissolved_oxygen`: DO levels (mg/L)
+- `nitrogen`, `phosphorus`: Nutrient levels
+- `chlorophyll_a`: Chlorophyll concentration
+- `species_richness`: Number of species observed
+- `species_diversity`: Shannon diversity index
+- `abundance`: Total organism count
+- `latitude`, `longitude`, `elevation`: Spatial coordinates
+- `land_use`: forest, wetland, agricultural, urban, mixed
+- `water_quality_index`: Composite quality score
+
+**Test These Features**:
+- ✅ Mann-Kendall trend test
+- ✅ Shannon diversity calculations
+- ✅ Spatial autocorrelation (Moran's I)
+- ✅ Environmental gradient analysis
+
+**Expected Results**:
+- Declining water quality trend for urban/agricultural sites
+- Stable/improving trend for forest sites
+- Strong correlation between land_use and water_quality_index
+
+---
+
+### domain_clinical_demo_data.csv
+**Purpose**: Clinical method comparison and agreement analysis
+
+**Columns**:
+- `patient_id`: Patient identifier
+- `method_new`, `method_reference`: Paired measurements for Bland-Altman
+- `method_a`, `method_b`: Alternative measurement methods
+- `rater_1`, `rater_2`, `rater_3`: Inter-rater scores
+- `gold_standard`: Reference diagnosis (positive/negative)
+- `test_result`: Test outcome for sensitivity/specificity
+- `biomarker_level`: Continuous biomarker measurement
+
+**Test These Features**:
+- ✅ Bland-Altman analysis
+- ✅ Method comparison regression
+- ✅ Inter-rater reliability (ICC, Kappa)
+- ✅ ROC curve analysis
+- ✅ Sensitivity/Specificity calculations
+
+**Expected Results**:
+- Good agreement between method_new and method_reference (mean diff ~0.3)
+- High inter-rater reliability (ICC > 0.9)
+- One false negative case (P009)
+
+---
 
 ### Generating New Test Data
 

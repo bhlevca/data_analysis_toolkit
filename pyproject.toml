@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "advanced-data-toolkit"
-version = "10.0.0"
+version = "4.0.0"
 description = "A comprehensive data analysis toolkit with Streamlit GUI, neural networks, and integrated tutorial"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -78,6 +78,26 @@ rust = [
 neural = [
     "tensorflow>=2.10.0",
 ]
+survival = [
+    "lifelines>=0.27.0",
+]
+interpretability = [
+    "shap>=0.42.0",
+    "lime>=0.2.0",
+]
+timeseries = [
+    "prophet>=1.1.0",
+    "ruptures>=1.1.0",
+    "dtaidistance>=2.3.0",
+]
+ecology = [
+    "pymannkendall>=1.4.0",
+    "esda>=2.4.0",
+    "libpysal>=4.7.0",
+]
+reporting = [
+    "jinja2>=3.0.0",
+]
 image = [
     "Pillow>=9.0.0",
     "opencv-python>=4.6.0",
@@ -86,13 +106,21 @@ all = [
     "tensorflow>=2.10.0",
     "jupyter>=1.0.0",
     "ipywidgets>=8.0.0",
+    "lifelines>=0.27.0",
+    "shap>=0.42.0",
+    "lime>=0.2.0",
+    "prophet>=1.1.0",
+    "ruptures>=1.1.0",
+    "dtaidistance>=2.3.0",
+    "pymannkendall>=1.4.0",
+    "jinja2>=3.0.0",
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/advanced-data-toolkit"
-Documentation = "https://github.com/yourusername/advanced-data-toolkit#readme"
-Repository = "https://github.com/yourusername/advanced-data-toolkit.git"
-Issues = "https://github.com/yourusername/advanced-data-toolkit/issues"
+Homepage = "https://github.com/bhlevca/advanced-data-toolkit"
+Documentation = "https://github.com/bhlevca/advanced-data-toolkit#readme"
+Repository = "https://github.com/bhlevca/advanced-data-toolkit.git"
+Issues = "https://github.com/bhlevca/advanced-data-toolkit/issues"
 
 [project.scripts]
 data-toolkit = "data_toolkit.main_gui:main"

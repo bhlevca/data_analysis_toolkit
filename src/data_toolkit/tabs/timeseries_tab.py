@@ -36,6 +36,7 @@ def render_timeseries_tab():
     df = st.session_state.df
     features = st.session_state.feature_cols
     all_numeric = df.select_dtypes(include=[np.number]).columns.tolist()
+    all_cols = df.columns.tolist()
 
     ts = TimeSeriesAnalysis(df)
 
@@ -44,34 +45,77 @@ def render_timeseries_tab():
     with col1:
         st.markdown("#### Axis Selection")
 
-        # X-axis selection
-        x_options = ['Index (Row Number)'] + all_numeric
-        x_col = st.selectbox("X-axis (Time/Index)", x_options,
-                            help="Select a column for X-axis (typically time/date) or use row index")
+        # X-axis selection - include ALL columns (not just numeric)
+        # Try to find a sensible default time column
+        x_options = all_cols  # All columns available for X-axis
+        
+        # Find default: prefer columns with 'time' or 't' in name, otherwise first column
+        default_x_idx = 0
+        for i, col in enumerate(x_options):
+            col_lower = col.lower()
+            if col_lower in ['time', 't', 'timestamp', 'date', 'datetime', 'x']:
+                default_x_idx = i
+                break
+            elif 'time' in col_lower or col_lower == 't':
+                default_x_idx = i
+                break
+        
+        x_col = st.selectbox("X-axis (Time)", x_options, index=default_x_idx,
+                            help="Select a column for X-axis (typically time/date)", key="ts_xaxis")
 
-        # Y-axis selection
-        selected_col = st.selectbox("Y-axis (Value)", features)
+        # Y-axis selection - exclude the X column to avoid "time vs time"
+        y_options = [f for f in features if f != x_col]
+        if not y_options:
+            # Fallback: use all numeric columns except x_col
+            y_options = [c for c in all_numeric if c != x_col]
+        if not y_options:
+            st.warning("⚠️ No valid Y-axis columns available (all columns are used as X-axis)")
+            return
+        
+        # Multi-select for Y columns
+        selected_cols = st.multiselect("Y-axis (Values)", y_options, default=[y_options[0]] if y_options else [], key="ts_yaxis",
+                                       help="Select one or more columns to plot")
+        
+        if not selected_cols:
+            st.warning("⚠️ Please select at least one Y-axis column.")
+            return
+        
+        # Use the first selected column for analysis functions
+        selected_col = selected_cols[0]
 
-        max_lag = st.slider("Max Lag", 5, 50, 20)
+        max_lag = st.slider("Max Lag", 5, 50, 20, key="ts_maxlag")
 
     # Plot the time series
     st.subheader("📈 Time Series Plot")
-    series = df[selected_col].dropna()
-
+    
     fig = go.Figure()
-
-    if x_col == 'Index (Row Number)':
-        # Use row index as X-axis
-        fig.add_trace(go.Scatter(x=series.index, y=series, mode='lines', name=selected_col))
-        fig.update_layout(xaxis_title='Index', yaxis_title=selected_col)
-    else:
-        # Use selected column as X-axis
-        x_data = df[x_col].loc[series.index]  # Match indices with non-null Y values
-        fig.add_trace(go.Scatter(x=x_data, y=series, mode='lines', name=selected_col))
-        fig.update_layout(xaxis_title=x_col, yaxis_title=selected_col)
-
-    fig.update_layout(title=f'Time Series: {selected_col}', template=PLOTLY_TEMPLATE, height=400)
-    st.plotly_chart(fig, width='stretch')
+    
+    # Plot all selected columns
+    colors = ['steelblue', 'crimson', 'green', 'orange', 'purple', 'brown', 'pink', 'gray']
+    for i, col in enumerate(selected_cols):
+        series = df[col].dropna()
+        x_data = df[x_col].loc[series.index]
+        fig.add_trace(go.Scatter(
+            x=x_data, y=series, mode='lines', 
+            name=col,
+            line=dict(color=colors[i % len(colors)])
+        ))
+    
+    fig.update_layout(
+        title=f'Time Series: {", ".join(selected_cols)}',
+        xaxis_title=x_col,
+        yaxis_title='Value',
+        template=PLOTLY_TEMPLATE, 
+        height=400
+    )
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # For analysis, use the first selected column
+    series = df[selected_col].dropna()
+    
+    # Store x_col and x_data for use by other plots
+    st.session_state['ts_x_col'] = x_col
+    st.session_state['ts_x_data'] = x_data.values.tolist() if hasattr(x_data, 'values') else list(x_data)
 
     with col2:
         col_a, col_b, col_c, col_d = st.columns(4)
@@ -96,10 +140,13 @@ def render_timeseries_tab():
 
         with col_d:
             default_win = min(30, max(1, len(series)//5))
-            window = st.number_input("Rolling window (samples)", min_value=1, max_value=max(1, len(series)), value=default_win, step=1)
+            window = st.number_input("Rolling window (samples)", min_value=1, max_value=max(1, len(series)), value=default_win, step=1, key="ts_window")
             if st.button("🔄 Rolling Stats", width='stretch'):
                 # Correct API: rolling_statistics(column, window)
                 results = ts.rolling_statistics(selected_col, int(window))
+                # Store x_data with results for proper plotting
+                results['x_data'] = st.session_state.get('ts_x_data', list(range(len(results.get('original', [])))))
+                results['x_col'] = st.session_state.get('ts_x_col', 'Index')
                 st.session_state.analysis_results['rolling'] = results
 
     st.markdown("---")
@@ -160,13 +207,274 @@ def render_timeseries_tab():
             original = results.get('original', [])
             rolling_mean = results.get('rolling_mean', [])
             rolling_std = results.get('rolling_std', [])
+            x_data = results.get('x_data', list(range(len(original))))
+            x_col = results.get('x_col', 'Index')
 
             fig = go.Figure()
-            fig.add_trace(go.Scatter(y=original, mode='lines', name='Original', opacity=0.7))
-            fig.add_trace(go.Scatter(y=rolling_mean, mode='lines', name='Rolling Mean', line=dict(color='red')))
-            fig.add_trace(go.Scatter(y=rolling_std, mode='lines', name='Rolling Std', line=dict(color='green')))
-            fig.update_layout(title='Rolling Statistics', template=PLOTLY_TEMPLATE, height=400)
+            fig.add_trace(go.Scatter(x=x_data, y=original, mode='lines', name='Original', opacity=0.7))
+            fig.add_trace(go.Scatter(x=x_data, y=rolling_mean, mode='lines', name='Rolling Mean', line=dict(color='red')))
+            fig.add_trace(go.Scatter(x=x_data, y=rolling_std, mode='lines', name='Rolling Std', line=dict(color='green')))
+            fig.update_layout(title='Rolling Statistics', xaxis_title=x_col, template=PLOTLY_TEMPLATE, height=400)
             st.plotly_chart(fig, width='stretch')
+
+    # ===== CROSS-CORRELATION (CCF) SECTION =====
+    st.markdown("---")
+    st.subheader("📊 Cross-Correlation Analysis (CCF)")
+    st.caption("Find lead-lag relationships between two time series")
+    
+    with st.expander("🔗 Cross-Correlation Between Two Series", expanded=True):
+        ccf_col1, ccf_col2 = st.columns(2)
+        
+        with ccf_col1:
+            ccf_series1 = st.selectbox("First Time Series (X)", features, key="ccf1")
+        with ccf_col2:
+            other_features = [f for f in features if f != ccf_series1]
+            ccf_series2 = st.selectbox("Second Time Series (Y)", 
+                                       other_features if other_features else features, 
+                                       key="ccf2")
+        
+        ccf_max_lag = st.slider("Maximum Lag", 5, 100, 30, key="ccf_lag",
+                               help="Compute correlations from -lag to +lag")
+        
+        st.info("""📖 **Interpretation:**
+- **Positive lag**: X leads Y (X changes first, Y follows)
+- **Negative lag**: Y leads X (Y changes first, X follows)
+- **Best lag**: The lag with strongest (absolute) correlation""")
+        
+        if st.button("📊 Compute Cross-Correlation", width='stretch'):
+            with st.spinner("Computing cross-correlation function..."):
+                results = ts.cross_correlation(ccf_series1, ccf_series2, ccf_max_lag)
+                st.session_state.analysis_results['ccf'] = results
+                
+                if 'error' in results:
+                    st.error(f"CCF failed: {results['error']}")
+                else:
+                    st.success(f"✅ Best correlation r={results['best_correlation']:.4f} at lag={results['best_lag']}")
+    
+    # Display CCF results
+    if 'ccf' in st.session_state.analysis_results:
+        results = st.session_state.analysis_results['ccf']
+        
+        if 'error' not in results:
+            st.markdown("#### 📊 Cross-Correlation Results")
+            
+            col1_name = results.get('column1', 'X')
+            col2_name = results.get('column2', 'Y')
+            
+            # Metrics
+            mcol1, mcol2, mcol3, mcol4 = st.columns(4)
+            mcol1.metric("Best Lag", results.get('best_lag', 0))
+            mcol2.metric("Best Correlation", f"{results.get('best_correlation', 0):.4f}")
+            mcol3.metric("N Observations", results.get('n_obs', 0))
+            
+            best_lag = results.get('best_lag', 0)
+            if best_lag > 0:
+                mcol4.info(f"{col1_name} leads")
+            elif best_lag < 0:
+                mcol4.info(f"{col2_name} leads")
+            else:
+                mcol4.info("Synchronized")
+            
+            st.info(f"📊 **{results.get('interpretation', '')}**")
+            
+            # CCF Plot
+            lags = results.get('lags', [])
+            correlations = results.get('correlations', [])
+            conf_upper = results.get('conf_int_upper', 0)
+            best_lag = results.get('best_lag', 0)
+            
+            fig = go.Figure()
+            
+            # Line plot for CCF (better for sinusoidal patterns)
+            fig.add_trace(go.Scatter(
+                x=lags, y=correlations,
+                mode='lines+markers',
+                line=dict(color='steelblue', width=2),
+                marker=dict(size=4),
+                name='CCF'
+            ))
+            
+            # Confidence bounds
+            fig.add_hline(y=conf_upper, line_dash='dash', line_color='red', 
+                         annotation_text='95% CI', annotation_position='top right')
+            fig.add_hline(y=-conf_upper, line_dash='dash', line_color='red')
+            
+            # Mark best lag
+            fig.add_vline(x=best_lag, line_dash='dot', line_color='green',
+                         annotation_text=f'Best: lag={best_lag}', annotation_position='top left')
+            
+            fig.update_layout(
+                title=f'Cross-Correlation: {col1_name} vs {col2_name}',
+                xaxis_title='Lag (positive = X leads Y)',
+                yaxis_title='Correlation',
+                template=PLOTLY_TEMPLATE,
+                height=450
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Overlay time series plot
+            with st.expander("📈 View Time Series Overlay"):
+                if col1_name in df.columns and col2_name in df.columns:
+                    overlay_data = df[[col1_name, col2_name]].dropna()
+                    
+                    fig_ts = make_subplots(specs=[[{"secondary_y": True}]])
+                    fig_ts.add_trace(
+                        go.Scatter(y=overlay_data[col1_name], mode='lines', name=col1_name),
+                        secondary_y=False
+                    )
+                    fig_ts.add_trace(
+                        go.Scatter(y=overlay_data[col2_name], mode='lines', name=col2_name),
+                        secondary_y=True
+                    )
+                    fig_ts.update_layout(
+                        title='Time Series Comparison',
+                        template=PLOTLY_TEMPLATE,
+                        height=400
+                    )
+                    fig_ts.update_yaxes(title_text=col1_name, secondary_y=False)
+                    fig_ts.update_yaxes(title_text=col2_name, secondary_y=True)
+                    st.plotly_chart(fig_ts, use_container_width=True)
+            
+            # Export CCF data
+            with st.expander("📥 Export CCF Data"):
+                ccf_df = pd.DataFrame({
+                    'Lag': lags,
+                    'Correlation': correlations
+                })
+                csv_ccf = ccf_df.to_csv(index=False)
+                st.download_button(
+                    label="📥 Download CCF (CSV)",
+                    data=csv_ccf,
+                    file_name=f"ccf_{col1_name}_vs_{col2_name}.csv",
+                    mime="text/csv"
+                )
+
+    # ===== MOVING AVERAGE / SMOOTHING SECTION =====
+    st.markdown("---")
+    st.subheader("📈 Moving Average & Smoothing")
+    st.caption("Apply moving average filters and export smoothed data")
+    
+    with st.expander("🔄 Moving Average Calculator", expanded=True):
+        ma_column = st.selectbox("Column to Smooth", features, key="ma_col")
+        
+        st.markdown("**Window Sizes** (select multiple)")
+        ma_col1, ma_col2, ma_col3, ma_col4 = st.columns(4)
+        
+        with ma_col1:
+            use_w5 = st.checkbox("5", value=True, key="ma_w5")
+        with ma_col2:
+            use_w10 = st.checkbox("10", value=True, key="ma_w10")
+        with ma_col3:
+            use_w20 = st.checkbox("20", value=True, key="ma_w20")
+        with ma_col4:
+            custom_window = st.number_input("Custom", min_value=2, max_value=500, value=50, key="ma_custom")
+            use_custom = st.checkbox("Use custom", value=False, key="ma_use_custom")
+        
+        ma_center = st.checkbox("Center moving average", value=True,
+                               help="If checked, the window is centered on each point")
+        
+        # Build window list
+        windows = []
+        if use_w5:
+            windows.append(5)
+        if use_w10:
+            windows.append(10)
+        if use_w20:
+            windows.append(20)
+        if use_custom:
+            windows.append(int(custom_window))
+        
+        if not windows:
+            windows = [10]  # Default
+        
+        if st.button("📊 Calculate Moving Averages", width='stretch'):
+            with st.spinner("Computing moving averages..."):
+                results = ts.moving_average(ma_column, windows=windows, center=ma_center)
+                st.session_state.analysis_results['moving_avg'] = results
+                
+                if 'error' in results:
+                    st.error(f"Moving average failed: {results['error']}")
+                else:
+                    st.success(f"✅ Computed moving averages for windows: {windows}")
+    
+    # Display Moving Average results
+    if 'moving_avg' in st.session_state.analysis_results:
+        results = st.session_state.analysis_results['moving_avg']
+        
+        if 'error' not in results:
+            st.markdown("#### 📈 Moving Average Results")
+            
+            col_name = results.get('column', 'Data')
+            original = results.get('original', [])
+            ma_dict = results.get('moving_averages', {})
+            
+            # Plot
+            fig = go.Figure()
+            
+            # Original data
+            fig.add_trace(go.Scatter(
+                y=original, mode='lines', name='Original',
+                line=dict(color='gray', width=1), opacity=0.6
+            ))
+            
+            # Moving averages with distinct colors
+            colors = ['blue', 'red', 'green', 'orange', 'purple', 'brown']
+            for i, (window, ma_data) in enumerate(ma_dict.items()):
+                if 'warning' not in ma_data:
+                    fig.add_trace(go.Scatter(
+                        y=ma_data['values'], mode='lines',
+                        name=f'MA({window})',
+                        line=dict(color=colors[i % len(colors)], width=2)
+                    ))
+            
+            fig.update_layout(
+                title=f'Moving Averages: {col_name}',
+                xaxis_title='Index',
+                yaxis_title='Value',
+                template=PLOTLY_TEMPLATE,
+                height=500,
+                legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Statistics
+            with st.expander("📊 Smoothing Statistics"):
+                stats_data = []
+                for window, ma_data in ma_dict.items():
+                    if 'warning' not in ma_data:
+                        ma_values = [v for v in ma_data['values'] if not np.isnan(v)]
+                        stats_data.append({
+                            'Window': window,
+                            'Valid Points': ma_data.get('valid_count', len(ma_values)),
+                            'Mean': np.mean(ma_values) if ma_values else np.nan,
+                            'Std Dev': np.std(ma_values) if ma_values else np.nan,
+                            'Min': np.min(ma_values) if ma_values else np.nan,
+                            'Max': np.max(ma_values) if ma_values else np.nan
+                        })
+                    else:
+                        st.warning(ma_data['warning'])
+                
+                if stats_data:
+                    st.dataframe(pd.DataFrame(stats_data), use_container_width=True)
+            
+            # Export smoothed data
+            st.markdown("#### 📥 Export Smoothed Data")
+            
+            export_df = pd.DataFrame({'Original': original})
+            for window, ma_data in ma_dict.items():
+                if 'warning' not in ma_data:
+                    export_df[f'MA_{window}'] = ma_data['values']
+            
+            st.dataframe(export_df.head(20), use_container_width=True)
+            st.caption("Showing first 20 rows. Download full data below.")
+            
+            csv_ma = export_df.to_csv(index=True)
+            st.download_button(
+                label="📥 Download Smoothed Data (CSV)",
+                data=csv_ma,
+                file_name=f"moving_average_{col_name}.csv",
+                mime="text/csv"
+            )
 
     # ===== ARIMA/SARIMA FORECASTING SECTION =====
     st.markdown("---")

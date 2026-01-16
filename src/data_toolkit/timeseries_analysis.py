@@ -97,6 +97,131 @@ class TimeSeriesAnalysis:
             'n_obs': n
         }
 
+    def cross_correlation(self, column1: str, column2: str, max_lag: int = 40) -> Dict[str, Any]:
+        """
+        Calculate cross-correlation function (CCF) between two time series.
+        
+        Positive lags: column1 leads column2
+        Negative lags: column2 leads column1
+        
+        Args:
+            column1: First time series column name
+            column2: Second time series column name  
+            max_lag: Maximum lag to compute (both positive and negative)
+            
+        Returns:
+            Dictionary with CCF values, lags, best lag, and statistics
+        """
+        if self.df is None:
+            return {'error': 'No data loaded'}
+        
+        # Get aligned data
+        data = self.df[[column1, column2]].dropna()
+        if len(data) < max_lag + 2:
+            return {'error': f'Insufficient data: need at least {max_lag + 2} observations'}
+        
+        x = data[column1].values
+        y = data[column2].values
+        n = len(x)
+        
+        # Standardize the series
+        x_std = (x - np.mean(x)) / np.std(x)
+        y_std = (y - np.mean(y)) / np.std(y)
+        
+        lags = list(range(-max_lag, max_lag + 1))
+        correlations = []
+        
+        for lag in lags:
+            if lag < 0:
+                # y leads x (negative lag: shift y backward / x forward)
+                corr = np.corrcoef(x_std[-lag:], y_std[:lag])[0, 1]
+            elif lag > 0:
+                # x leads y (positive lag: shift x backward / y forward)
+                corr = np.corrcoef(x_std[:-lag], y_std[lag:])[0, 1]
+            else:
+                # No lag
+                corr = np.corrcoef(x_std, y_std)[0, 1]
+            correlations.append(corr)
+        
+        # Find best lag (maximum absolute correlation)
+        best_idx = np.argmax(np.abs(correlations))
+        best_lag = lags[best_idx]
+        best_corr = correlations[best_idx]
+        
+        # Confidence interval (95%)
+        conf_int = 1.96 / np.sqrt(n)
+        
+        # Interpretation
+        if best_lag < 0:
+            interpretation = f"{column2} leads {column1} by {abs(best_lag)} periods"
+        elif best_lag > 0:
+            interpretation = f"{column1} leads {column2} by {best_lag} periods"
+        else:
+            interpretation = f"{column1} and {column2} are synchronized (no lead/lag)"
+        
+        return {
+            'lags': lags,
+            'correlations': correlations,
+            'best_lag': best_lag,
+            'best_correlation': best_corr,
+            'conf_int_upper': conf_int,
+            'conf_int_lower': -conf_int,
+            'n_obs': n,
+            'column1': column1,
+            'column2': column2,
+            'interpretation': interpretation,
+            'column1_leads': best_lag > 0,
+            'column2_leads': best_lag < 0
+        }
+
+    def moving_average(self, column: str, windows: List[int] = None, 
+                       center: bool = True, min_periods: int = 1) -> Dict[str, Any]:
+        """
+        Calculate moving averages with multiple window sizes.
+        
+        Args:
+            column: Column name to smooth
+            windows: List of window sizes (default: [5, 10, 20])
+            center: Whether to center the moving average (default: True)
+            min_periods: Minimum observations required (default: 1)
+            
+        Returns:
+            Dictionary with original data and moving averages for each window
+        """
+        if self.df is None:
+            return {'error': 'No data loaded'}
+        
+        if windows is None:
+            windows = [5, 10, 20]
+        
+        data = self.df[column].dropna()
+        n = len(data)
+        
+        result = {
+            'column': column,
+            'original': data.values.tolist(),
+            'index': data.index.tolist(),
+            'n_obs': n,
+            'moving_averages': {},
+            'windows': windows
+        }
+        
+        for window in windows:
+            if window > n:
+                result['moving_averages'][window] = {
+                    'values': [np.nan] * n,
+                    'warning': f'Window {window} exceeds data length {n}'
+                }
+                continue
+            
+            ma = data.rolling(window=window, center=center, min_periods=min_periods).mean()
+            result['moving_averages'][window] = {
+                'values': ma.values.tolist(),
+                'valid_count': int(ma.notna().sum())
+            }
+        
+        return result
+
     def pacf_analysis(self, column: str, lags: int = 40) -> Dict[str, Any]:
         """
         Calculate partial autocorrelation function

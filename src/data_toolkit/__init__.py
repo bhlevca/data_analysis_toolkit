@@ -6,15 +6,38 @@ A comprehensive, modular data analysis application with modern GUI.
 
 Modules
 -------
+Core Analysis:
 - data_loading_methods: Data loading and preprocessing
-- statistical_analysis: Statistical analysis tools
+- statistical_analysis: Statistical analysis tools (with multiple testing, VIF, robust stats)
 - ml_models: Machine learning models
 - neural_networks: Deep learning models (MLP, LSTM, Autoencoder)
+
+Statistical Methods:
 - bayesian_analysis: Bayesian statistical methods
 - uncertainty_analysis: Uncertainty quantification
-- nonlinear_analysis: Non-linear analysis methods
+- effect_sizes: Effect size calculations (Cohen's d, eta-squared, etc.)
+
+Time Series & Signal:
 - timeseries_analysis: Time series analysis
+- advanced_timeseries: Prophet, changepoint detection, DTW, VAR
+- signal_analysis: Signal processing methods
+
+Specialized Analysis:
+- nonlinear_analysis: Non-linear analysis methods
 - causality_analysis: Causality testing
+- survival_analysis: Kaplan-Meier, Cox regression
+- domain_specific: Ecology, climate, biostatistics methods
+
+Data & Model Quality:
+- data_quality: Missing data analysis, imputation, transformations
+- model_validation: Cross-validation, calibration, diagnostics
+- feature_selection: RFE, Boruta, SHAP-based selection
+
+Interpretation & Reporting:
+- interpretability: SHAP, LIME, permutation importance
+- report_generator: Automated reproducible reports
+
+Visualization:
 - visualization_methods: Data visualization
 
 Quick Start
@@ -37,6 +60,12 @@ Or use as a library::
     # Neural Networks
     nn = NeuralNetworkModels(loader.df)
     lstm_results = nn.lstm_forecast('price', sequence_length=30)
+    
+    # New modules
+    from data_toolkit import EffectSizes, ModelValidation, SurvivalAnalysis
+    
+    effect = EffectSizes(loader.df)
+    cohens_d = effect.cohens_d('group1_col', 'group2_col')
 """
 
 from .bayesian_analysis import BayesianAnalysis
@@ -48,6 +77,42 @@ from .statistical_analysis import StatisticalAnalysis
 from .timeseries_analysis import TimeSeriesAnalysis
 from .uncertainty_analysis import UncertaintyAnalysis
 from .visualization_methods import VisualizationMethods
+
+# New analysis modules
+from .effect_sizes import EffectSizes
+from .model_validation import ModelValidation
+from .report_generator import ReportGenerator
+from .data_quality import DataQuality
+from .feature_selection import FeatureSelection
+
+# Optional modules (may have additional dependencies)
+try:
+    from .interpretability import ModelInterpretability
+    INTERPRETABILITY_AVAILABLE = True
+except ImportError:
+    ModelInterpretability = None
+    INTERPRETABILITY_AVAILABLE = False
+
+try:
+    from .survival_analysis import SurvivalAnalysis
+    SURVIVAL_AVAILABLE = True
+except ImportError:
+    SurvivalAnalysis = None
+    SURVIVAL_AVAILABLE = False
+
+try:
+    from .advanced_timeseries import AdvancedTimeSeries
+    ADVANCED_TS_AVAILABLE = True
+except ImportError:
+    AdvancedTimeSeries = None
+    ADVANCED_TS_AVAILABLE = False
+
+try:
+    from .domain_specific import DomainSpecificAnalysis
+    DOMAIN_SPECIFIC_AVAILABLE = True
+except ImportError:
+    DomainSpecificAnalysis = None
+    DOMAIN_SPECIFIC_AVAILABLE = False
 
 # Neural Networks (optional - requires TensorFlow)
 try:
@@ -110,4 +175,18 @@ __all__ = [
     'PluginParameter',
     'get_plugin_template',
     'get_example_plugins',
+    # New modules (v10.0)
+    'EffectSizes',
+    'ModelValidation',
+    'ReportGenerator',
+    'DataQuality',
+    'FeatureSelection',
+    'ModelInterpretability',
+    'INTERPRETABILITY_AVAILABLE',
+    'SurvivalAnalysis',
+    'SURVIVAL_AVAILABLE',
+    'AdvancedTimeSeries',
+    'ADVANCED_TS_AVAILABLE',
+    'DomainSpecificAnalysis',
+    'DOMAIN_SPECIFIC_AVAILABLE',
 ]
