@@ -60,33 +60,34 @@ Or use as a library::
     # Neural Networks
     nn = NeuralNetworkModels(loader.df)
     lstm_results = nn.lstm_forecast('price', sequence_length=30)
-    
+
     # New modules
     from data_toolkit import EffectSizes, ModelValidation, SurvivalAnalysis
-    
+
     effect = EffectSizes(loader.df)
     cohens_d = effect.cohens_d('group1_col', 'group2_col')
 """
 
 from .bayesian_analysis import BayesianAnalysis
+from .cart_analysis import CARTAnalysis, sensitivity_to_cart_workflow
 from .causality_analysis import CausalityAnalysis
 from .data_loading_methods import DataLoader
+from .data_quality import DataQuality
+# New analysis modules
+from .effect_sizes import EffectSizes
+from .extended_statistics import (DistributionOperations,
+                                  ExtendedStatisticalTests)
+from .feature_selection import FeatureSelection
 from .ml_models import MLModels
+from .model_validation import ModelValidation
 from .nonlinear_analysis import NonLinearAnalysis
+from .report_generator import ReportGenerator
+from .sensitivity_analysis import (SensitivityAnalysis,
+                                   analyze_dataframe_sensitivity)
 from .statistical_analysis import StatisticalAnalysis
 from .timeseries_analysis import TimeSeriesAnalysis
 from .uncertainty_analysis import UncertaintyAnalysis
 from .visualization_methods import VisualizationMethods
-from .sensitivity_analysis import SensitivityAnalysis, analyze_dataframe_sensitivity
-from .extended_statistics import ExtendedStatisticalTests, DistributionOperations
-from .cart_analysis import CARTAnalysis, sensitivity_to_cart_workflow
-
-# New analysis modules
-from .effect_sizes import EffectSizes
-from .model_validation import ModelValidation
-from .report_generator import ReportGenerator
-from .data_quality import DataQuality
-from .feature_selection import FeatureSelection
 
 # Optional modules (may have additional dependencies)
 try:

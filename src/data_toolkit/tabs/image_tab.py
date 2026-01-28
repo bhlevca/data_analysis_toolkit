@@ -9,24 +9,23 @@ Features:
 """
 from __future__ import annotations
 
-import sys
+import json
 import os
-from pathlib import Path
 import shutil
+import sys
 import time
+from pathlib import Path
 
+import numpy as np
 import streamlit as st
 from PIL import Image
-import json
-import numpy as np
 
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_current_dir)
 if _parent_dir not in sys.path:
     sys.path.insert(0, _parent_dir)
 
-from data_toolkit import image_data
-from data_toolkit import image_models
+from data_toolkit import image_data, image_models
 
 PLOTLY_TEMPLATE = "plotly_white"
 
@@ -56,7 +55,7 @@ def render_image_tab():
     # -------------------- Train model --------------------
     with st.expander("🚀 Train CNN Model", expanded=True):
         st.write("📁 Browse and select your dataset folder")
-        
+
         # Compact display: show selected folder (read-only) and a small 'Browse' control
         if 'selected_data_folder' not in st.session_state:
             st.session_state.selected_data_folder = None
@@ -73,10 +72,10 @@ def render_image_tab():
         # Native OS folder picker (works when Streamlit runs locally)
         if right.button('Native Browse'):
             try:
+                import threading
                 import tkinter as tk
                 from tkinter import filedialog
-                import threading
-                
+
                 # Check if we're on the main thread
                 if threading.current_thread() is threading.main_thread():
                     root = tk.Tk()
@@ -92,7 +91,7 @@ def render_image_tab():
                     root.attributes('-topmost', True)
                     folder = filedialog.askdirectory(parent=root)
                     root.destroy()
-                
+
                 if folder:
                     st.session_state.selected_data_folder = folder
                     st.rerun()
@@ -158,7 +157,7 @@ def render_image_tab():
         if labels_source == "labels.csv in folder":
             labels_csv = st.text_input("Labels CSV filename (relative to data folder)", "labels.csv")
         else:
-            uploaded_labels = st.file_uploader("Upload labels.csv", type=["csv"]) 
+            uploaded_labels = st.file_uploader("Upload labels.csv", type=["csv"])
             if uploaded_labels is not None:
                 st.write(f"Uploaded: {uploaded_labels.name}")
         epochs = st.number_input("Epochs", value=12, min_value=1)

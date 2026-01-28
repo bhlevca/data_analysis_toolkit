@@ -102,23 +102,22 @@ from bayesian_analysis import BayesianAnalysis
 from causality_analysis import CausalityAnalysis
 # Import analysis modules
 from data_loading_methods import DataLoader
+from data_quality import DataQuality
+# Import new v4.0 modules
+from effect_sizes import EffectSizes
+from feature_selection import FeatureSelection
 from ml_models import MLModels
+from model_validation import ModelValidation
 from nonlinear_analysis import NonLinearAnalysis
 from pca_visualization import (create_pca_biplot_with_vectors,
                                generate_pca_insights, interpret_vectors)
+from report_generator import ReportGenerator
 from rust_accelerated import (AccelerationSettings, get_backend_name,
                               is_rust_available)
 from statistical_analysis import StatisticalAnalysis
 from timeseries_analysis import TimeSeriesAnalysis
 from uncertainty_analysis import UncertaintyAnalysis
 from visualization_methods import VisualizationMethods
-
-# Import new v4.0 modules
-from effect_sizes import EffectSizes
-from model_validation import ModelValidation
-from data_quality import DataQuality
-from feature_selection import FeatureSelection
-from report_generator import ReportGenerator
 
 # Optional v4.0 modules (may require extra dependencies)
 try:
@@ -152,24 +151,24 @@ except ImportError:
 # This is the single source of truth for all tab implementations.
 # Inline definitions in this file are DEPRECATED and will be removed.
 
-from tabs import (
-    render_data_tab as _render_data_tab_module,
-    render_statistical_tab as _render_statistical_tab_module,
-    render_statistical_tests_tab as _render_statistical_tests_tab_module,
-    render_ml_tab as _render_ml_tab_module,
-    render_pca_tab as _render_pca_tab_module,
-    render_bayesian_tab as _render_bayesian_tab_module,
-    render_uncertainty_tab as _render_uncertainty_tab_module,
-    render_nonlinear_tab as _render_nonlinear_tab_module,
-    render_timeseries_tab as _render_timeseries_tab_module,
-    render_causality_tab as _render_causality_tab_module,
-    render_visualization_tab as _render_visualization_tab_module,
-    render_clustering_tab as _render_clustering_tab_module,
-    render_anomaly_tab as _render_anomaly_tab_module,
-    render_signal_analysis_tab as _render_signal_analysis_tab_module,
-    render_dimreduction_tab as _render_dimreduction_tab_module,
-    render_sensitivity_tab as _render_sensitivity_tab_module,
-)
+from tabs import render_anomaly_tab as _render_anomaly_tab_module
+from tabs import render_bayesian_tab as _render_bayesian_tab_module
+from tabs import render_causality_tab as _render_causality_tab_module
+from tabs import render_clustering_tab as _render_clustering_tab_module
+from tabs import render_data_tab as _render_data_tab_module
+from tabs import render_dimreduction_tab as _render_dimreduction_tab_module
+from tabs import render_ml_tab as _render_ml_tab_module
+from tabs import render_nonlinear_tab as _render_nonlinear_tab_module
+from tabs import render_pca_tab as _render_pca_tab_module
+from tabs import render_sensitivity_tab as _render_sensitivity_tab_module
+from tabs import \
+    render_signal_analysis_tab as _render_signal_analysis_tab_module
+from tabs import render_statistical_tab as _render_statistical_tab_module
+from tabs import \
+    render_statistical_tests_tab as _render_statistical_tests_tab_module
+from tabs import render_timeseries_tab as _render_timeseries_tab_module
+from tabs import render_uncertainty_tab as _render_uncertainty_tab_module
+from tabs import render_visualization_tab as _render_visualization_tab_module
 
 # Optional tabs that may not be installed
 try:
@@ -1685,7 +1684,7 @@ from data_toolkit.statistical_analysis import StatisticalAnalysis
 
 sa = StatisticalAnalysis(df)
 result = sa.multiple_testing_correction(
-    [0.01, 0.04, 0.03, 0.08], 
+    [0.01, 0.04, 0.03, 0.08],
     method='fdr_bh'
 )
 print("Significant:", result['reject'])
@@ -1756,7 +1755,7 @@ The Image Recognition module provides:
 
 ### Generating a Dataset
 1. Organize images in folders named 0-9 (for digits)
-2. Use "Generate Dataset from Folder" 
+2. Use "Generate Dataset from Folder"
 3. The toolkit creates a training CSV with image paths and labels
 
 ### Training a CNN
@@ -2393,7 +2392,7 @@ def render_data_tab():
                 # Check if both columns are numeric
                 x_is_numeric = pd.api.types.is_numeric_dtype(df[x_col])
                 y_is_numeric = pd.api.types.is_numeric_dtype(df[y_col])
-                
+
                 if x_is_numeric and y_is_numeric:
                     try:
                         fig = px.scatter(
@@ -4035,7 +4034,7 @@ def render_ccf_tab():
 
     df = st.session_state.df
     features = st.session_state.feature_cols
-    
+
     if len(features) < 2:
         st.warning("⚠️ Need at least 2 feature columns for cross-correlation.")
         return
@@ -4043,28 +4042,28 @@ def render_ccf_tab():
     ts = TimeSeriesAnalysis(df)
 
     col1, col2 = st.columns(2)
-    
+
     with col1:
         ccf_series1 = st.selectbox("First Time Series (X)", features, key="ccf_tab_series1")
     with col2:
         other_features = [f for f in features if f != ccf_series1]
-        ccf_series2 = st.selectbox("Second Time Series (Y)", 
-                                   other_features if other_features else features, 
+        ccf_series2 = st.selectbox("Second Time Series (Y)",
+                                   other_features if other_features else features,
                                    key="ccf_tab_series2")
-    
+
     ccf_max_lag = st.slider("Maximum Lag", 5, 100, 30, key="ccf_tab_lag",
                            help="Compute correlations from -lag to +lag")
-    
+
     st.info("""📖 **Interpretation:**
 - **Positive lag**: X leads Y (X changes first, Y follows)
 - **Negative lag**: Y leads X (Y changes first, X follows)
 - **Best lag**: The lag with strongest (absolute) correlation""")
-    
+
     if st.button("📊 Compute Cross-Correlation", key="compute_ccf", type="primary"):
         with st.spinner("Computing cross-correlation function..."):
             results = ts.cross_correlation(ccf_series1, ccf_series2, ccf_max_lag)
             st.session_state.analysis_results['ccf'] = results
-            
+
             if 'error' in results:
                 st.error(f"CCF failed: {results['error']}")
 
@@ -4078,7 +4077,7 @@ def render_ccf_tab():
             best_corr = results.get('best_correlation', 0)
             col1_name = results.get('series1', ccf_series1)
             col2_name = results.get('series2', ccf_series2)
-            
+
             # Metrics
             met_col1, met_col2, met_col3 = st.columns(3)
             with met_col1:
@@ -4092,7 +4091,7 @@ def render_ccf_tab():
                     st.metric("Interpretation", f"{col2_name} leads")
                 else:
                     st.metric("Interpretation", "Simultaneous")
-            
+
             # CCF Plot - line plot (better for sinusoidal patterns)
             fig = go.Figure()
             fig.add_trace(go.Scatter(
@@ -4103,14 +4102,14 @@ def render_ccf_tab():
                 name='CCF'
             ))
             fig.add_hline(y=0, line_dash="solid", line_color="black")
-            
+
             # Add significance bounds (approximate 95% CI)
             n = len(df)
             sig_bound = 1.96 / np.sqrt(n)
-            fig.add_hline(y=sig_bound, line_dash="dash", line_color="red", 
+            fig.add_hline(y=sig_bound, line_dash="dash", line_color="red",
                          annotation_text="95% CI")
             fig.add_hline(y=-sig_bound, line_dash="dash", line_color="red")
-            
+
             fig.update_layout(
                 title=f'Cross-Correlation: {col1_name} vs {col2_name}',
                 xaxis_title='Lag',
@@ -4119,7 +4118,7 @@ def render_ccf_tab():
                 height=400
             )
             st.plotly_chart(fig, width='stretch')
-            
+
             # Export CCF data
             st.markdown("---")
             ccf_df = pd.DataFrame({
@@ -4158,7 +4157,7 @@ def render_moving_average_tab():
     ts = TimeSeriesAnalysis(df)
 
     col_left, col_right = st.columns([1, 2])
-    
+
     with col_left:
         # Time column selection for X-axis
         time_options = all_cols
@@ -4169,36 +4168,36 @@ def render_moving_average_tab():
                 default_time_idx = i
                 break
         time_col = st.selectbox("X-axis (Time)", time_options, index=default_time_idx, key="ma_time_col")
-        
+
         # Y column to smooth (exclude time column)
         y_options = [f for f in features if f != time_col]
         if not y_options:
             y_options = features
         ma_column = st.selectbox("Column to Smooth", y_options, key="ma_tab_col")
-    
+
     with col_right:
         st.markdown("**Window Sizes**")
         # Simple text input for custom windows - user can type directly
         window_input = st.text_input(
-            "Enter window sizes (comma-separated)", 
+            "Enter window sizes (comma-separated)",
             value="5, 10, 20, 50",
             key="ma_windows_input",
             help="Enter window sizes separated by commas, e.g. '5, 10, 20, 50, 100'"
         )
-        
+
         # Parse windows
         try:
             windows = [int(w.strip()) for w in window_input.split(',') if w.strip().isdigit()]
             windows = [w for w in windows if w >= 2]  # Filter valid windows
         except:
             windows = [5, 10, 20]
-        
+
         if not windows:
             st.warning("Enter valid window sizes (integers >= 2)")
             windows = [5, 10, 20]
-        
+
         st.caption(f"Using windows: {windows}")
-    
+
     if st.button("📈 Compute Moving Averages", key="compute_ma_tab", type="primary"):
         with st.spinner("Computing moving averages..."):
             results = ts.moving_average(ma_column, windows)
@@ -4207,7 +4206,7 @@ def render_moving_average_tab():
             results['time_data'] = df[time_col].loc[series.index].values.tolist()
             results['time_col'] = time_col
             st.session_state.analysis_results['ma_tab'] = results
-            
+
             if 'error' in results:
                 st.error(f"Moving Average failed: {results['error']}")
 
@@ -4221,7 +4220,7 @@ def render_moving_average_tab():
             # Get the time data for proper x-axis
             x_data = results.get('time_data', results.get('index', list(range(len(original)))))
             x_label = results.get('time_col', 'Index')
-            
+
             if not ma_dict:
                 st.warning("No moving averages computed.")
             else:
@@ -4231,23 +4230,23 @@ def render_moving_average_tab():
                     x=x_data, y=original, mode='lines', name='Original',
                     line=dict(color='lightgray', width=1), opacity=0.5
                 ))
-                
+
                 # Sort windows for consistent coloring (smaller = lighter)
                 sorted_windows = sorted(ma_dict.keys())
                 colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2']
-                
+
                 for i, window in enumerate(sorted_windows):
                     ma_data = ma_dict[window]
                     values = ma_data.get('values', []) if isinstance(ma_data, dict) else ma_data
                     # Convert to numpy array and handle NaN properly
                     values_arr = np.array(values, dtype=float)
                     fig.add_trace(go.Scatter(
-                        x=x_data, y=values_arr, mode='lines', 
+                        x=x_data, y=values_arr, mode='lines',
                         name=f'MA({window})',
                         line=dict(color=colors[i % len(colors)], width=2),
                         connectgaps=False  # Don't connect across NaN values
                     ))
-                
+
                 fig.update_layout(
                     title=f'Moving Averages: {column_name}',
                     xaxis_title=x_label,
@@ -4257,7 +4256,7 @@ def render_moving_average_tab():
                     legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
                 )
                 st.plotly_chart(fig, width='stretch')
-                
+
                 # Statistics
                 st.subheader("📊 Smoothing Statistics")
                 stats_data = []
@@ -4273,20 +4272,20 @@ def render_moving_average_tab():
                             'Max': np.max(valid_values),
                             'Valid Points': len(valid_values)
                         })
-                
+
                 if stats_data:
                     stats_df = pd.DataFrame(stats_data)
                     st.dataframe(stats_df, width='stretch', hide_index=True)
-                
+
                 # Export
                 st.markdown("---")
                 st.subheader("📥 Export Smoothed Data")
-                
+
                 export_df = pd.DataFrame({'Original': original})
                 for window, ma_data in ma_dict.items():
                     values = ma_data.get('values', []) if isinstance(ma_data, dict) else ma_data
                     export_df[f'MA_{window}'] = values
-                
+
                 csv_ma = export_df.to_csv(index=False)
                 st.download_button(
                     label="📥 Download Moving Averages (CSV)",
@@ -4984,7 +4983,7 @@ def render_statistical_tests_tab():
     _render_statistical_tests_tab_module()
     return
     # DEPRECATED: Below code is unreachable
-    
+
     # Fallback inline version
     st.header("🧪 Statistical Hypothesis Tests")
     st.caption("t-tests, ANOVA (One-Way, Two-Way, Repeated-Measures), Post-Hoc, Chi-square, Normality, Correlation")
@@ -5476,7 +5475,7 @@ def render_signal_analysis_tab():
             ["FFT (Fourier)", "Power Spectral Density", "Continuous Wavelet", "Discrete Wavelet",
              "Coherence Analysis", "Cross-Wavelet Transform", "Wavelet Coherence"]
         )
-        
+
         # Second column for bivariate analyses
         if analysis_type in ["Coherence Analysis", "Cross-Wavelet Transform", "Wavelet Coherence"]:
             other_cols = [c for c in signal_features if c != selected_col]
@@ -5567,7 +5566,7 @@ def render_signal_analysis_tab():
                     st.session_state.analysis_results['dwt'] = results
                     st.session_state.analysis_results['dwt_wavelet'] = dwt_wavelet_type
                     st.success(f"✅ DWT computed on {len(df[selected_col].dropna())} samples from column '{selected_col}'")
-        
+
         # Bivariate analyses (require second column)
         elif analysis_type == "Coherence Analysis":
             if selected_col2:
@@ -5581,14 +5580,14 @@ def render_signal_analysis_tab():
                             st.success(f"✅ Coherence computed between '{selected_col}' and '{selected_col2}'")
             else:
                 st.warning("Select a second column for coherence analysis")
-        
+
         elif analysis_type == "Cross-Wavelet Transform":
             if selected_col2:
-                xwt_wavelet = st.selectbox("XWT Wavelet", ["cmor1.5-1.0", "morl", "mexh"], index=0, 
+                xwt_wavelet = st.selectbox("XWT Wavelet", ["cmor1.5-1.0", "morl", "mexh"], index=0,
                                            help="Complex Morlet recommended for phase analysis")
                 if st.button("🌊 Cross-Wavelet Transform", width='stretch'):
                     with st.spinner("Computing Cross-Wavelet Transform..."):
-                        results = ts.cross_wavelet_transform(selected_col, selected_col2, 
+                        results = ts.cross_wavelet_transform(selected_col, selected_col2,
                                                               wavelet=xwt_wavelet, sampling_rate=float(sampling_rate))
                         if 'error' in results:
                             st.error(f"XWT failed: {results['error']}")
@@ -5605,7 +5604,7 @@ def render_signal_analysis_tab():
                             st.success(f"✅ XWT computed between '{selected_col}' and '{selected_col2}'")
             else:
                 st.warning("Select a second column for cross-wavelet transform")
-        
+
         elif analysis_type == "Wavelet Coherence":
             if selected_col2:
                 wtc_wavelet = st.selectbox("WTC Wavelet", ["cmor1.5-1.0", "morl", "mexh"], index=0,
@@ -5613,7 +5612,7 @@ def render_signal_analysis_tab():
                 smooth_factor = st.slider("Smoothing Factor", 3, 15, 5, help="Smoothing window for coherence estimation")
                 if st.button("🔗 Wavelet Coherence", width='stretch'):
                     with st.spinner("Computing Wavelet Coherence..."):
-                        results = ts.wavelet_coherence(selected_col, selected_col2, 
+                        results = ts.wavelet_coherence(selected_col, selected_col2,
                                                         wavelet=wtc_wavelet, sampling_rate=float(sampling_rate),
                                                         smooth_factor=smooth_factor)
                         if 'error' in results:
@@ -5853,7 +5852,7 @@ def render_signal_analysis_tab():
                     )
             except Exception as e:
                 st.error(f"DWT plotting failed: {str(e)}")
-    
+
     # =========================================================================
     # Coherence Analysis Display
     # =========================================================================
@@ -5862,32 +5861,32 @@ def render_signal_analysis_tab():
         if 'error' not in results:
             st.subheader("📊 Magnitude-Squared Coherence")
             st.info("Coherence measures linear correlation as a function of frequency (0 = no correlation, 1 = perfect)")
-            
+
             try:
                 frequencies = results.get('frequencies', [])
                 coherence = results.get('coherence', [])
                 phase = results.get('phase', [])
-                
+
                 if len(frequencies) > 0 and len(coherence) > 0:
                     # Create two-panel plot
                     from plotly.subplots import make_subplots
-                    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, 
+                    fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
                                        subplot_titles=('Coherence', 'Phase'),
                                        vertical_spacing=0.1)
-                    
+
                     # Coherence plot
                     fig.add_trace(go.Scatter(x=frequencies, y=coherence, mode='lines',
                                             name='Coherence', fill='tozeroy',
                                             line=dict(color='steelblue', width=2)), row=1, col=1)
-                    fig.add_hline(y=0.5, line_dash='dash', line_color='red', 
+                    fig.add_hline(y=0.5, line_dash='dash', line_color='red',
                                  annotation_text='0.5 threshold', row=1, col=1)
-                    
+
                     # Phase plot
                     if len(phase) > 0:
                         fig.add_trace(go.Scatter(x=frequencies, y=np.degrees(phase), mode='lines',
-                                                name='Phase (degrees)', line=dict(color='orange', width=2)), 
+                                                name='Phase (degrees)', line=dict(color='orange', width=2)),
                                      row=2, col=1)
-                    
+
                     fig.update_layout(
                         title='Magnitude-Squared Coherence Analysis',
                         height=500,
@@ -5897,9 +5896,9 @@ def render_signal_analysis_tab():
                     fig.update_xaxes(title_text='Frequency (Hz)', row=2, col=1)
                     fig.update_yaxes(title_text='Coherence', range=[0, 1], row=1, col=1)
                     fig.update_yaxes(title_text='Phase (°)', row=2, col=1)
-                    
+
                     st.plotly_chart(fig, width='stretch')
-                    
+
                     # Export
                     coh_df = pd.DataFrame({
                         'Frequency_Hz': frequencies,
@@ -5914,7 +5913,7 @@ def render_signal_analysis_tab():
                     )
             except Exception as e:
                 st.error(f"Coherence plotting failed: {str(e)}")
-    
+
     # =========================================================================
     # Cross-Wavelet Transform Display (Torrence & Compo style)
     # =========================================================================
@@ -5924,28 +5923,28 @@ def render_signal_analysis_tab():
             st.subheader("🌊 Cross-Wavelet Transform (XWT)")
             opts = st.session_state.analysis_results.get('xwt_options', {})
             st.info(f"Common power and relative phase between {opts.get('col1', 'signal1')} and {opts.get('col2', 'signal2')}")
-            
+
             try:
                 power = results.get('power', np.array([[]]))
                 phase = results.get('phase', np.array([[]]))
                 periods = results.get('periods', [])
                 time = results.get('time', list(range(power.shape[1] if power.ndim > 1 else 0)))
                 coi = results.get('coi', [])
-                
+
                 if power.size > 0 and len(periods) > 0:
                     y_scale_opt = opts.get('y_scale', 'log')
                     show_coi_opt = opts.get('show_coi', True)
-                    
+
                     # Create XWT power plot (Torrence & Compo style)
                     fig, ax = plt.subplots(figsize=(12, 6))
-                    
+
                     # Use log2 of periods for y-axis
                     log2_periods = np.log2(periods)
-                    
+
                     # Plot power
-                    im = ax.contourf(time, log2_periods, np.log2(power + 1e-10), 
+                    im = ax.contourf(time, log2_periods, np.log2(power + 1e-10),
                                      levels=50, cmap='jet', extend='both')
-                    
+
                     # Add phase arrows (subsample for clarity)
                     if phase.size > 0:
                         arrow_step_x = max(1, len(time) // 20)
@@ -5958,35 +5957,35 @@ def render_signal_analysis_tab():
                                     ax.annotate('', xy=(time[i]+dx, log2_periods[j]+dy),
                                                xytext=(time[i], log2_periods[j]),
                                                arrowprops=dict(arrowstyle='->', color='white', lw=0.5))
-                    
+
                     # Add COI
                     if show_coi_opt and len(coi) > 0:
                         coi_log2 = np.log2(np.array(coi) + 1e-10)
-                        ax.fill_between(time, coi_log2, np.max(log2_periods), 
+                        ax.fill_between(time, coi_log2, np.max(log2_periods),
                                         color='white', alpha=0.3, hatch='/')
-                    
+
                     # Formatting
                     ax.set_xlabel('Time')
                     ax.set_ylabel('Period')
                     ax.set_title(f"Cross-Wavelet Power: {opts.get('col1', 'sig1')} × {opts.get('col2', 'sig2')}")
-                    
+
                     # Set y-ticks to actual period values
                     yticks = np.arange(np.floor(np.min(log2_periods)), np.ceil(np.max(log2_periods))+1)
                     ax.set_yticks(yticks)
                     ax.set_yticklabels([f'{2**y:.1f}' for y in yticks])
                     ax.invert_yaxis()
-                    
+
                     plt.colorbar(im, ax=ax, label='log₂(Power)')
                     plt.tight_layout()
-                    
+
                     st.pyplot(fig, width='stretch')
                     plt.close(fig)
-                    
+
                     st.caption("**Arrows**: Phase relationship (→ in-phase, ← anti-phase, ↑ signal1 leads, ↓ signal2 leads). **Hatched area**: Cone of Influence (edge effects)")
-                    
+
             except Exception as e:
                 st.error(f"XWT plotting failed: {str(e)}")
-    
+
     # =========================================================================
     # Wavelet Coherence Display (Torrence & Compo style)
     # =========================================================================
@@ -5996,7 +5995,7 @@ def render_signal_analysis_tab():
             st.subheader("🔗 Wavelet Coherence (WTC)")
             opts = st.session_state.analysis_results.get('wtc_options', {})
             st.info(f"Time-frequency coherence between {opts.get('col1', 'signal1')} and {opts.get('col2', 'signal2')} (normalized 0-1)")
-            
+
             try:
                 coherence = results.get('coherence', np.array([[]]))
                 phase = results.get('phase', np.array([[]]))
@@ -6004,27 +6003,27 @@ def render_signal_analysis_tab():
                 time = results.get('time', list(range(coherence.shape[1] if coherence.ndim > 1 else 0)))
                 coi = results.get('coi', [])
                 significance = results.get('significance', None)
-                
+
                 if coherence.size > 0 and len(periods) > 0:
                     y_scale_opt = opts.get('y_scale', 'log')
                     show_coi_opt = opts.get('show_coi', True)
                     signif_opt = opts.get('significance_level', 0.95)
-                    
+
                     # Create WTC plot (Torrence & Compo style)
                     fig, ax = plt.subplots(figsize=(12, 6))
-                    
+
                     # Use log2 of periods for y-axis
                     log2_periods = np.log2(periods)
-                    
+
                     # Plot coherence (0-1 scale)
-                    im = ax.contourf(time, log2_periods, coherence, 
+                    im = ax.contourf(time, log2_periods, coherence,
                                      levels=np.linspace(0, 1, 21), cmap='RdYlBu_r', extend='both')
-                    
+
                     # Add significance contour
                     if significance is not None:
                         ax.contour(time, log2_periods, significance, levels=[signif_opt],
                                   colors='black', linewidths=1.5, linestyles='solid')
-                    
+
                     # Add phase arrows (only where coherence is high)
                     if phase.size > 0:
                         arrow_step_x = max(1, len(time) // 20)
@@ -6038,33 +6037,33 @@ def render_signal_analysis_tab():
                                         ax.annotate('', xy=(time[i]+dx, log2_periods[j]+dy),
                                                    xytext=(time[i], log2_periods[j]),
                                                    arrowprops=dict(arrowstyle='->', color='black', lw=0.8))
-                    
+
                     # Add COI
                     if show_coi_opt and len(coi) > 0:
                         coi_log2 = np.log2(np.array(coi) + 1e-10)
-                        ax.fill_between(time, coi_log2, np.max(log2_periods), 
+                        ax.fill_between(time, coi_log2, np.max(log2_periods),
                                         color='white', alpha=0.3, hatch='/')
-                    
+
                     # Formatting
                     ax.set_xlabel('Time')
                     ax.set_ylabel('Period')
                     ax.set_title(f"Wavelet Coherence: {opts.get('col1', 'sig1')} × {opts.get('col2', 'sig2')}")
-                    
+
                     # Set y-ticks to actual period values
                     yticks = np.arange(np.floor(np.min(log2_periods)), np.ceil(np.max(log2_periods))+1)
                     ax.set_yticks(yticks)
                     ax.set_yticklabels([f'{2**y:.1f}' for y in yticks])
                     ax.invert_yaxis()
-                    
+
                     cbar = plt.colorbar(im, ax=ax, label='Coherence')
                     cbar.set_ticks([0, 0.25, 0.5, 0.75, 1.0])
                     plt.tight_layout()
-                    
+
                     st.pyplot(fig, width='stretch')
                     plt.close(fig)
-                    
+
                     st.caption("**Arrows**: Phase relationship (shown only where coherence > 0.5). **Black contour**: Significance boundary. **Hatched area**: COI")
-                    
+
             except Exception as e:
                 st.error(f"WTC plotting failed: {str(e)}")
 
@@ -6274,32 +6273,32 @@ def render_effect_sizes_tab():
     """Render the effect sizes analysis tab"""
     st.header("📏 Effect Size Analysis")
     st.caption("Calculate standardized effect sizes with confidence intervals for scientific reporting")
-    
+
     df = st.session_state.df
     features = st.session_state.feature_cols
-    
+
     if df is None:
         st.info("📂 Please load data first in the Data tab.")
         return
-    
+
     # Get numeric columns
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    
+
     if len(numeric_cols) < 2:
         st.warning("Need at least 2 numeric columns for effect size calculation.")
         return
-    
+
     calc = EffectSizes(df)
-    
+
     # Initialize session state for effect size results
     if 'effect_size_results' not in st.session_state:
         st.session_state.effect_size_results = []
-    
+
     col1, col2 = st.columns([2, 1])
-    
+
     with col1:
         st.subheader("📊 Two-Group Effect Sizes")
-        
+
         config_col1, config_col2, config_col3 = st.columns(3)
         with config_col1:
             group1_col = st.selectbox("Group 1 Column", numeric_cols, key="es_group1")
@@ -6307,13 +6306,13 @@ def render_effect_sizes_tab():
             group2_col = st.selectbox("Group 2 Column", [c for c in numeric_cols if c != group1_col], key="es_group2")
         with config_col3:
             confidence = st.slider("Confidence Level", 0.80, 0.99, 0.95, 0.01, key="es_conf")
-        
+
         # Calculate all effect sizes at once
         if st.button("📊 Calculate All Effect Sizes", key="calc_all_es", type="primary"):
             with st.spinner("Computing effect sizes..."):
                 try:
                     results = []
-                    
+
                     # Cohen's d
                     cohens_result = calc.cohens_d(group1_col, group2_col, confidence_level=confidence)
                     results.append({
@@ -6323,7 +6322,7 @@ def render_effect_sizes_tab():
                         'CI_Upper': cohens_result['ci_upper'],
                         'Interpretation': cohens_result['interpretation']
                     })
-                    
+
                     # Hedges' g
                     hedges_result = calc.hedges_g(group1_col, group2_col, confidence_level=confidence)
                     results.append({
@@ -6333,7 +6332,7 @@ def render_effect_sizes_tab():
                         'CI_Upper': hedges_result['ci_upper'],
                         'Interpretation': hedges_result['interpretation']
                     })
-                    
+
                     # Glass's Delta
                     glass_result = calc.glass_delta(group1_col, group2_col)
                     results.append({
@@ -6343,12 +6342,12 @@ def render_effect_sizes_tab():
                         'CI_Upper': glass_result.get('ci_upper', glass_result['glass_delta'] + 0.2),
                         'Interpretation': glass_result.get('interpretation', 'N/A')
                     })
-                    
+
                     results_df = pd.DataFrame(results)
                     st.session_state.effect_size_results = results
-                    
+
                     st.success("✅ Effect sizes calculated successfully!")
-                    
+
                     # Display results table
                     st.dataframe(
                         results_df.style.format({
@@ -6359,15 +6358,15 @@ def render_effect_sizes_tab():
                         width='stretch',
                         hide_index=True
                     )
-                    
+
                     # Create Forest Plot visualization
                     fig = go.Figure()
-                    
+
                     colors = {'Small': '#3498db', 'Medium': '#f39c12', 'Large': '#e74c3c', 'Negligible': '#95a5a6'}
-                    
+
                     for i, row in results_df.iterrows():
                         color = colors.get(row['Interpretation'], '#3498db')
-                        
+
                         # Error bars (CI)
                         fig.add_trace(go.Scatter(
                             x=[row['CI_Lower'], row['CI_Upper']],
@@ -6377,7 +6376,7 @@ def render_effect_sizes_tab():
                             showlegend=False,
                             hoverinfo='skip'
                         ))
-                        
+
                         # Point estimate
                         fig.add_trace(go.Scatter(
                             x=[row['Value']],
@@ -6387,7 +6386,7 @@ def render_effect_sizes_tab():
                             name=f"{row['Measure']}: {row['Value']:.3f} ({row['Interpretation']})",
                             hovertemplate=f"<b>{row['Measure']}</b><br>Value: {row['Value']:.4f}<br>95% CI: [{row['CI_Lower']:.4f}, {row['CI_Upper']:.4f}]<br>Interpretation: {row['Interpretation']}<extra></extra>"
                         ))
-                    
+
                     # Add reference lines for effect size thresholds
                     fig.add_vline(x=0, line_dash="solid", line_color="black", line_width=2)
                     fig.add_vline(x=0.2, line_dash="dot", line_color="gray", annotation_text="Small", annotation_position="top")
@@ -6396,7 +6395,7 @@ def render_effect_sizes_tab():
                     fig.add_vline(x=-0.2, line_dash="dot", line_color="gray")
                     fig.add_vline(x=-0.5, line_dash="dot", line_color="gray")
                     fig.add_vline(x=-0.8, line_dash="dot", line_color="gray")
-                    
+
                     fig.update_layout(
                         title=f'Effect Size Forest Plot: {group1_col} vs {group2_col}',
                         xaxis_title='Effect Size',
@@ -6406,15 +6405,15 @@ def render_effect_sizes_tab():
                         showlegend=True,
                         legend=dict(yanchor="bottom", y=-0.3, xanchor="center", x=0.5, orientation="h")
                     )
-                    
+
                     st.plotly_chart(fig, width='stretch')
-                    
+
                     # Distribution comparison plot
                     st.markdown("---")
                     st.subheader("📈 Distribution Comparison")
-                    
+
                     fig_dist = go.Figure()
-                    
+
                     # Group 1 histogram
                     fig_dist.add_trace(go.Histogram(
                         x=df[group1_col].dropna(),
@@ -6422,7 +6421,7 @@ def render_effect_sizes_tab():
                         opacity=0.7,
                         nbinsx=30
                     ))
-                    
+
                     # Group 2 histogram
                     fig_dist.add_trace(go.Histogram(
                         x=df[group2_col].dropna(),
@@ -6430,16 +6429,16 @@ def render_effect_sizes_tab():
                         opacity=0.7,
                         nbinsx=30
                     ))
-                    
+
                     # Add mean lines
                     mean1 = df[group1_col].mean()
                     mean2 = df[group2_col].mean()
-                    
-                    fig_dist.add_vline(x=mean1, line_dash="dash", line_color="blue", 
+
+                    fig_dist.add_vline(x=mean1, line_dash="dash", line_color="blue",
                                       annotation_text=f"{group1_col} mean: {mean1:.2f}")
                     fig_dist.add_vline(x=mean2, line_dash="dash", line_color="red",
                                       annotation_text=f"{group2_col} mean: {mean2:.2f}")
-                    
+
                     fig_dist.update_layout(
                         title='Distribution Comparison',
                         xaxis_title='Value',
@@ -6448,13 +6447,13 @@ def render_effect_sizes_tab():
                         template=PLOTLY_TEMPLATE,
                         height=300
                     )
-                    
+
                     st.plotly_chart(fig_dist, width='stretch')
-                    
+
                     # Descriptive statistics
                     st.markdown("---")
                     st.subheader("📋 Descriptive Statistics")
-                    
+
                     desc_stats = pd.DataFrame({
                         'Statistic': ['N', 'Mean', 'SD', 'Median', 'Min', 'Max'],
                         group1_col: [
@@ -6474,15 +6473,15 @@ def render_effect_sizes_tab():
                             f"{df[group2_col].max():.4f}"
                         ]
                     })
-                    
+
                     st.dataframe(desc_stats, width='stretch', hide_index=True)
-                    
+
                     # Download buttons
                     st.markdown("---")
                     st.subheader("📥 Download Results")
-                    
+
                     dl_col1, dl_col2 = st.columns(2)
-                    
+
                     with dl_col1:
                         csv_results = results_df.to_csv(index=False)
                         st.download_button(
@@ -6492,7 +6491,7 @@ def render_effect_sizes_tab():
                             "text/csv",
                             key="download_es_csv"
                         )
-                    
+
                     with dl_col2:
                         # Full report JSON
                         full_report = {
@@ -6522,12 +6521,12 @@ def render_effect_sizes_tab():
                             "application/json",
                             key="download_es_json"
                         )
-                    
+
                     st.session_state.analysis_results['effect_size'] = results
-                    
+
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
-    
+
     with col2:
         st.subheader("📚 Interpretation Guide")
         st.markdown("""
@@ -6538,13 +6537,13 @@ def render_effect_sizes_tab():
         | Eta-squared | 0.01 | 0.06 | 0.14 |
         | Cramér's V | 0.1 | 0.3 | 0.5 |
         """)
-        
+
         st.markdown("---")
         st.subheader("🔄 Effect Size Conversions")
-        
+
         conv_type = st.selectbox("Conversion", ["r to d", "d to r"], key="es_conv_type")
         value = st.number_input("Value to convert", value=0.5, key="es_conv_val")
-        
+
         if st.button("Convert", key="es_convert"):
             if conv_type == "r to d":
                 result = calc.r_to_d(value)
@@ -6560,7 +6559,7 @@ def render_effect_sizes_tab():
                 else:
                     st.success(f"d = {value:.3f} → r = {result['r']:.4f}")
                     st.write(f"r² = {result['r_squared']:.4f}")
-        
+
         st.markdown("---")
         st.info("""
         **💡 Tips:**
@@ -6575,41 +6574,42 @@ def render_model_validation_tab():
     """Render the model validation tab"""
     st.header("✅ Model Validation")
     st.caption("Rigorous cross-validation, calibration analysis, and diagnostic tools")
-    
+
     df = st.session_state.df
     features = st.session_state.feature_cols
     target = st.session_state.target_col
-    
+
     if df is None:
         st.info("📂 Please load data first in the Data tab.")
         return
-    
+
     if not features or not target:
         st.warning("Please select feature columns and a target column in the Data tab.")
         return
-    
+
     validator = ModelValidation(df)
-    
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
         st.subheader("Cross-Validation")
-        
+
+        from sklearn.ensemble import (RandomForestClassifier,
+                                      RandomForestRegressor)
         from sklearn.linear_model import LinearRegression, LogisticRegression
-        from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-        
+
         task_type = st.selectbox("Task Type", ["Regression", "Classification"], key="mv_task")
-        
+
         if task_type == "Regression":
-            model_options = {"Linear Regression": LinearRegression(), 
+            model_options = {"Linear Regression": LinearRegression(),
                            "Random Forest": RandomForestRegressor(n_estimators=50, random_state=42)}
         else:
             model_options = {"Logistic Regression": LogisticRegression(max_iter=1000),
                            "Random Forest": RandomForestClassifier(n_estimators=50, random_state=42)}
-        
+
         model_name = st.selectbox("Model", list(model_options.keys()), key="mv_model")
         cv_folds = st.slider("CV Folds", 3, 10, 5, key="mv_cv")
-        
+
         if st.button("🔄 Run Cross-Validation", key="run_cv"):
             with st.spinner("Running cross-validation..."):
                 try:
@@ -6619,9 +6619,9 @@ def render_model_validation_tab():
                         target,
                         cv=cv_folds
                     )
-                    
+
                     st.success("Cross-validation complete!")
-                    
+
                     # Display scores
                     scores_df = pd.DataFrame({
                         'Metric': list(result['mean_scores'].keys()),
@@ -6629,14 +6629,14 @@ def render_model_validation_tab():
                         'Std': [f"{v:.4f}" for v in result['std_scores'].values()]
                     })
                     st.dataframe(scores_df, width='stretch')
-                    
+
                     st.session_state.analysis_results['cv_results'] = result
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
-        
+
         st.markdown("---")
         st.subheader("Learning Curve Analysis")
-        
+
         if st.button("📈 Generate Learning Curve", key="run_lc"):
             with st.spinner("Analyzing learning curve..."):
                 try:
@@ -6646,7 +6646,7 @@ def render_model_validation_tab():
                         target,
                         cv=cv_folds
                     )
-                    
+
                     # Plot learning curve
                     fig = go.Figure()
                     fig.add_trace(go.Scatter(
@@ -6672,11 +6672,11 @@ def render_model_validation_tab():
                     st.plotly_chart(fig, width='stretch')
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
-    
+
     with col2:
         st.subheader("Residual Diagnostics")
         st.caption("For regression models only")
-        
+
         if task_type == "Regression":
             if st.button("🔬 Run Residual Diagnostics", key="run_resid"):
                 with st.spinner("Analyzing residuals..."):
@@ -6686,7 +6686,7 @@ def render_model_validation_tab():
                             features,
                             target
                         )
-                        
+
                         # Normality test
                         st.write(f"**Normality Test (Shapiro-Wilk)**")
                         st.write(f"p-value: {result['normality_test']['p_value']:.4f}")
@@ -6694,26 +6694,26 @@ def render_model_validation_tab():
                             st.success("✅ Residuals appear normally distributed")
                         else:
                             st.warning("⚠️ Residuals may not be normally distributed")
-                        
+
                         # Durbin-Watson
                         st.write(f"**Durbin-Watson Statistic**: {result['durbin_watson']:.4f}")
                         if 1.5 < result['durbin_watson'] < 2.5:
                             st.success("✅ No significant autocorrelation")
                         else:
                             st.warning("⚠️ Possible autocorrelation in residuals")
-                        
+
                         # Q-Q Plot
                         residuals = result['standardized_residuals']
                         from scipy import stats
                         theoretical_quantiles = stats.norm.ppf(np.linspace(0.01, 0.99, len(residuals)))
                         sorted_residuals = np.sort(residuals)
-                        
+
                         fig = px.scatter(x=theoretical_quantiles, y=sorted_residuals[:len(theoretical_quantiles)],
                                         title='Q-Q Plot (Residuals)', template=PLOTLY_TEMPLATE)
-                        fig.add_trace(go.Scatter(x=[-3, 3], y=[-3, 3], mode='lines', 
+                        fig.add_trace(go.Scatter(x=[-3, 3], y=[-3, 3], mode='lines',
                                                 name='Reference', line=dict(dash='dash', color='red')))
                         st.plotly_chart(fig, width='stretch')
-                        
+
                     except Exception as e:
                         st.error(f"Error: {str(e)}")
         else:
@@ -6724,25 +6724,25 @@ def render_data_quality_tab():
     """Render the data quality analysis tab"""
     st.header("🔍 Data Quality Analysis")
     st.caption("Missing data analysis, imputation, and quality assessment")
-    
+
     df = st.session_state.df
-    
+
     if df is None:
         st.info("📂 Please load data first in the Data tab.")
         return
-    
+
     dqa = DataQuality(df)
-    
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
         st.subheader("📊 Missing Data Summary")
-        
+
         if st.button("Analyze Missing Data", key="analyze_missing"):
             try:
                 summary = dqa.missing_data_summary()
                 st.dataframe(summary, width='stretch')
-                
+
                 # Visualize
                 if summary['missing_pct'].sum() > 0:
                     fig = px.bar(summary, x=summary.index, y='missing_pct',
@@ -6753,19 +6753,19 @@ def render_data_quality_tab():
                     st.success("✅ No missing data detected!")
             except Exception as e:
                 st.error(f"Error: {str(e)}")
-        
+
         st.markdown("---")
         st.subheader("🔧 Imputation")
-        
+
         cols_with_missing = df.columns[df.isnull().any()].tolist()
-        
+
         if cols_with_missing:
             imp_cols = st.multiselect("Columns to Impute", cols_with_missing, key="imp_cols")
             imp_method = st.selectbox("Method", ["mean", "median", "mode", "knn"], key="imp_method")
-            
+
             if imp_method == "knn":
                 n_neighbors = st.slider("K Neighbors", 3, 15, 5, key="imp_knn")
-            
+
             if st.button("Apply Imputation", key="apply_imp"):
                 if imp_cols:
                     try:
@@ -6780,45 +6780,45 @@ def render_data_quality_tab():
                     st.warning("Select columns to impute.")
         else:
             st.success("✅ No columns with missing data!")
-    
+
     with col2:
         st.subheader("🎯 Outlier Detection")
-        
+
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
         outlier_cols = st.multiselect("Columns to Check", numeric_cols, default=numeric_cols[:3] if len(numeric_cols) >= 3 else numeric_cols, key="outlier_cols")
         outlier_method = st.selectbox("Detection Method", ["iqr", "zscore", "mad"], key="outlier_method")
-        
+
         if st.button("Detect Outliers", key="detect_outliers"):
             if outlier_cols:
                 try:
                     result = dqa.detect_outliers(outlier_cols, method=outlier_method)
-                    
+
                     st.write(f"**Total outliers detected:** {result['total_outliers']}")
-                    
+
                     # Per-column breakdown
                     outlier_df = pd.DataFrame({
                         'Column': list(result['outlier_counts'].keys()),
                         'Outlier Count': list(result['outlier_counts'].values())
                     })
                     st.dataframe(outlier_df, width='stretch')
-                    
+
                     st.session_state.analysis_results['outliers'] = result
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
-        
+
         st.markdown("---")
         st.subheader("📋 Quality Report")
-        
+
         if st.button("Generate Full Quality Report", key="gen_quality"):
             with st.spinner("Analyzing data quality..."):
                 try:
                     report = dqa.generate_quality_report()
-                    
+
                     st.write("**Data Shape:**", f"{report['n_rows']} rows × {report['n_cols']} columns")
                     st.write("**Memory Usage:**", f"{report['memory_usage']:.2f} MB")
                     st.write("**Duplicate Rows:**", report['n_duplicates'])
                     st.write("**Total Missing Values:**", report['total_missing'])
-                    
+
                     st.session_state.analysis_results['quality_report'] = report
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
@@ -6828,26 +6828,26 @@ def render_feature_selection_tab():
     """Render the feature selection tab"""
     st.header("🎯 Feature Selection")
     st.caption("Multiple methods for optimal feature subset selection")
-    
+
     df = st.session_state.df
     features = st.session_state.feature_cols
     target = st.session_state.target_col
-    
+
     if df is None:
         st.info("📂 Please load data first in the Data tab.")
         return
-    
+
     if not features or not target:
         st.warning("Please select feature columns and a target column in the Data tab.")
         return
-    
+
     selector = FeatureSelection(df)
-    
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
         st.subheader("Selection Methods")
-        
+
         method = st.selectbox("Method", [
             "Statistical (Mutual Information)",
             "Statistical (F-test)",
@@ -6855,9 +6855,9 @@ def render_feature_selection_tab():
             "Lasso Selection",
             "Permutation Importance"
         ], key="fs_method")
-        
+
         n_features = st.slider("Number of Features to Select", 1, len(features), min(5, len(features)), key="fs_n")
-        
+
         if st.button("🔍 Run Feature Selection", key="run_fs"):
             with st.spinner("Selecting features..."):
                 try:
@@ -6873,30 +6873,30 @@ def render_feature_selection_tab():
                         from sklearn.ensemble import RandomForestRegressor
                         model = RandomForestRegressor(n_estimators=50, random_state=42)
                         result = selector.permutation_selection(model, features, target)
-                    
+
                     st.success("Feature selection complete!")
                     st.write("**Selected Features:**")
                     for i, feat in enumerate(result['selected_features'], 1):
                         st.write(f"{i}. {feat}")
-                    
+
                     st.session_state.analysis_results['feature_selection'] = result
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
-    
+
     with col2:
         st.subheader("Ensemble Selection")
         st.caption("Combines multiple methods for robust selection")
-        
+
         if st.button("🔄 Run Ensemble Selection", key="run_ensemble_fs"):
             with st.spinner("Running ensemble feature selection..."):
                 try:
                     result = selector.ensemble_selection(features, target)
-                    
+
                     st.success("Ensemble selection complete!")
                     st.write("**Consensus Features (selected by multiple methods):**")
                     for feat in result['consensus_features']:
                         st.write(f"✅ {feat}")
-                    
+
                     if 'feature_votes' in result:
                         st.write("**Feature Votes:**")
                         votes_df = pd.DataFrame({
@@ -6904,18 +6904,18 @@ def render_feature_selection_tab():
                             'Votes': list(result['feature_votes'].values())
                         }).sort_values('Votes', ascending=False)
                         st.dataframe(votes_df, width='stretch')
-                    
+
                     st.session_state.analysis_results['ensemble_fs'] = result
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
-        
+
         st.markdown("---")
         st.subheader("Feature Ranking Visualization")
-        
+
         if 'feature_selection' in st.session_state.analysis_results:
             result = st.session_state.analysis_results['feature_selection']
             if 'scores' in result:
-                fig = px.bar(x=list(result['scores'].keys()), 
+                fig = px.bar(x=list(result['scores'].keys()),
                            y=list(result['scores'].values()),
                            title='Feature Importance Scores',
                            template=PLOTLY_TEMPLATE)
@@ -6927,62 +6927,62 @@ def render_survival_tab():
     """Render the survival analysis tab"""
     st.header("⏳ Survival Analysis")
     st.caption("Time-to-event analysis with censoring")
-    
+
     if not SURVIVAL_AVAILABLE:
         st.warning("⚠️ Survival analysis requires the `lifelines` package.")
         st.code("pip install data-toolkit[survival]", language="bash")
         return
-    
+
     df = st.session_state.df
-    
+
     if df is None:
         st.info("📂 Please load data first in the Data tab.")
         return
-    
+
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
     all_cols = df.columns.tolist()
-    
+
     if len(numeric_cols) < 2:
         st.warning("Need at least 2 numeric columns (time and event) for survival analysis.")
         return
-    
+
     surv = SurvivalAnalysis(df)
-    
+
     # Configuration panel at top
     st.subheader("⚙️ Configuration")
     config_col1, config_col2, config_col3 = st.columns(3)
-    
+
     with config_col1:
         time_col = st.selectbox("Time Column", numeric_cols, key="surv_time")
     with config_col2:
-        event_col = st.selectbox("Event Column (1=event, 0=censored)", 
+        event_col = st.selectbox("Event Column (1=event, 0=censored)",
                                 [c for c in numeric_cols if c != time_col], key="surv_event")
     with config_col3:
         group_col = st.selectbox("Group Column (optional)", [None] + all_cols, key="surv_group")
-    
+
     st.markdown("---")
-    
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
         st.subheader("📈 Kaplan-Meier Analysis")
-        
+
         if st.button("📊 Run Kaplan-Meier", key="run_km"):
             with st.spinner("Computing Kaplan-Meier curves..."):
                 try:
-                    result = surv.kaplan_meier(time_col, event_col, 
+                    result = surv.kaplan_meier(time_col, event_col,
                                               group_col=group_col if group_col else None)
-                    
+
                     # Check for error
                     if 'error' in result:
                         st.error(f"Error: {result['error']}")
                     else:
                         st.success("✅ Kaplan-Meier analysis complete!")
-                        
+
                         # Display metrics
                         if 'median_survival' in result and result['median_survival'] is not None:
                             st.metric("Median Survival Time", f"{result['median_survival']:.2f}")
-                        
+
                         if 'n_observations' in result:
                             met_col1, met_col2, met_col3 = st.columns(3)
                             with met_col1:
@@ -6991,10 +6991,10 @@ def render_survival_tab():
                                 st.metric("Events", result.get('n_events', 'N/A'))
                             with met_col3:
                                 st.metric("Censored", result.get('n_censored', 'N/A'))
-                        
+
                         # Create Kaplan-Meier survival curve plot
                         fig = go.Figure()
-                        
+
                         if 'groups' in result:
                             # Multiple groups
                             colors = px.colors.qualitative.Set1
@@ -7002,7 +7002,7 @@ def render_survival_tab():
                                 if 'survival_function' in group_data:
                                     times = list(group_data['survival_function'].keys())
                                     survival = list(group_data['survival_function'].values())
-                                    
+
                                     fig.add_trace(go.Scatter(
                                         x=times, y=survival,
                                         mode='lines+markers',
@@ -7020,7 +7020,7 @@ def render_survival_tab():
                                 else:
                                     times = list(sf.keys())
                                     survival = list(sf.values())
-                                
+
                                 fig.add_trace(go.Scatter(
                                     x=times, y=survival,
                                     mode='lines+markers',
@@ -7029,12 +7029,12 @@ def render_survival_tab():
                                     fill='tozeroy',
                                     fillcolor='rgba(0, 100, 200, 0.1)'
                                 ))
-                                
+
                                 # Add confidence interval if available
                                 if 'confidence_interval_lower' in result and 'confidence_interval_upper' in result:
                                     ci_lower = list(result['confidence_interval_lower'].values())
                                     ci_upper = list(result['confidence_interval_upper'].values())
-                                    
+
                                     fig.add_trace(go.Scatter(
                                         x=times + times[::-1],
                                         y=ci_upper + ci_lower[::-1],
@@ -7044,7 +7044,7 @@ def render_survival_tab():
                                         showlegend=True,
                                         name='95% CI'
                                     ))
-                        
+
                         fig.update_layout(
                             title='Kaplan-Meier Survival Curve',
                             xaxis_title='Time',
@@ -7054,9 +7054,9 @@ def render_survival_tab():
                             legend=dict(yanchor="bottom", y=0.02, xanchor="right", x=0.98),
                             hovermode='x unified'
                         )
-                        
+
                         st.plotly_chart(fig, width='stretch')
-                        
+
                         # Survival at specific time points
                         if 'survival_at' in result:
                             st.write("**Survival Probability at Key Time Points:**")
@@ -7065,7 +7065,7 @@ def render_survival_tab():
                                 for t, p in result['survival_at'].items()
                             ])
                             st.dataframe(surv_at_df, width='stretch', hide_index=True)
-                        
+
                         # Download results
                         results_json = json.dumps(result, indent=2, default=str)
                         st.download_button(
@@ -7075,19 +7075,19 @@ def render_survival_tab():
                             "application/json",
                             key="download_km_json"
                         )
-                        
+
                         st.session_state.analysis_results['km_result'] = result
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
-        
+
         st.markdown("---")
         st.subheader("📊 Log-Rank Test")
-        
+
         # Get available groups if group column is selected
         available_groups = []
         if group_col:
             available_groups = df[group_col].dropna().unique().tolist()
-        
+
         if group_col and len(available_groups) > 2:
             selected_groups = st.multiselect(
                 "Select 2 groups to compare",
@@ -7098,7 +7098,7 @@ def render_survival_tab():
             )
         else:
             selected_groups = available_groups
-        
+
         if st.button("🔬 Run Log-Rank Test", key="run_logrank"):
             if group_col:
                 with st.spinner("Computing log-rank test..."):
@@ -7110,7 +7110,7 @@ def render_survival_tab():
                             result = surv_filtered.log_rank_test(time_col, event_col, group_col)
                         else:
                             result = surv.log_rank_test(time_col, event_col, group_col)
-                        
+
                         # Check for error in result
                         if 'error' in result:
                             st.error(f"Error: {result['error']}")
@@ -7118,20 +7118,20 @@ def render_survival_tab():
                             st.error(f"Error: Unexpected result format - {result}")
                         else:
                             st.success("✅ Log-Rank Test Complete!")
-                            
+
                             # Display results in a nice format
                             res_col1, res_col2 = st.columns(2)
                             with res_col1:
                                 st.metric("Test Statistic", f"{result['test_statistic']:.4f}")
                             with res_col2:
                                 st.metric("p-value", f"{result['p_value']:.6f}")
-                            
+
                             # Significance interpretation
                             if result.get('is_significant', result['p_value'] < 0.05):
                                 st.success(f"✅ **Significant difference** between {result.get('group_1', 'Group 1')} and {result.get('group_2', 'Group 2')} (p < 0.05)")
                             else:
                                 st.info(f"ℹ️ **No significant difference** between groups (p ≥ 0.05)")
-                            
+
                             # Create a simple bar chart comparing groups
                             groups = df[group_col].unique()
                             if len(groups) == 2:
@@ -7144,9 +7144,9 @@ def render_survival_tab():
                                         'Events': df.loc[mask, event_col].sum(),
                                         'Median Time': df.loc[mask, time_col].median()
                                     })
-                                
+
                                 stats_df = pd.DataFrame(group_stats)
-                                
+
                                 fig = go.Figure(data=[
                                     go.Bar(name='Events', x=stats_df['Group'], y=stats_df['Events']),
                                     go.Bar(name='Median Time', x=stats_df['Group'], y=stats_df['Median Time'])
@@ -7157,45 +7157,45 @@ def render_survival_tab():
                                     template=PLOTLY_TEMPLATE
                                 )
                                 st.plotly_chart(fig, width='stretch')
-                            
+
                             st.session_state.analysis_results['logrank_result'] = result
                     except Exception as e:
                         st.error(f"Error: {str(e)}")
             else:
                 st.warning("⚠️ Select a group column for log-rank test.")
-    
+
     with col2:
         st.subheader("🔬 Cox Proportional Hazards")
-        
-        cox_covariates = st.multiselect("Covariates", 
+
+        cox_covariates = st.multiselect("Covariates",
                                         [c for c in numeric_cols if c not in [time_col, event_col]],
                                         key="cox_covars")
-        
+
         if st.button("📊 Run Cox Regression", key="run_cox"):
             if cox_covariates:
                 with st.spinner("Fitting Cox model..."):
                     try:
                         result = surv.cox_regression(time_col, event_col, cox_covariates)
-                        
+
                         if 'error' in result:
                             st.error(f"Error: {result['error']}")
                         else:
                             st.success("✅ Cox regression complete!")
-                            
+
                             # Model performance metrics
                             met_col1, met_col2 = st.columns(2)
                             with met_col1:
                                 if 'concordance_index' in result:
-                                    st.metric("C-statistic (Concordance)", 
+                                    st.metric("C-statistic (Concordance)",
                                              f"{result['concordance_index']:.4f}")
                             with met_col2:
                                 if 'aic_partial' in result:
                                     st.metric("AIC (Partial)", f"{result['aic_partial']:.2f}")
-                            
+
                             # Hazard Ratios visualization
                             if 'hazard_ratios' in result:
                                 st.write("**Hazard Ratios (with 95% CI):**")
-                                
+
                                 hr_data = []
                                 for covar, hr_info in result['hazard_ratios'].items():
                                     hr_data.append({
@@ -7206,16 +7206,16 @@ def render_survival_tab():
                                         'p-value': hr_info['p_value'],
                                         'Significant': '✓' if hr_info['significant'] else ''
                                     })
-                                
+
                                 hr_df = pd.DataFrame(hr_data)
                                 st.dataframe(hr_df, width='stretch', hide_index=True)
-                                
+
                                 # Forest plot for hazard ratios
                                 fig = go.Figure()
-                                
+
                                 for i, row in hr_df.iterrows():
                                     color = 'red' if row['HR'] > 1 else 'green'
-                                    
+
                                     # CI error bars
                                     fig.add_trace(go.Scatter(
                                         x=[row['CI_Lower'], row['CI_Upper']],
@@ -7224,7 +7224,7 @@ def render_survival_tab():
                                         line=dict(color=color, width=3),
                                         showlegend=False
                                     ))
-                                    
+
                                     # Point estimate
                                     fig.add_trace(go.Scatter(
                                         x=[row['HR']],
@@ -7234,10 +7234,10 @@ def render_survival_tab():
                                         name=f"{row['Covariate']}: {row['HR']:.2f}",
                                         showlegend=False
                                     ))
-                                
+
                                 # Reference line at HR=1
                                 fig.add_vline(x=1, line_dash="dash", line_color="gray")
-                                
+
                                 fig.update_layout(
                                     title='Forest Plot: Hazard Ratios',
                                     xaxis_title='Hazard Ratio (log scale)',
@@ -7246,9 +7246,9 @@ def render_survival_tab():
                                     template=PLOTLY_TEMPLATE,
                                     height=max(300, len(hr_data) * 50)
                                 )
-                                
+
                                 st.plotly_chart(fig, width='stretch')
-                                
+
                                 # Download hazard ratios
                                 csv_hr = hr_df.to_csv(index=False)
                                 st.download_button(
@@ -7258,13 +7258,13 @@ def render_survival_tab():
                                     "text/csv",
                                     key="download_hr_csv"
                                 )
-                            
+
                             st.session_state.analysis_results['cox_result'] = result
                     except Exception as e:
                         st.error(f"Error: {str(e)}")
             else:
                 st.warning("⚠️ Select at least one covariate.")
-        
+
         # Display saved results
         st.markdown("---")
         st.subheader("📋 Interpretation Guide")
@@ -7282,35 +7282,35 @@ def render_interpretability_tab():
     """Render the model interpretability tab"""
     st.header("🔮 Model Interpretability")
     st.caption("Explain model predictions with SHAP, LIME, and partial dependence")
-    
+
     if not INTERPRETABILITY_AVAILABLE:
         st.warning("⚠️ Interpretability requires `shap` and `lime` packages.")
         st.code("pip install data-toolkit[interpretability]", language="bash")
         return
-    
+
     df = st.session_state.df
     features = st.session_state.feature_cols
     target = st.session_state.target_col
-    
+
     if df is None:
         st.info("📂 Please load data first in the Data tab.")
         return
-    
+
     if not features or not target:
         st.warning("Please select feature columns and a target column in the Data tab.")
         return
-    
+
     # Train a simple model for interpretation
     from sklearn.ensemble import RandomForestRegressor
-    
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
         st.subheader("📊 SHAP Analysis")
         st.caption("SHapley Additive exPlanations - Feature importance")
-        
+
         n_samples = st.slider("Sample Size", 50, 200, 100, key="shap_samples")
-        
+
         if st.button("🔍 Run SHAP Analysis", key="run_shap"):
             with st.spinner("Computing SHAP values..."):
                 try:
@@ -7319,27 +7319,27 @@ def render_interpretability_tab():
                     y = df.loc[X.index, target]
                     model = RandomForestRegressor(n_estimators=50, random_state=42)
                     model.fit(X, y)
-                    
+
                     # Create interpreter
                     interp = ModelInterpretability(model, df, features)
                     result = interp.shap_analysis(n_samples=min(n_samples, len(X)))
-                    
+
                     st.success("SHAP analysis complete!")
-                    
+
                     if 'feature_importance' in result:
                         fig = px.bar(x=list(result['feature_importance'].keys()),
                                    y=list(result['feature_importance'].values()),
                                    title='SHAP Feature Importance',
                                    template=PLOTLY_TEMPLATE)
                         st.plotly_chart(fig, width='stretch')
-                    
+
                     st.session_state.analysis_results['shap'] = result
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
-    
+
     with col2:
         st.subheader("🔬 Permutation Importance")
-        
+
         if st.button("📊 Compute Permutation Importance", key="run_perm_imp"):
             with st.spinner("Computing permutation importance..."):
                 try:
@@ -7347,18 +7347,18 @@ def render_interpretability_tab():
                     y = df.loc[X.index, target]
                     model = RandomForestRegressor(n_estimators=50, random_state=42)
                     model.fit(X, y)
-                    
+
                     interp = ModelInterpretability(model, df, features)
                     result = interp.permutation_feature_importance(n_repeats=10)
-                    
+
                     st.success("Permutation importance complete!")
-                    
+
                     if 'importances_mean' in result:
                         imp_df = pd.DataFrame({
                             'Feature': features,
                             'Importance': result['importances_mean']
                         }).sort_values('Importance', ascending=False)
-                        
+
                         fig = px.bar(imp_df, x='Feature', y='Importance',
                                    title='Permutation Feature Importance',
                                    template=PLOTLY_TEMPLATE)
@@ -7371,39 +7371,39 @@ def render_advanced_ts_tab():
     """Render the advanced time series tab"""
     st.header("📈 Advanced Time Series")
     st.caption("Prophet forecasting, changepoint detection, and more")
-    
+
     if not ADVANCED_TS_AVAILABLE:
         st.warning("⚠️ Advanced time series requires additional packages.")
         st.code("pip install data-toolkit[timeseries]", language="bash")
         return
-    
+
     df = st.session_state.df
-    
+
     if df is None:
         st.info("📂 Please load data first in the Data tab.")
         return
-    
+
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
     all_cols = df.columns.tolist()
-    
+
     ats = AdvancedTimeSeries(df)
-    
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
         st.subheader("🔮 Prophet Forecasting")
-        
+
         date_col = st.selectbox("Date Column", all_cols, key="prophet_date")
         value_col = st.selectbox("Value Column", numeric_cols, key="prophet_value")
         periods = st.slider("Forecast Periods", 7, 365, 30, key="prophet_periods")
-        
+
         if st.button("📈 Generate Forecast", key="run_prophet"):
             with st.spinner("Fitting Prophet model..."):
                 try:
                     result = ats.prophet_forecast(date_col, value_col, periods=periods)
-                    
+
                     st.success("Forecast complete!")
-                    
+
                     if 'forecast' in result:
                         forecast_df = result['forecast']
                         fig = go.Figure()
@@ -7418,27 +7418,27 @@ def render_advanced_ts_tab():
                         st.plotly_chart(fig, width='stretch')
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
-    
+
     with col2:
         st.subheader("📍 Changepoint Detection")
-        
+
         cp_col = st.selectbox("Column to Analyze", numeric_cols, key="cp_col")
         cp_method = st.selectbox("Detection Method", ["pelt", "binseg", "window"], key="cp_method")
-        
+
         if st.button("🔍 Detect Changepoints", key="run_cp"):
             with st.spinner("Detecting changepoints..."):
                 try:
                     result = ats.detect_changepoints(cp_col, method=cp_method)
-                    
+
                     st.success(f"Found {result['n_changepoints']} changepoint(s)")
-                    
+
                     # Plot with changepoints
                     fig = go.Figure()
                     fig.add_trace(go.Scatter(y=df[cp_col], mode='lines', name='Signal'))
-                    
+
                     for cp in result['changepoints']:
                         fig.add_vline(x=cp, line_dash="dash", line_color="red")
-                    
+
                     fig.update_layout(title='Signal with Changepoints', template=PLOTLY_TEMPLATE)
                     st.plotly_chart(fig, width='stretch')
                 except Exception as e:
@@ -7449,37 +7449,37 @@ def render_domain_specific_tab():
     """Render the domain-specific analysis tab"""
     st.header("🔬 Domain-Specific Analysis")
     st.caption("Environmental science, clinical research, and ecology tools")
-    
+
     df = st.session_state.df
-    
+
     if df is None:
         st.info("📂 Please load data first in the Data tab.")
         return
-    
+
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    
+
     if not DOMAIN_SPECIFIC_AVAILABLE:
         st.warning("⚠️ Some domain-specific features require additional packages.")
         st.code("pip install data-toolkit[ecology]", language="bash")
-    
+
     domain = DomainSpecificAnalysis(df) if DOMAIN_SPECIFIC_AVAILABLE else None
-    
+
     tab1, tab2, tab3 = st.tabs(["🌿 Environmental", "🏥 Clinical", "🦎 Ecology"])
-    
+
     with tab1:
         st.subheader("Environmental Science")
-        
+
         col1, col2 = st.columns(2)
-        
+
         with col1:
             st.write("**Mann-Kendall Trend Test**")
             mk_col = st.selectbox("Column", numeric_cols, key="mk_col")
-            
+
             if st.button("🔍 Run Mann-Kendall Test", key="run_mk"):
                 if domain:
                     try:
                         result = domain.mann_kendall_test(mk_col)
-                        
+
                         # Display results
                         res_col1, res_col2 = st.columns(2)
                         with res_col1:
@@ -7491,11 +7491,11 @@ def render_domain_specific_tab():
                                 st.success("✅ Significant trend")
                             else:
                                 st.info("No significant trend")
-                        
+
                         # Create trend visualization
                         data = df[mk_col].dropna().reset_index(drop=True)
                         fig = go.Figure()
-                        
+
                         # Original data
                         fig.add_trace(go.Scatter(
                             x=list(range(len(data))),
@@ -7505,7 +7505,7 @@ def render_domain_specific_tab():
                             line=dict(color='blue', width=1),
                             marker=dict(size=4)
                         ))
-                        
+
                         # Add trend line (using Sen's slope if available)
                         try:
                             sens_result = domain.sens_slope(mk_col)
@@ -7513,7 +7513,7 @@ def render_domain_specific_tab():
                             intercept = sens_result['intercept']
                             x_trend = np.array([0, len(data)-1])
                             y_trend = intercept + slope * x_trend
-                            
+
                             fig.add_trace(go.Scatter(
                                 x=x_trend,
                                 y=y_trend,
@@ -7523,10 +7523,10 @@ def render_domain_specific_tab():
                             ))
                         except:
                             pass
-                        
+
                         # Color based on trend direction
                         trend_color = 'green' if result['trend'] == 'increasing' else ('red' if result['trend'] == 'decreasing' else 'gray')
-                        
+
                         fig.update_layout(
                             title=f"Mann-Kendall Trend Analysis: {mk_col}<br><sub>Trend: {result['trend']} (τ={result['tau']:.3f}, p={result['p_value']:.4f})</sub>",
                             xaxis_title='Observation Index',
@@ -7534,9 +7534,9 @@ def render_domain_specific_tab():
                             template=PLOTLY_TEMPLATE,
                             height=400
                         )
-                        
+
                         st.plotly_chart(fig, width='stretch')
-                        
+
                         # Download results
                         results_json = json.dumps(result, indent=2, default=str)
                         st.download_button(
@@ -7548,29 +7548,29 @@ def render_domain_specific_tab():
                         )
                     except Exception as e:
                         st.error(f"Error: {str(e)}")
-        
+
         with col2:
             st.write("**Sen's Slope Estimator**")
             sens_col = st.selectbox("Column", numeric_cols, key="sens_col")
-            
+
             if st.button("📈 Calculate Sen's Slope", key="run_sens_slope"):
                 if domain:
                     try:
                         result = domain.sens_slope(sens_col)
-                        
+
                         # Display results
                         res_col1, res_col2 = st.columns(2)
                         with res_col1:
                             st.metric("Sen's Slope", f"{result['slope']:.6f}")
                         with res_col2:
                             st.metric("Intercept", f"{result['intercept']:.4f}")
-                        
+
                         # Create visualization
                         data = df[sens_col].dropna().reset_index(drop=True)
                         x_vals = np.arange(len(data))
-                        
+
                         fig = go.Figure()
-                        
+
                         # Original data
                         fig.add_trace(go.Scatter(
                             x=x_vals,
@@ -7579,7 +7579,7 @@ def render_domain_specific_tab():
                             name='Data Points',
                             marker=dict(color='blue', size=6, opacity=0.6)
                         ))
-                        
+
                         # Sen's slope trend line
                         y_trend = result['intercept'] + result['slope'] * x_vals
                         fig.add_trace(go.Scatter(
@@ -7589,12 +7589,12 @@ def render_domain_specific_tab():
                             name=f"Sen's Slope: {result['slope']:.4f}",
                             line=dict(color='red', width=3)
                         ))
-                        
+
                         # Add confidence interval if available
                         if 'ci_lower' in result and 'ci_upper' in result:
                             y_lower = result['intercept'] + result['ci_lower'] * x_vals
                             y_upper = result['intercept'] + result['ci_upper'] * x_vals
-                            
+
                             fig.add_trace(go.Scatter(
                                 x=np.concatenate([x_vals, x_vals[::-1]]),
                                 y=np.concatenate([y_upper, y_lower[::-1]]),
@@ -7604,11 +7604,11 @@ def render_domain_specific_tab():
                                 name='95% CI',
                                 showlegend=True
                             ))
-                        
+
                         # Calculate change per unit
                         total_change = result['slope'] * len(data)
                         pct_change = (total_change / data.iloc[0]) * 100 if data.iloc[0] != 0 else 0
-                        
+
                         fig.update_layout(
                             title=f"Sen's Slope Estimation: {sens_col}<br><sub>Slope: {result['slope']:.4f} per unit (Total change: {total_change:.2f}, {pct_change:.1f}%)</sub>",
                             xaxis_title='Observation Index',
@@ -7616,18 +7616,18 @@ def render_domain_specific_tab():
                             template=PLOTLY_TEMPLATE,
                             height=400
                         )
-                        
+
                         st.plotly_chart(fig, width='stretch')
-                        
+
                         # Additional statistics
                         st.write("**Trend Statistics:**")
                         stats_df = pd.DataFrame({
                             'Metric': ['Slope (per observation)', 'Intercept', 'Total Change', 'Percent Change'],
-                            'Value': [f"{result['slope']:.6f}", f"{result['intercept']:.4f}", 
+                            'Value': [f"{result['slope']:.6f}", f"{result['intercept']:.4f}",
                                       f"{total_change:.4f}", f"{pct_change:.2f}%"]
                         })
                         st.dataframe(stats_df, width='stretch', hide_index=True)
-                        
+
                         # Download results
                         results_json = json.dumps(result, indent=2, default=str)
                         st.download_button(
@@ -7639,17 +7639,17 @@ def render_domain_specific_tab():
                         )
                     except Exception as e:
                         st.error(f"Error: {str(e)}")
-    
+
     with tab2:
         st.subheader("Clinical Research")
-        
+
         col1, col2 = st.columns(2)
-        
+
         with col1:
             st.write("**Bland-Altman Method Comparison**")
             method1 = st.selectbox("Method 1", numeric_cols, key="ba_m1")
             method2 = st.selectbox("Method 2", [c for c in numeric_cols if c != method1], key="ba_m2")
-            
+
             if st.button("📊 Bland-Altman Analysis", key="run_ba"):
                 if domain:
                     try:
@@ -7657,11 +7657,11 @@ def render_domain_specific_tab():
                         st.write(f"**Bias (Mean Difference):** {result['mean_difference']:.4f}")
                         st.write(f"**Lower LoA:** {result['lower_loa']:.4f}")
                         st.write(f"**Upper LoA:** {result['upper_loa']:.4f}")
-                        
+
                         # Bland-Altman plot
                         mean_vals = (df[method1] + df[method2]) / 2
                         diff_vals = df[method1] - df[method2]
-                        
+
                         fig = px.scatter(x=mean_vals, y=diff_vals,
                                        title='Bland-Altman Plot',
                                        template=PLOTLY_TEMPLATE)
@@ -7672,17 +7672,17 @@ def render_domain_specific_tab():
                         st.plotly_chart(fig, width='stretch')
                     except Exception as e:
                         st.error(f"Error: {str(e)}")
-        
+
         with col2:
             st.write("**Cohen's Kappa (Inter-rater Agreement)**")
             rater1 = st.selectbox("Rater 1", numeric_cols, key="kappa_r1")
             rater2 = st.selectbox("Rater 2", [c for c in numeric_cols if c != rater1], key="kappa_r2")
-            
+
             if st.button("📊 Calculate Kappa", key="run_kappa"):
                 if domain:
                     try:
                         result = domain.cohens_kappa(rater1, rater2)
-                        
+
                         # Display metrics
                         met_col1, met_col2, met_col3 = st.columns(3)
                         with met_col1:
@@ -7691,7 +7691,7 @@ def render_domain_specific_tab():
                             st.metric("Observed Agreement", f"{result['observed_agreement']:.1%}")
                         with met_col3:
                             st.metric("Expected Agreement", f"{result['expected_agreement']:.1%}")
-                        
+
                         # Interpretation with color coding
                         kappa = result['kappa']
                         if kappa >= 0.81:
@@ -7704,16 +7704,16 @@ def render_domain_specific_tab():
                             st.warning(f"⚠️ {result['interpretation']} (κ = {kappa:.3f})")
                         else:
                             st.error(f"❌ {result['interpretation']} (κ = {kappa:.3f})")
-                        
+
                         st.write(f"**95% CI:** [{result['ci_lower']:.4f}, {result['ci_upper']:.4f}]")
                         st.write(f"**N:** {result['n_observations']} observations, {result['n_categories']} categories")
-                        
+
                         # Create confusion matrix for visualization
                         r1_data = df[rater1].dropna()
                         r2_data = df[rater2].loc[r1_data.index].dropna()
                         r1_data = r1_data.loc[r2_data.index]
                         confusion = pd.crosstab(r1_data, r2_data, margins=True, margins_name='Total')
-                        
+
                         # Confusion Matrix Heatmap
                         st.write("**Agreement Matrix (Confusion Matrix):**")
                         conf_no_margins = confusion.iloc[:-1, :-1]
@@ -7729,15 +7729,15 @@ def render_domain_specific_tab():
                         )
                         fig_conf.update_layout(height=400)
                         st.plotly_chart(fig_conf, width='stretch')
-                        
+
                         # Kappa scale visualization
                         st.write("**Kappa Interpretation Scale:**")
                         scale_labels = ['Poor', 'Slight', 'Fair', 'Moderate', 'Substantial', 'Almost Perfect']
                         scale_thresholds = [0, 0.20, 0.40, 0.60, 0.80, 1.0]
                         scale_colors = ['#d73027', '#fc8d59', '#fee08b', '#d9ef8b', '#91cf60', '#1a9850']
-                        
+
                         fig_scale = go.Figure()
-                        
+
                         # Add colored bars for each category
                         for i in range(len(scale_labels)):
                             fig_scale.add_trace(go.Bar(
@@ -7752,7 +7752,7 @@ def render_domain_specific_tab():
                                 hoverinfo='name',
                                 showlegend=False
                             ))
-                        
+
                         # Add marker for current kappa value
                         fig_scale.add_trace(go.Scatter(
                             x=[max(0, min(1, kappa))],
@@ -7764,7 +7764,7 @@ def render_domain_specific_tab():
                             name='Your κ',
                             showlegend=False
                         ))
-                        
+
                         fig_scale.update_layout(
                             title='Where Your Kappa Falls on the Agreement Scale',
                             xaxis=dict(range=[-0.1, 1.1], title='Kappa Value', tickvals=[0, 0.2, 0.4, 0.6, 0.8, 1.0]),
@@ -7774,7 +7774,7 @@ def render_domain_specific_tab():
                             template=PLOTLY_TEMPLATE
                         )
                         st.plotly_chart(fig_scale, width='stretch')
-                        
+
                         # Download results
                         results_json = json.dumps(result, indent=2, default=str)
                         st.download_button(
@@ -7786,18 +7786,18 @@ def render_domain_specific_tab():
                         )
                     except Exception as e:
                         st.error(f"Error: {str(e)}")
-    
+
     with tab3:
         st.subheader("Ecology")
-        
+
         st.write("**Shannon Diversity Index**")
         species_cols = st.multiselect("Species/Abundance Columns", numeric_cols, key="shannon_cols")
-        
+
         if st.button("🌿 Calculate Shannon Diversity", key="run_shannon"):
             if domain and species_cols:
                 try:
                     result = domain.shannon_diversity(species_cols)
-                    
+
                     # Display results with metrics
                     met_col1, met_col2, met_col3 = st.columns(3)
                     with met_col1:
@@ -7806,7 +7806,7 @@ def render_domain_specific_tab():
                         st.metric("Evenness (J')", f"{result['evenness']:.4f}")
                     with met_col3:
                         st.metric("Richness (S)", result['richness'])
-                    
+
                     # Interpretation
                     if result['diversity_index'] < 1.0:
                         st.info("📊 Low diversity - community dominated by few species")
@@ -7814,15 +7814,15 @@ def render_domain_specific_tab():
                         st.info("📊 Moderate diversity")
                     else:
                         st.success("📊 High diversity - balanced community")
-                    
+
                     # Get abundance data for visualization
                     abundances = df[species_cols].sum()
                     total = abundances.sum()
                     proportions = abundances / total
-                    
+
                     # Create visualizations
                     fig_col1, fig_col2 = st.columns(2)
-                    
+
                     with fig_col1:
                         # Pie chart of species proportions
                         fig_pie = px.pie(
@@ -7833,7 +7833,7 @@ def render_domain_specific_tab():
                         )
                         fig_pie.update_traces(textposition='inside', textinfo='percent+label')
                         st.plotly_chart(fig_pie, width='stretch')
-                    
+
                     with fig_col2:
                         # Bar chart of abundances
                         fig_bar = px.bar(
@@ -7850,11 +7850,11 @@ def render_domain_specific_tab():
                             showlegend=False
                         )
                         st.plotly_chart(fig_bar, width='stretch')
-                    
+
                     # Rank-Abundance curve (Whittaker plot)
                     sorted_props = proportions.sort_values(ascending=False)
                     ranks = list(range(1, len(sorted_props) + 1))
-                    
+
                     fig_rank = go.Figure()
                     fig_rank.add_trace(go.Scatter(
                         x=ranks,
@@ -7864,7 +7864,7 @@ def render_domain_specific_tab():
                         marker=dict(size=10, color='green'),
                         line=dict(width=2)
                     ))
-                    
+
                     fig_rank.update_layout(
                         title='Rank-Abundance Curve (Whittaker Plot)',
                         xaxis_title='Species Rank',
@@ -7874,15 +7874,15 @@ def render_domain_specific_tab():
                         height=350
                     )
                     st.plotly_chart(fig_rank, width='stretch')
-                    
+
                     # Hill Diversity Profile (q vs effective number of species)
                     st.write("**Hill Diversity Profile:**")
                     st.caption("Shows how diversity changes with q parameter (weight given to common vs rare species)")
-                    
+
                     # Calculate Hill numbers for different q values
                     q_values = np.linspace(0, 3, 31)
                     hill_numbers = []
-                    
+
                     for q in q_values:
                         if q == 1:
                             # Limit as q->1 is exp(Shannon)
@@ -7892,7 +7892,7 @@ def render_domain_specific_tab():
                             # General Hill number formula: (sum(p^q))^(1/(1-q))
                             hill_q = np.sum(proportions ** q) ** (1 / (1 - q))
                             hill_numbers.append(hill_q)
-                    
+
                     fig_hill = go.Figure()
                     fig_hill.add_trace(go.Scatter(
                         x=q_values,
@@ -7903,12 +7903,12 @@ def render_domain_specific_tab():
                         fill='tozeroy',
                         fillcolor='rgba(0, 100, 0, 0.1)'
                     ))
-                    
+
                     # Mark key points
                     key_q = [0, 1, 2]
                     key_names = ['Richness (q=0)', 'Shannon (q=1)', 'Simpson (q=2)']
                     key_values = [hill_numbers[0], hill_numbers[10], hill_numbers[20]]  # q=0, 1, 2
-                    
+
                     fig_hill.add_trace(go.Scatter(
                         x=key_q,
                         y=key_values,
@@ -7919,7 +7919,7 @@ def render_domain_specific_tab():
                         name='Key Indices',
                         showlegend=False
                     ))
-                    
+
                     fig_hill.update_layout(
                         title='Hill Diversity Profile (Effective Number of Species vs q)',
                         xaxis_title='Order q (0=richness, 1=Shannon, 2=Simpson)',
@@ -7927,21 +7927,21 @@ def render_domain_specific_tab():
                         template=PLOTLY_TEMPLATE,
                         height=400,
                         annotations=[
-                            dict(x=0.5, y=key_values[0]*0.9, text="← More weight to rare species", 
+                            dict(x=0.5, y=key_values[0]*0.9, text="← More weight to rare species",
                                  showarrow=False, font=dict(size=10)),
-                            dict(x=2.5, y=key_values[2]*1.1, text="More weight to common species →", 
+                            dict(x=2.5, y=key_values[2]*1.1, text="More weight to common species →",
                                  showarrow=False, font=dict(size=10))
                         ]
                     )
                     st.plotly_chart(fig_hill, width='stretch')
-                    
+
                     # Diversity metrics table
                     st.write("**Diversity Metrics Summary:**")
                     metrics_df = pd.DataFrame({
-                        'Metric': ["Shannon Index (H')", "Max Possible H'", "Evenness (J')", 
-                                   "Species Richness (S)", "Hill q=0 (Richness)", 
+                        'Metric': ["Shannon Index (H')", "Max Possible H'", "Evenness (J')",
+                                   "Species Richness (S)", "Hill q=0 (Richness)",
                                    "Hill q=1 (exp Shannon)", "Hill q=2 (inv Simpson)", "Total Individuals"],
-                        'Value': [f"{result['diversity_index']:.4f}", 
+                        'Value': [f"{result['diversity_index']:.4f}",
                                   f"{np.log(result['richness']):.4f}",
                                   f"{result['evenness']:.4f}",
                                   str(result['richness']),
@@ -7961,7 +7961,7 @@ def render_domain_specific_tab():
                         ]
                     })
                     st.dataframe(metrics_df, width='stretch', hide_index=True)
-                    
+
                     # Download results
                     full_result = {
                         **result,
@@ -7991,45 +7991,45 @@ def render_report_tab():
     """Render the report generation tab"""
     st.header("📄 Report Generator")
     st.caption("Generate publication-ready analysis reports")
-    
+
     df = st.session_state.df
-    
+
     if df is None:
         st.info("📂 Please load data first in the Data tab.")
         return
-    
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
         st.subheader("Report Settings")
-        
+
         report_title = st.text_input("Report Title", "Data Analysis Report", key="report_title")
         author = st.text_input("Author", "", key="report_author")
         include_data_summary = st.checkbox("Include Data Summary", True, key="inc_summary")
         include_results = st.checkbox("Include Analysis Results", True, key="inc_results")
-        
+
         output_format = st.selectbox("Output Format", ["HTML", "Markdown"], key="report_format")
-    
+
     with col2:
         st.subheader("Generate Report")
-        
+
         if st.button("📄 Generate Report", key="gen_report"):
             try:
                 report = ReportGenerator(title=report_title)
-                
+
                 if author:
                     report.add_section("Author", author, level=3)
-                
+
                 if include_data_summary:
                     report.add_data_provenance(df)
-                
+
                 if include_results and st.session_state.analysis_results:
                     report.add_section("Analysis Results", "Summary of performed analyses:")
-                    
+
                     for key, value in st.session_state.analysis_results.items():
                         if isinstance(value, dict):
                             report.add_statistics_table(value, title=key.replace('_', ' ').title())
-                
+
                 if output_format == "HTML":
                     content = report.generate_html()
                     st.download_button(
@@ -8046,15 +8046,15 @@ def render_report_tab():
                         file_name="analysis_report.md",
                         mime="text/markdown"
                     )
-                
+
                 st.success("Report generated successfully!")
-                
+
                 with st.expander("Preview Report"):
                     if output_format == "HTML":
                         st.components.v1.html(content, height=400, scrolling=True)
                     else:
                         st.markdown(content)
-                        
+
             except Exception as e:
                 st.error(f"Error generating report: {str(e)}")
 
@@ -8167,7 +8167,7 @@ def main():
     with main_tabs[4]:
         st.markdown("#### 🤖 Machine Learning Group")
         st.caption("Supervised learning, unsupervised learning, feature engineering, and computer vision")
-        
+
         # Group ML subtabs into 3 logical categories for better navigation
         ml_category = st.radio(
             "Select ML Category:",
@@ -8175,9 +8175,9 @@ def main():
             horizontal=True,
             key="ml_category"
         )
-        
+
         st.markdown("---")
-        
+
         if ml_category == "🎯 Supervised Learning":
             # Supervised learning: Regression, Classification, Validation, Feature Selection, Interpretability
             ml_super_tabs = st.tabs([
@@ -8187,7 +8187,7 @@ def main():
                 "🔮 Interpretability",
                 "🔀 Non-Linear Methods"
             ])
-            
+
             with ml_super_tabs[0]:
                 render_ml_tab()
             with ml_super_tabs[1]:
@@ -8198,7 +8198,7 @@ def main():
                 render_interpretability_tab()
             with ml_super_tabs[4]:
                 render_nonlinear_tab()
-        
+
         elif ml_category == "🔍 Unsupervised Learning":
             # Unsupervised: PCA, Clustering, Anomaly, Dim Reduction
             ml_unsup_tabs = st.tabs([
@@ -8207,7 +8207,7 @@ def main():
                 "🚨 Anomaly Detection",
                 "📉 Dimensionality Reduction"
             ])
-            
+
             with ml_unsup_tabs[0]:
                 render_pca_tab()
             with ml_unsup_tabs[1]:
@@ -8216,14 +8216,14 @@ def main():
                 render_anomaly_tab()
             with ml_unsup_tabs[3]:
                 render_dimreduction_tab()
-        
+
         else:  # Computer Vision
             # Image-based: Image Recognition, Biomass Segmentation
             ml_vision_tabs = st.tabs([
                 "🖼️ Image Recognition",
                 "🌿 Biomass Segmentation"
             ])
-            
+
             with ml_vision_tabs[0]:
                 render_image_tab()
             with ml_vision_tabs[1]:
