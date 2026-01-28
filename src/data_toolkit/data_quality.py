@@ -544,13 +544,13 @@ class DataQuality:
     # OUTLIER DETECTION
     # =========================================================================
     
-    def detect_outliers(self, column: str, method: str = 'iqr',
+    def detect_outliers(self, columns: Union[str, List[str]], method: str = 'iqr',
                         threshold: float = 1.5) -> Dict[str, Any]:
         """
-        Detect outliers in a column
+        Detect outliers in one or more columns
         
         Args:
-            column: Column to analyze
+            columns: Column name (str) or list of column names to analyze
             method: Detection method
                    - 'iqr': Interquartile range method
                    - 'zscore': Z-score method
@@ -559,53 +559,99 @@ class DataQuality:
             threshold: Threshold for outlier detection
             
         Returns:
-            Dictionary with outlier indices and statistics
+            Dictionary with outlier indices and statistics.
+            For multiple columns, includes 'outlier_counts' and 'total_outliers'.
         """
         if self.df is None:
             return {'error': 'No data loaded'}
         
-        data = self.df[column].dropna()
+        # Handle single column case
+        if isinstance(columns, str):
+            columns = [columns]
         
-        if method == 'iqr':
-            q1 = data.quantile(0.25)
-            q3 = data.quantile(0.75)
-            iqr = q3 - q1
-            lower = q1 - threshold * iqr
-            upper = q3 + threshold * iqr
-            outliers = (data < lower) | (data > upper)
-            bounds = {'lower': float(lower), 'upper': float(upper)}
-            
-        elif method == 'zscore':
-            z_scores = np.abs(stats.zscore(data))
-            outliers = z_scores > threshold
-            bounds = {'threshold': threshold}
-            
-        elif method == 'mad':
-            median = data.median()
-            mad = np.median(np.abs(data - median))
-            modified_z = 0.6745 * (data - median) / mad if mad > 0 else np.zeros(len(data))
-            outliers = np.abs(modified_z) > threshold
-            bounds = {'median': float(median), 'mad': float(mad)}
-            
-        elif method == 'isolation_forest':
-            from sklearn.ensemble import IsolationForest
-            clf = IsolationForest(contamination='auto', random_state=42)
-            predictions = clf.fit_predict(data.values.reshape(-1, 1))
-            outliers = pd.Series(predictions == -1, index=data.index)
-            bounds = {}
-            
-        else:
-            return {'error': f'Unknown method: {method}'}
+        # Multi-column case - aggregate results
+        outlier_counts = {}
+        all_outlier_indices = set()
+        per_column_results = {}
+        total_outliers = 0
         
-        outlier_indices = data.index[outliers].tolist()
+        for col in columns:
+            if col not in self.df.columns:
+                continue
+            
+            # Skip non-numeric columns
+            if not np.issubdtype(self.df[col].dtype, np.number):
+                continue
+                
+            data = self.df[col].dropna()
+            
+            if len(data) == 0:
+                outlier_counts[col] = 0
+                continue
+            
+            if method == 'iqr':
+                q1 = float(data.quantile(0.25))
+                q3 = float(data.quantile(0.75))
+                iqr = q3 - q1
+                lower = q1 - threshold * iqr
+                upper = q3 + threshold * iqr
+                outliers = (data < lower) | (data > upper)
+                bounds = {'lower': float(lower), 'upper': float(upper)}
+                
+            elif method == 'zscore':
+                z_scores = np.abs(stats.zscore(data))
+                outliers = z_scores > threshold
+                bounds = {'threshold': threshold}
+                
+            elif method == 'mad':
+                median = float(data.median())
+                mad = float(np.median(np.abs(data - median)))
+                if mad > 0:
+                    modified_z = 0.6745 * (data - median) / mad
+                else:
+                    modified_z = pd.Series(np.zeros(len(data)), index=data.index)
+                outliers = np.abs(modified_z) > threshold
+                bounds = {'median': median, 'mad': mad}
+                
+            elif method == 'isolation_forest':
+                from sklearn.ensemble import IsolationForest
+                clf = IsolationForest(contamination='auto', random_state=42)
+                predictions = clf.fit_predict(data.values.reshape(-1, 1))
+                outliers = pd.Series(predictions == -1, index=data.index)
+                bounds = {}
+                
+            else:
+                return {'error': f'Unknown method: {method}'}
+            
+            # Convert outliers to boolean Series if it's a numpy array
+            if isinstance(outliers, np.ndarray):
+                outliers = pd.Series(outliers, index=data.index)
+            
+            n_outliers = int(outliers.sum())
+            outlier_indices = data.index[outliers].tolist()
+            
+            outlier_counts[col] = n_outliers
+            total_outliers += n_outliers
+            all_outlier_indices.update(outlier_indices)
+            
+            per_column_results[col] = {
+                'n_outliers': n_outliers,
+                'pct_outliers': float(n_outliers / len(data) * 100) if len(data) > 0 else 0.0,
+                'outlier_indices': outlier_indices,
+                'outlier_values': data[outliers].tolist(),
+                'bounds': bounds
+            }
         
+        # Return format compatible with both single and multi-column usage
         return {
-            'n_outliers': int(outliers.sum()),
-            'pct_outliers': float(outliers.sum() / len(data) * 100),
-            'outlier_indices': outlier_indices,
-            'outlier_values': data[outliers].tolist(),
-            'bounds': bounds,
-            'method': method
+            'outlier_counts': outlier_counts,
+            'total_outliers': total_outliers,
+            'outlier_indices': list(all_outlier_indices),
+            'per_column': per_column_results,
+            'method': method,
+            # For backward compatibility with single-column usage
+            'n_outliers': total_outliers,
+            'pct_outliers': float(total_outliers / len(self.df) * 100) if len(self.df) > 0 else 0.0
         }
     
     def handle_outliers(self, column: str, method: str = 'winsorize',
@@ -631,10 +677,15 @@ class DataQuality:
         outliers = self.detect_outliers(column, outlier_method, threshold)
         data = self.df[column].copy()
         
+        # Get per-column results for the specific column
+        col_result = outliers.get('per_column', {}).get(column, {})
+        bounds = col_result.get('bounds', outliers.get('bounds', {}))
+        outlier_indices = col_result.get('outlier_indices', outliers.get('outlier_indices', []))
+        
         if method == 'winsorize':
-            if 'lower' in outliers['bounds']:
-                lower = outliers['bounds']['lower']
-                upper = outliers['bounds']['upper']
+            if 'lower' in bounds:
+                lower = bounds['lower']
+                upper = bounds['upper']
                 data = data.clip(lower=lower, upper=upper)
             else:
                 # For z-score, use percentiles
@@ -643,11 +694,11 @@ class DataQuality:
                 data = data.clip(lower=lower, upper=upper)
                 
         elif method == 'remove':
-            data.loc[outliers['outlier_indices']] = np.nan
+            data.loc[outlier_indices] = np.nan
             
         elif method == 'median':
             median_val = data.median()
-            data.loc[outliers['outlier_indices']] = median_val
+            data.loc[outlier_indices] = median_val
         
         return data
     

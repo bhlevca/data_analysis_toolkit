@@ -6,6 +6,20 @@ A comprehensive data analysis application with integrated tutorial guidance.
 Uses Plotly for interactive, zoomable charts.
 
 Version: 4.0.0 - Scientific Research Edition
+
+# =============================================================================
+# ⚠️  IMPORTANT WARNING FOR AI ASSISTANTS AND DEVELOPERS  ⚠️
+# =============================================================================
+# DO NOT use `use_container_width=True` with st.plotly_chart() or st.dataframe()!
+# This parameter was DEPRECATED and removed after 2025-12-31.
+#
+# CORRECT usage:
+#   st.plotly_chart(fig, width='stretch')    # instead of use_container_width=True
+#   st.plotly_chart(fig, width='content')    # instead of use_container_width=False
+#   st.dataframe(df, width='stretch')        # instead of use_container_width=True
+#
+# This applies to ALL Streamlit display functions that previously used use_container_width.
+# =============================================================================
 """
 
 import json

@@ -5,6 +5,20 @@ Provides interface for:
 - Morris Screening (Elementary Effects)
 - Sobol Sensitivity Indices
 - One-At-a-Time (OAT) Analysis
+
+# =============================================================================
+# ⚠️  IMPORTANT WARNING FOR AI ASSISTANTS AND DEVELOPERS  ⚠️
+# =============================================================================
+# DO NOT use `use_container_width=True` with st.plotly_chart() or st.dataframe()!
+# This parameter was DEPRECATED and removed after 2025-12-31.
+#
+# CORRECT usage:
+#   st.plotly_chart(fig, width='stretch')    # instead of use_container_width=True
+#   st.plotly_chart(fig, width='content')    # instead of use_container_width=False
+#   st.dataframe(df, width='stretch')        # instead of use_container_width=True
+#
+# This applies to ALL Streamlit display functions that previously used use_container_width.
+# =============================================================================
 """
 
 import streamlit as st
@@ -292,7 +306,7 @@ def _plot_morris_results(results):
         showlegend=True
     )
     
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
     
     # Also show bar chart
     fig2 = px.bar(
@@ -302,7 +316,7 @@ def _plot_morris_results(results):
         template="plotly_white"
     )
     fig2.update_traces(marker_color=colors)
-    st.plotly_chart(fig2, use_container_width=True)
+    st.plotly_chart(fig2, width='stretch')
 
 
 def _plot_sobol_results(results):
@@ -356,7 +370,7 @@ def _plot_sobol_results(results):
         legend=dict(yanchor="top", y=0.99, xanchor="right", x=0.99)
     )
     
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
     
     # Interaction indicator
     st.subheader("🔗 Interaction Analysis")
@@ -428,7 +442,7 @@ def _plot_oat_results(results):
         height=300 * n_rows
     )
     
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
     
     # Gradient bar chart
     gradients = [abs(results['gradients'].get(p, 0)) for p in param_names]
@@ -438,7 +452,7 @@ def _plot_oat_results(results):
         labels={'x': 'Parameter', 'y': '|Gradient|'},
         template="plotly_white"
     )
-    st.plotly_chart(fig2, use_container_width=True)
+    st.plotly_chart(fig2, width='stretch')
 
 
 def _render_cart_workflow_section(df, target, features, sens_results):
@@ -578,7 +592,7 @@ def _render_cart_workflow_section(df, target, features, sens_results):
                 template='plotly_white'
             )
             fig.update_traces(marker_color='forestgreen')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
             
             # Decision tree rules
             with st.expander("🌲 Decision Tree Rules"):
@@ -622,7 +636,7 @@ def _render_cart_workflow_section(df, target, features, sens_results):
                 yaxis_title="Count",
                 template="plotly_white"
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
             
             # Export options
             st.subheader("📥 Export Data")
