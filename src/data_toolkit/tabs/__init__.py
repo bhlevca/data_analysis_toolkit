@@ -21,6 +21,7 @@ from .anomaly_tab import render_anomaly_tab
 from .signal_analysis_tab import render_signal_analysis_tab
 from .dimreduction_tab import render_dimreduction_tab
 from .tutorial_sidebar import render_tutorial_sidebar
+from .sensitivity_tab import render_sensitivity_tab
 
 __all__ = [
     'render_data_tab',
@@ -40,4 +41,5 @@ __all__ = [
     'render_signal_analysis_tab',
     'render_dimreduction_tab',
     'render_tutorial_sidebar',
+    'render_sensitivity_tab',
 ]

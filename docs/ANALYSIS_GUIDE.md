@@ -110,4 +110,195 @@ pytest tests/ -q
 
 ---
 
-If you'd like, I will now implement a full Torrence & Compo CWT plotting helper (with COI and optional significance contours). After that I'll add unit tests that validate COI and period outputs.
+## New Analysis Features (v4.0)
+
+### Effect Size Analysis
+
+- **When to use**: After hypothesis testing to quantify the magnitude of differences or relationships. Effect sizes are essential for:
+  - Meta-analysis compatibility
+  - Power analysis for future studies
+  - Practical significance interpretation
+  - Journal publication requirements
+
+- **Available effect sizes**:
+  | Type | Use Case | Method |
+  |------|----------|--------|
+  | Cohen's d | Two-group means | `cohens_d()` |
+  | Hedges' g | Small samples | `hedges_g()` |
+  | Eta-squared | ANOVA | `eta_squared()` |
+  | Cramér's V | Chi-square | `cramers_v()` |
+  | Odds Ratio | 2×2 tables | `odds_ratio()` |
+
+- **Interpretation (Cohen's d)**:
+  - 0.2: Small effect
+  - 0.5: Medium effect
+  - 0.8: Large effect
+
+```python
+from data_toolkit.effect_sizes import EffectSizeCalculator
+calc = EffectSizeCalculator(df)
+result = calc.cohens_d('treatment', 'control')
+```
+
+### Model Validation
+
+- **When to use**: Before trusting any machine learning model results. Critical for:
+  - Avoiding overfitting
+  - Unbiased hyperparameter selection
+  - Publication-quality model evaluation
+
+- **Key methods**:
+  - `cross_validate()`: K-fold CV with multiple metrics
+  - `nested_cross_validation()`: Unbiased performance during tuning
+  - `learning_curve_analysis()`: Detect over/underfitting
+  - `calibration_analysis()`: Probability calibration check
+  - `residual_diagnostics()`: Comprehensive residual analysis
+
+```python
+from data_toolkit.model_validation import ModelValidator
+validator = ModelValidator(df)
+result = validator.nested_cross_validation(model, param_grid, features, target)
+```
+
+### Data Quality Analysis
+
+- **When to use**: At the start of every analysis to understand data limitations:
+  - Missing data assessment
+  - Outlier detection
+  - Distribution analysis
+  - Imputation decisions
+
+- **Missing data workflow**:
+  1. `missing_data_summary()` — Quantify missingness
+  2. `missing_pattern_analysis()` — Check patterns (MCAR/MAR/MNAR)
+  3. `little_mcar_test()` — Test MCAR assumption
+  4. `impute_missing()` or `multiple_imputation()` — Handle appropriately
+
+```python
+from data_toolkit.data_quality import DataQualityAnalyzer
+dqa = DataQualityAnalyzer(df)
+summary = dqa.missing_data_summary()
+if summary['missing_pct'].max() > 5:
+    result = dqa.multiple_imputation(cols_with_missing)
+```
+
+### Feature Selection
+
+- **When to use**: Before model building to reduce dimensionality, improve interpretability, and avoid overfitting.
+
+- **Method selection guide**:
+  | Method | Best For |
+  |--------|----------|
+  | RFE | Linear models, interpretability |
+  | Boruta | All-relevant feature discovery |
+  | SHAP | Complex models, interaction detection |
+  | Lasso | Sparse solutions, regularization |
+  | Ensemble | Robust consensus selection |
+
+```python
+from data_toolkit.feature_selection import FeatureSelector
+selector = FeatureSelector(df)
+result = selector.ensemble_selection(features, target)
+```
+
+### Survival Analysis
+
+- **When to use**: Time-to-event data with censoring:
+  - Clinical trials (time to event/death)
+  - Customer churn analysis
+  - Equipment failure analysis
+  - Subscription duration studies
+
+- **Methods**:
+  - `kaplan_meier()`: Non-parametric survival curves
+  - `cox_regression()`: Hazard ratios for covariates
+  - `log_rank_test()`: Compare survival curves
+  - `parametric_survival()`: Weibull, exponential, etc.
+
+```python
+from data_toolkit.survival_analysis import SurvivalAnalyzer
+surv = SurvivalAnalyzer(df)
+result = surv.kaplan_meier('time', 'event', group_col='treatment')
+```
+
+### Model Interpretability
+
+- **When to use**: To explain model predictions for:
+  - Regulatory compliance
+  - Scientific understanding
+  - Debugging models
+  - Stakeholder communication
+
+- **Methods**:
+  - `shap_analysis()`: Global feature importance
+  - `lime_explain()`: Local instance explanations
+  - `partial_dependence()`: Feature effect curves
+  - `feature_interactions()`: Interaction detection
+
+```python
+from data_toolkit.interpretability import ModelInterpreter
+interp = ModelInterpreter(model, df, features)
+result = interp.shap_analysis()
+```
+
+### Advanced Time Series
+
+- **When to use**: For sophisticated temporal analysis:
+  - Forecasting with Prophet
+  - Changepoint detection
+  - Multivariate series (VAR)
+  - Similarity measurement (DTW)
+
+```python
+from data_toolkit.advanced_timeseries import AdvancedTimeSeriesAnalysis
+ats = AdvancedTimeSeriesAnalysis(df)
+forecast = ats.prophet_forecast('date', 'value', periods=30)
+changepoints = ats.detect_changepoints('value')
+```
+
+### Domain-Specific Analysis
+
+- **Environmental Science**:
+  - `mann_kendall_test()`: Non-parametric trend detection
+  - `sens_slope()`: Robust trend magnitude
+  - `standardized_precipitation_index()`: Drought analysis
+
+- **Clinical Research**:
+  - `bland_altman()`: Method comparison
+  - `intraclass_correlation()`: Reliability studies
+  - `cohens_kappa()`: Inter-rater agreement
+
+- **Ecology**:
+  - `shannon_diversity()`: Diversity indices
+  - `simpson_diversity()`: Dominance measures
+  - `morans_i()`: Spatial autocorrelation
+
+```python
+from data_toolkit.domain_specific import DomainAnalysis
+domain = DomainAnalysis(df)
+trend = domain.mann_kendall_test('temperature')
+agreement = domain.bland_altman('method_a', 'method_b')
+```
+
+### Statistical Enhancements
+
+- **Multiple testing correction**: Essential when performing many hypothesis tests
+  - Bonferroni, Holm, FDR methods
+  
+- **Variance Inflation Factor (VIF)**: Detect multicollinearity
+  - VIF > 10 indicates severe collinearity
+  
+- **Robust statistics**: Resistant to outliers
+  - Median, MAD, trimmed mean, Huber M-estimator
+
+```python
+from data_toolkit.statistical_analysis import StatisticalAnalysis
+sa = StatisticalAnalysis(df)
+corrected = sa.multiple_testing_correction(p_values, method='fdr_bh')
+vif = sa.variance_inflation_factor(features)
+robust = sa.robust_statistics('column')
+```
+
+---
+
+For complete API documentation, see [API_REFERENCE.md](API_REFERENCE.md).

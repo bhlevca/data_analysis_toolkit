@@ -1,0 +1,26 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"*.ipynb": "jupyter-notebook",
+			"Cargo.toml": "toml",
+			"pyproject.toml": "toml"
+		},
+		"terminal.integrated.env.linux": {
+			"PYTHONPATH": "${workspaceFolder}/src"
+		},
+		"terminal.integrated.env.osx": {
+			"PYTHONPATH": "${workspaceFolder}/src"
+		},
+		"terminal.integrated.env.windows": {
+			"PYTHONPATH": "${workspaceFolder}/src"
+		},
+		"rust-analyzer.linkedProjects": [
+			"${workspaceFolder}/rust_extensions/Cargo.toml"
+		]
+	}
+}

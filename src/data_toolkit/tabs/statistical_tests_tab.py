@@ -446,6 +446,77 @@ def render_statistical_tests_tab():
                 st.dataframe(pd.DataFrame(effects_data), width='stretch')
             
             st.info(f"📊 {test_results.get('interpretation', '')}")
+            
+            # === VISUALIZATION: Two-Way ANOVA Interaction Plot ===
+            st.markdown("---")
+            st.markdown("### 📊 Interaction Plot")
+            
+            # Get column names from session state
+            data_col = st.session_state.get('twoway_data')
+            factor1 = st.session_state.get('twoway_f1')
+            factor2 = st.session_state.get('twoway_f2')
+            
+            if data_col and factor1 and factor2:
+                if all(c in df.columns for c in [data_col, factor1, factor2]):
+                    # Compute means and SE for interaction plot
+                    grouped = df.groupby([factor1, factor2])[data_col].agg(['mean', 'sem', 'count']).reset_index()
+                    grouped.columns = [factor1, factor2, 'mean', 'sem', 'n']
+                    
+                    # Create interaction plot
+                    fig = go.Figure()
+                    
+                    # Get unique levels of factor2 for coloring
+                    factor2_levels = df[factor2].unique()
+                    colors = px.colors.qualitative.Set1[:len(factor2_levels)]
+                    
+                    for i, level in enumerate(factor2_levels):
+                        subset = grouped[grouped[factor2] == level]
+                        fig.add_trace(go.Scatter(
+                            x=subset[factor1],
+                            y=subset['mean'],
+                            error_y=dict(type='data', array=subset['sem']),
+                            mode='lines+markers',
+                            name=f"{factor2}={level}",
+                            marker=dict(size=10),
+                            line=dict(width=2, color=colors[i % len(colors)])
+                        ))
+                    
+                    fig.update_layout(
+                        title=f'Interaction Plot: {data_col} by {factor1} × {factor2}',
+                        xaxis_title=factor1,
+                        yaxis_title=f'Mean {data_col} (±SE)',
+                        template=PLOTLY_TEMPLATE,
+                        height=450,
+                        legend_title=factor2
+                    )
+                    
+                    st.plotly_chart(fig, width='stretch')
+                    
+                    # Add grouped bar chart option
+                    with st.expander("📊 Grouped Bar Chart"):
+                        fig_bar = px.bar(grouped, x=factor1, y='mean', color=factor2,
+                                         barmode='group',
+                                         error_y='sem',
+                                         title=f'{data_col} by {factor1} and {factor2}',
+                                         template=PLOTLY_TEMPLATE)
+                        fig_bar.update_layout(height=400)
+                        st.plotly_chart(fig_bar, width='stretch')
+                    
+                    # Add main effects box plot
+                    with st.expander("📦 Main Effects Box Plots"):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            fig1 = px.box(df, x=factor1, y=data_col, color=factor1,
+                                         title=f'Effect of {factor1}',
+                                         template=PLOTLY_TEMPLATE, points='outliers')
+                            fig1.update_layout(height=350, showlegend=False)
+                            st.plotly_chart(fig1, width='stretch')
+                        with col2:
+                            fig2 = px.box(df, x=factor2, y=data_col, color=factor2,
+                                         title=f'Effect of {factor2}',
+                                         template=PLOTLY_TEMPLATE, points='outliers')
+                            fig2.update_layout(height=350, showlegend=False)
+                            st.plotly_chart(fig2, width='stretch')
         
         elif anova_type == 'chi_square':
             # Chi-Square test results
@@ -456,10 +527,73 @@ def render_statistical_tests_tab():
             col2.metric("p-value", f"{test_results.get('p_value', 0):.6f}")
             col3.metric("Degrees of Freedom", test_results.get('dof', 0))
             
+            # Show effect size (Cramer's V)
+            if 'cramers_v' in test_results:
+                st.metric("Cramér's V (effect size)", f"{test_results.get('cramers_v', 0):.4f}")
+            
             if test_results.get('significant'):
                 st.success(f"✅ {test_results.get('interpretation', 'Variables are significantly associated')}")
             else:
                 st.info(f"❌ {test_results.get('interpretation', 'No significant association')}")
+            
+            # === VISUALIZATION: Chi-Square Heatmap ===
+            st.markdown("---")
+            st.markdown("### 📊 Association Visualizations")
+            
+            cat_col1 = st.session_state.get('chi_col1')
+            cat_col2 = st.session_state.get('chi_col2')
+            
+            if cat_col1 and cat_col2 and cat_col1 in df.columns and cat_col2 in df.columns:
+                # Contingency table heatmap
+                contingency = pd.crosstab(df[cat_col1], df[cat_col2])
+                
+                fig = px.imshow(contingency,
+                               labels=dict(x=cat_col2, y=cat_col1, color="Count"),
+                               title=f'Contingency Table Heatmap: {cat_col1} × {cat_col2}',
+                               color_continuous_scale='Blues',
+                               text_auto=True,
+                               template=PLOTLY_TEMPLATE)
+                fig.update_layout(height=400)
+                st.plotly_chart(fig, width='stretch')
+                
+                # Stacked/grouped bar chart
+                with st.expander("📊 Bar Chart View"):
+                    bar_type = st.radio("Bar Type", ["Stacked", "Grouped", "Percent Stacked"], 
+                                       horizontal=True, key='chi_bar_type')
+                    
+                    if bar_type == "Percent Stacked":
+                        # Normalize by row
+                        contingency_pct = contingency.div(contingency.sum(axis=1), axis=0) * 100
+                        fig_bar = px.bar(contingency_pct.reset_index().melt(id_vars=cat_col1),
+                                        x=cat_col1, y='value', color=cat_col2,
+                                        title=f'Distribution of {cat_col2} within each {cat_col1} (%)',
+                                        template=PLOTLY_TEMPLATE,
+                                        labels={'value': 'Percentage'})
+                    else:
+                        fig_bar = px.bar(contingency.reset_index().melt(id_vars=cat_col1),
+                                        x=cat_col1, y='value', color=cat_col2,
+                                        barmode='stack' if bar_type == "Stacked" else 'group',
+                                        title=f'{cat_col1} by {cat_col2}',
+                                        template=PLOTLY_TEMPLATE,
+                                        labels={'value': 'Count'})
+                    fig_bar.update_layout(height=400)
+                    st.plotly_chart(fig_bar, width='stretch')
+                
+                # Expected vs Observed
+                with st.expander("📋 Expected vs Observed Frequencies"):
+                    from scipy.stats import chi2_contingency
+                    chi2, p, dof, expected = chi2_contingency(contingency)
+                    
+                    st.markdown("**Observed Frequencies:**")
+                    st.dataframe(contingency, width='stretch')
+                    
+                    st.markdown("**Expected Frequencies (under independence):**")
+                    expected_df = pd.DataFrame(expected, index=contingency.index, columns=contingency.columns)
+                    st.dataframe(expected_df.round(2), width='stretch')
+                    
+                    st.markdown("**Residuals (Observed - Expected):**")
+                    residuals = contingency - expected_df
+                    st.dataframe(residuals.round(2), width='stretch')
         
         elif anova_type == 'normality':
             # Normality test results
@@ -516,6 +650,119 @@ def render_statistical_tests_tab():
             else:
                 st.info(f"❌ Correlation not statistically significant (p ≥ 0.05)")
             
+            # === VISUALIZATION: Regression/Correlation Plot with Statistics ===
+            st.markdown("---")
+            st.markdown("### 📊 Regression Plot with Statistics")
+            
+            col1_name = test_results.get('column1')
+            col2_name = test_results.get('column2')
+            
+            if col1_name in df.columns and col2_name in df.columns:
+                from scipy import stats as scipy_stats
+                
+                # Get clean data
+                plot_df = df[[col1_name, col2_name]].dropna()
+                x_data = plot_df[col1_name].values
+                y_data = plot_df[col2_name].values
+                
+                # Compute regression
+                slope, intercept, r_value, p_value, std_err = scipy_stats.linregress(x_data, y_data)
+                r_squared = r_value ** 2
+                
+                # Create scatter plot
+                fig = go.Figure()
+                
+                # Add scatter points
+                fig.add_trace(go.Scatter(
+                    x=x_data, y=y_data,
+                    mode='markers',
+                    marker=dict(size=8, opacity=0.6, color='steelblue'),
+                    name='Data Points'
+                ))
+                
+                # Add regression line
+                x_line = np.linspace(x_data.min(), x_data.max(), 100)
+                y_line = slope * x_line + intercept
+                fig.add_trace(go.Scatter(
+                    x=x_line, y=y_line,
+                    mode='lines',
+                    line=dict(color='crimson', width=2),
+                    name='Regression Line'
+                ))
+                
+                # Add confidence interval (95%)
+                n = len(x_data)
+                x_mean = np.mean(x_data)
+                se_y = std_err * np.sqrt(1/n + (x_line - x_mean)**2 / np.sum((x_data - x_mean)**2))
+                t_val = scipy_stats.t.ppf(0.975, n - 2)
+                ci_upper = y_line + t_val * se_y
+                ci_lower = y_line - t_val * se_y
+                
+                fig.add_trace(go.Scatter(
+                    x=np.concatenate([x_line, x_line[::-1]]),
+                    y=np.concatenate([ci_upper, ci_lower[::-1]]),
+                    fill='toself',
+                    fillcolor='rgba(220, 53, 69, 0.15)',
+                    line=dict(color='rgba(220, 53, 69, 0)'),
+                    name='95% CI'
+                ))
+                
+                # Format equation and stats
+                sign = '+' if intercept >= 0 else ''
+                eq_text = f"y = {slope:.4f}x {sign}{intercept:.4f}"
+                stats_text = f"R² = {r_squared:.4f}<br>r = {r_value:.4f}<br>p = {p_value:.4g}<br>n = {n}"
+                
+                # Add annotation with equation and stats
+                fig.add_annotation(
+                    x=0.02, y=0.98,
+                    xref='paper', yref='paper',
+                    text=f"<b>{eq_text}</b><br>{stats_text}",
+                    showarrow=False,
+                    align='left',
+                    bgcolor='rgba(255,255,255,0.85)',
+                    bordercolor='gray',
+                    borderwidth=1,
+                    borderpad=6,
+                    font=dict(size=12, family='monospace')
+                )
+                
+                fig.update_layout(
+                    title=f'Linear Regression: {col2_name} vs {col1_name}',
+                    xaxis_title=col1_name,
+                    yaxis_title=col2_name,
+                    template=PLOTLY_TEMPLATE,
+                    height=500,
+                    showlegend=True,
+                    legend=dict(yanchor='bottom', y=0.01, xanchor='right', x=0.99)
+                )
+                
+                st.plotly_chart(fig, width='stretch')
+                
+                # Show additional regression info in expander
+                with st.expander("📋 Detailed Regression Statistics"):
+                    st.markdown(f"""
+                    | Statistic | Value |
+                    |-----------|-------|
+                    | **Slope** | {slope:.6f} |
+                    | **Intercept** | {intercept:.6f} |
+                    | **R² (coefficient of determination)** | {r_squared:.6f} |
+                    | **Standard Error of Slope** | {std_err:.6f} |
+                    | **t-statistic for slope** | {slope/std_err:.4f} |
+                    | **p-value (slope ≠ 0)** | {p_value:.6g} |
+                    """)
+                    
+                    if p_value < 0.001:
+                        sig_text = "highly significant (p < 0.001)"
+                    elif p_value < 0.01:
+                        sig_text = "very significant (p < 0.01)"
+                    elif p_value < 0.05:
+                        sig_text = "significant (p < 0.05)"
+                    else:
+                        sig_text = "not significant (p ≥ 0.05)"
+                    
+                    st.info(f"📊 The regression slope is **{sig_text}**. "
+                            f"For every 1-unit increase in {col1_name}, {col2_name} changes by {slope:.4f} units on average.")
+            
         elif anova_type == 'repeated':
             # Repeated-Measures ANOVA results
             st.markdown(f"**{test_results.get('test', 'Repeated-Measures ANOVA')}**")
@@ -536,6 +783,46 @@ def render_statistical_tests_tab():
                 st.success(f"✅ {test_results.get('interpretation', 'Significant')}")
             else:
                 st.info(f"❌ {test_results.get('interpretation', 'Not significant')}")
+            
+            # === VISUALIZATION: Repeated Measures Line Plot ===
+            st.markdown("---")
+            st.markdown("### 📊 Repeated Measures Visualization")
+            
+            # Get the column info from session state
+            data_col = st.session_state.get('rm_data')
+            subject_col = st.session_state.get('rm_subject')
+            within_factor = st.session_state.get('rm_within')
+            
+            if data_col and subject_col and within_factor:
+                if all(c in df.columns for c in [data_col, subject_col, within_factor]):
+                    # Create line plot showing each subject's trajectory
+                    fig = px.line(df, x=within_factor, y=data_col, color=subject_col,
+                                 markers=True,
+                                 title=f'Repeated Measures: {data_col} across {within_factor}',
+                                 template=PLOTLY_TEMPLATE)
+                    fig.update_layout(height=450)
+                    st.plotly_chart(fig, width='stretch')
+                    
+                    # Add mean plot with error bars
+                    with st.expander("📈 Show Mean ± SE Plot"):
+                        means = df.groupby(within_factor)[data_col].agg(['mean', 'sem']).reset_index()
+                        fig_mean = go.Figure()
+                        fig_mean.add_trace(go.Scatter(
+                            x=means[within_factor], y=means['mean'],
+                            error_y=dict(type='data', array=means['sem']),
+                            mode='lines+markers',
+                            name='Mean ± SE',
+                            marker=dict(size=10),
+                            line=dict(width=2)
+                        ))
+                        fig_mean.update_layout(
+                            title=f'Mean {data_col} by {within_factor} (±SE)',
+                            xaxis_title=within_factor,
+                            yaxis_title=data_col,
+                            template=PLOTLY_TEMPLATE,
+                            height=400
+                        )
+                        st.plotly_chart(fig_mean, width='stretch')
             
         elif anova_type == 'posthoc':
             # Post-hoc test results
@@ -569,6 +856,114 @@ def render_statistical_tests_tab():
             
             st.info(f"📊 {test_results.get('interpretation', '')}")
             
+            # === VISUALIZATION: Post-Hoc Comparison Chart ===
+            st.markdown("---")
+            st.markdown("### 📊 Post-Hoc Visualizations")
+            
+            data_col = st.session_state.get('posthoc_data')
+            group_col = st.session_state.get('posthoc_group')
+            
+            if data_col and group_col and data_col in df.columns and group_col in df.columns:
+                # Box plot with individual points
+                fig = px.box(df, x=group_col, y=data_col, color=group_col,
+                            title=f'Group Distributions: {data_col} by {group_col}',
+                            template=PLOTLY_TEMPLATE,
+                            points='all')
+                fig.update_layout(height=450, showlegend=False)
+                
+                # Add mean markers
+                means = df.groupby(group_col)[data_col].mean()
+                for i, (group, mean_val) in enumerate(means.items()):
+                    fig.add_trace(go.Scatter(
+                        x=[group], y=[mean_val],
+                        mode='markers',
+                        marker=dict(symbol='diamond', size=12, color='red', line=dict(width=2, color='darkred')),
+                        name='Group Mean',
+                        showlegend=(i == 0)
+                    ))
+                
+                st.plotly_chart(fig, width='stretch')
+                
+                # Comparison matrix heatmap
+                if comparisons:
+                    with st.expander("📊 Pairwise Comparison Matrix"):
+                        groups = list(test_results.get('group_means', {}).keys())
+                        n_groups = len(groups)
+                        
+                        # Create p-value matrix
+                        p_matrix = np.ones((n_groups, n_groups))
+                        for comp in comparisons:
+                            g1, g2 = comp.get('group1'), comp.get('group2')
+                            p_val = comp.get('p_adjusted', comp.get('p_value', 1))
+                            if g1 in groups and g2 in groups:
+                                i1, i2 = groups.index(g1), groups.index(g2)
+                                p_matrix[i1, i2] = p_val
+                                p_matrix[i2, i1] = p_val
+                        
+                        # Create significance annotation
+                        sig_text = [['' for _ in range(n_groups)] for _ in range(n_groups)]
+                        for i in range(n_groups):
+                            for j in range(n_groups):
+                                if i != j:
+                                    p = p_matrix[i, j]
+                                    if p < 0.001:
+                                        sig_text[i][j] = '***'
+                                    elif p < 0.01:
+                                        sig_text[i][j] = '**'
+                                    elif p < 0.05:
+                                        sig_text[i][j] = '*'
+                                    else:
+                                        sig_text[i][j] = 'ns'
+                        
+                        fig_matrix = go.Figure(data=go.Heatmap(
+                            z=p_matrix,
+                            x=groups,
+                            y=groups,
+                            text=sig_text,
+                            texttemplate='%{text}',
+                            colorscale='RdYlGn_r',
+                            zmin=0, zmax=0.1,
+                            colorbar=dict(title='p-value')
+                        ))
+                        
+                        fig_matrix.update_layout(
+                            title='Pairwise Comparison p-values (* p<.05, ** p<.01, *** p<.001)',
+                            template=PLOTLY_TEMPLATE,
+                            height=400
+                        )
+                        st.plotly_chart(fig_matrix, width='stretch')
+                
+                # Mean difference forest plot
+                if comparisons:
+                    with st.expander("🌲 Mean Difference Forest Plot"):
+                        comp_df = pd.DataFrame(comparisons)
+                        comp_df['comparison'] = comp_df['group1'] + ' vs ' + comp_df['group2']
+                        comp_df['color'] = comp_df['significant'].map({True: 'Significant', False: 'Not Significant'})
+                        
+                        fig_forest = go.Figure()
+                        
+                        # Add mean differences with CI if available
+                        for idx, row in comp_df.iterrows():
+                            color = 'green' if row['significant'] else 'gray'
+                            fig_forest.add_trace(go.Scatter(
+                                x=[row['mean_diff']],
+                                y=[row['comparison']],
+                                mode='markers',
+                                marker=dict(size=10, color=color),
+                                showlegend=False
+                            ))
+                        
+                        # Add vertical line at 0
+                        fig_forest.add_vline(x=0, line_dash='dash', line_color='red')
+                        
+                        fig_forest.update_layout(
+                            title='Mean Differences (green = significant)',
+                            xaxis_title='Mean Difference',
+                            template=PLOTLY_TEMPLATE,
+                            height=max(300, len(comparisons) * 40)
+                        )
+                        st.plotly_chart(fig_forest, width='stretch')
+            
         else:
             # Standard test results (t-test, one-way ANOVA, etc.)
             col1, col2, col3 = st.columns(3)
@@ -582,5 +977,56 @@ def render_statistical_tests_tab():
             
             if 'interpretation' in test_results:
                 st.info(f"📊 {test_results['interpretation']}")
+            
+            # === VISUALIZATION for t-tests and ANOVA ===
+            st.markdown("---")
+            st.markdown("### 📊 Visualization")
+            
+            test_name = test_results.get('test', '')
+            
+            # Box plot for 2-group comparisons (t-test, Mann-Whitney)
+            if 'column1' in test_results and 'column2' in test_results:
+                col1_name = test_results.get('column1')
+                col2_name = test_results.get('column2')
+                
+                if col1_name in df.columns and col2_name in df.columns:
+                    # Create comparison box plot
+                    plot_data = pd.DataFrame({
+                        'Value': pd.concat([df[col1_name], df[col2_name]]),
+                        'Group': [col1_name] * len(df[col1_name]) + [col2_name] * len(df[col2_name])
+                    })
+                    
+                    fig = px.box(plot_data, x='Group', y='Value', color='Group',
+                                title=f'Distribution Comparison: {col1_name} vs {col2_name}',
+                                template=PLOTLY_TEMPLATE,
+                                points='all')
+                    fig.update_layout(height=400, showlegend=False)
+                    st.plotly_chart(fig, width='stretch')
+            
+            # Box plot for One-Way ANOVA (multiple groups)
+            elif 'groups' in test_results or anova_type == 'oneway':
+                # Try to get the columns that were tested
+                anova_cols = st.session_state.get('anova_cols', [])
+                if anova_cols and len(anova_cols) >= 2:
+                    # Create melted data for box plot
+                    valid_cols = [c for c in anova_cols if c in df.columns]
+                    if valid_cols:
+                        plot_data = df[valid_cols].melt(var_name='Group', value_name='Value')
+                        
+                        fig = px.box(plot_data, x='Group', y='Value', color='Group',
+                                    title='One-Way ANOVA: Group Distributions',
+                                    template=PLOTLY_TEMPLATE,
+                                    points='outliers')
+                        fig.update_layout(height=450, showlegend=False)
+                        st.plotly_chart(fig, width='stretch')
+                        
+                        # Add violin plot option
+                        with st.expander("🎻 Show Violin Plot"):
+                            fig_violin = px.violin(plot_data, x='Group', y='Value', color='Group',
+                                                   box=True, points='all',
+                                                   title='One-Way ANOVA: Violin Plot with Box',
+                                                   template=PLOTLY_TEMPLATE)
+                            fig_violin.update_layout(height=450, showlegend=False)
+                            st.plotly_chart(fig_violin, width='stretch')
 
 

@@ -75,21 +75,36 @@ def render_image_tab():
             try:
                 import tkinter as tk
                 from tkinter import filedialog
-                root = tk.Tk()
-                root.withdraw()
-                folder = filedialog.askdirectory()
-                root.destroy()
+                import threading
+                
+                # Check if we're on the main thread
+                if threading.current_thread() is threading.main_thread():
+                    root = tk.Tk()
+                    root.withdraw()
+                    root.attributes('-topmost', True)  # Bring dialog to front
+                    folder = filedialog.askdirectory(parent=root)
+                    root.destroy()
+                else:
+                    # If not on main thread, try to use a workaround
+                    # Create tkinter in a way that might work from non-main thread
+                    root = tk.Tk()
+                    root.withdraw()
+                    root.attributes('-topmost', True)
+                    folder = filedialog.askdirectory(parent=root)
+                    root.destroy()
+                
                 if folder:
                     st.session_state.selected_data_folder = folder
-                    # Try to trigger a rerun if available, otherwise notify the user
-                    rerun = getattr(st, 'experimental_rerun', None)
-                    if callable(rerun):
-                        try:
-                            rerun()
-                        except Exception:
-                            st.success(f"Selected folder: {folder}. Please continue.")
-                    else:
-                        st.success(f"Selected folder: {folder}. Please continue.")
+                    st.rerun()
+            except RuntimeError as e:
+                if "main thread" in str(e).lower():
+                    st.warning("⚠️ Native dialog unavailable in this context. Use 'Browse' button or paste path directly below:")
+                    manual_path = st.text_input("Paste folder path:", key="manual_path_input")
+                    if manual_path:
+                        st.session_state.selected_data_folder = manual_path
+                        st.rerun()
+                else:
+                    st.error(f"Native folder dialog error: {e}")
             except Exception as e:
                 st.error(f"Native folder dialog not available: {e}")
 
@@ -400,7 +415,7 @@ def render_image_tab():
 
             img_path = imgs[idx]
             with col2:
-                st.image(str(img_path), use_column_width=True)
+                st.image(str(img_path), width='stretch')
                 # show label buttons
                 possible_labels = [str(i) for i in range(10)]
                 st.write("Assign label:")

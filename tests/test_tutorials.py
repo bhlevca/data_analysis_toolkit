@@ -29,9 +29,9 @@ def test_image_recognition_has_comprehensive_content():
 
 def test_sidebar_mapping_for_statistical():
     ct = load_comprehensive()
-    # The sidebar key 'statistical' should map to comprehensive 'descriptive_stats'
-    assert 'descriptive_stats' in ct.get_all_topics()
-    desc = ct.get_tutorial('descriptive_stats')
+    # The sidebar key 'statistical' should exist in comprehensive tutorial
+    assert 'statistical' in ct.get_all_topics()
+    desc = ct.get_tutorial('statistical')
     assert 'Descriptive Statistics' in desc or 'mean' in desc
 
 
@@ -39,10 +39,10 @@ def test_pca_mapping_uses_comprehensive():
     ct = load_comprehensive()
     from data_toolkit.tabs import tutorial_sidebar as tb
 
-    # Our mapping should point 'pca' -> 'pca_analysis' and the comprehensive
+    # Our mapping should point 'pca' and the comprehensive
     # tutorial should contain PCA-specific guidance (Explained Variance, Scree Plot).
-    assert 'pca_analysis' in ct.get_all_topics()
-    long = ct.get_tutorial('pca_analysis')
+    assert 'pca' in ct.get_all_topics()
+    long = ct.get_tutorial('pca')
     assert 'Explained Variance' in long or 'Scree Plot' in long or 'Explained Variance Ratio' in long
 
 

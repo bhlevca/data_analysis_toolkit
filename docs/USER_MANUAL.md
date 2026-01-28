@@ -18,6 +18,7 @@
 14. [Rust Acceleration Toggle](#rust-acceleration-toggle)
 15. [Tips and Best Practices](#tips-and-best-practices)
 16. [Troubleshooting](#troubleshooting)
+17. [New in v4.0: Scientific Research Features](#new-in-v100-scientific-research-features)
 
 ---
 
@@ -1006,6 +1007,17 @@ pip install -e .
 
 ## Version History
 
+- **v4.0**: Scientific research enhancements (NEW!)
+  - Effect sizes with confidence intervals
+  - Model validation (nested CV, calibration, ROC analysis)
+  - Data quality analysis and multiple imputation
+  - Feature selection (RFE, Boruta, SHAP, ensemble)
+  - Survival analysis (Kaplan-Meier, Cox regression)
+  - Model interpretability (SHAP, LIME, PDP)
+  - Advanced time series (Prophet, changepoints, DTW)
+  - Domain-specific tools (environmental, clinical, ecology)
+  - Automated report generation
+  - Multiple testing correction, VIF, robust statistics
 - **v8.0**: Unified edition with Rust toggle, plugin system, white theme
 - **v7.0**: Modular architecture, dark theme
 - **v6.0**: Added causality analysis
@@ -1017,4 +1029,184 @@ pip install -e .
 
 ---
 
-*Last updated: December 2024*
+## New in v4.0: Scientific Research Features
+
+### Effect Size Calculations
+
+Calculate standardized effect sizes with confidence intervals for proper scientific reporting:
+
+```python
+from data_toolkit.effect_sizes import EffectSizeCalculator
+
+calc = EffectSizeCalculator(df)
+
+# Cohen's d with 95% CI
+result = calc.cohens_d('treatment', 'control')
+print(f"d = {result['cohens_d']:.3f} ({result['interpretation']})")
+
+# Hedges' g (small-sample correction)
+result = calc.hedges_g('group1', 'group2')
+
+# Cramér's V for categorical data
+result = calc.cramers_v(contingency_table)
+```
+
+### Model Validation
+
+Rigorous validation for reproducible research:
+
+```python
+from data_toolkit.model_validation import ModelValidator
+
+validator = ModelValidator(df)
+
+# Nested cross-validation (unbiased hyperparameter tuning)
+result = validator.nested_cross_validation(
+    model, param_grid, features, target
+)
+
+# Calibration analysis for classifiers
+result = validator.calibration_analysis(model, features, target)
+
+# Comprehensive residual diagnostics
+result = validator.residual_diagnostics(model, features, target)
+```
+
+### Data Quality Analysis
+
+Comprehensive missing data and quality assessment:
+
+```python
+from data_toolkit.data_quality import DataQualityAnalyzer
+
+dqa = DataQualityAnalyzer(df)
+
+# Little's MCAR test
+result = dqa.little_mcar_test()
+
+# Multiple imputation with Rubin's rules
+result = dqa.multiple_imputation(columns, n_imputations=5)
+
+# Comprehensive quality report
+report = dqa.generate_quality_report()
+```
+
+### Feature Selection
+
+Multiple methods for optimal feature subset:
+
+```python
+from data_toolkit.feature_selection import FeatureSelector
+
+selector = FeatureSelector(df)
+
+# Ensemble method (combines multiple approaches)
+result = selector.ensemble_selection(features, target)
+print("Consensus features:", result['consensus_features'])
+```
+
+### Survival Analysis
+
+Time-to-event analysis (requires `lifelines`):
+
+```python
+from data_toolkit.survival_analysis import SurvivalAnalyzer
+
+surv = SurvivalAnalyzer(df)
+
+# Kaplan-Meier curves
+result = surv.kaplan_meier('time', 'event', group_col='treatment')
+
+# Cox proportional hazards
+result = surv.cox_regression('time', 'event', covariates)
+```
+
+### Model Interpretability
+
+Explain model predictions (requires `shap`, `lime`):
+
+```python
+from data_toolkit.interpretability import ModelInterpreter
+
+interp = ModelInterpreter(model, df, features)
+
+# SHAP analysis
+result = interp.shap_analysis()
+
+# LIME local explanation
+result = interp.lime_explain(instance_idx=42)
+```
+
+### Advanced Time Series
+
+Prophet, changepoints, and DTW (requires optional packages):
+
+```python
+from data_toolkit.advanced_timeseries import AdvancedTimeSeriesAnalysis
+
+ats = AdvancedTimeSeriesAnalysis(df)
+
+# Prophet forecast
+result = ats.prophet_forecast('date', 'value', periods=30)
+
+# Changepoint detection
+result = ats.detect_changepoints('column', method='pelt')
+```
+
+### Domain-Specific Analysis
+
+Tools for environmental science, clinical research, and ecology:
+
+```python
+from data_toolkit.domain_specific import DomainAnalysis
+
+domain = DomainAnalysis(df)
+
+# Environmental: Mann-Kendall trend test
+result = domain.mann_kendall_test('temperature')
+
+# Clinical: Bland-Altman method comparison
+result = domain.bland_altman('method_a', 'method_b')
+
+# Ecology: Shannon diversity
+result = domain.shannon_diversity(['species_a', 'species_b'])
+```
+
+### Report Generation
+
+Automated publication-ready reports:
+
+```python
+from data_toolkit.report_generator import ReportGenerator
+
+report = ReportGenerator("My Analysis")
+report.add_data_provenance(df, "data.csv")
+report.add_statistics_table(results, "Main Results")
+report.add_figure(fig, "Figure 1")
+report.generate_html("report.html")
+```
+
+### Statistical Enhancements
+
+New methods in `StatisticalAnalysis`:
+
+```python
+from data_toolkit.statistical_analysis import StatisticalAnalysis
+
+sa = StatisticalAnalysis(df)
+
+# Multiple testing correction
+result = sa.multiple_testing_correction(p_values, method='fdr_bh')
+
+# Variance Inflation Factor
+result = sa.variance_inflation_factor(feature_cols)
+
+# Robust statistics (resistant to outliers)
+result = sa.robust_statistics('column')
+```
+
+For complete API documentation, see [API_REFERENCE.md](API_REFERENCE.md).
+
+---
+
+*Last updated: January 2025*

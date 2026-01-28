@@ -1682,6 +1682,337 @@ class StatisticalAnalysis:
 
         return pd.DataFrame(results)
 
+    # =========================================================================
+    # MULTIPLE TESTING CORRECTION
+    # =========================================================================
+    
+    def multiple_testing_correction(self, p_values: List[float],
+                                     method: str = 'bonferroni',
+                                     alpha: float = 0.05) -> Dict[str, Any]:
+        """
+        Apply multiple testing correction to p-values
+        
+        Args:
+            p_values: List of p-values to correct
+            method: Correction method
+                   - 'bonferroni': Bonferroni correction (conservative)
+                   - 'holm': Holm-Bonferroni (step-down)
+                   - 'sidak': Šidák correction
+                   - 'fdr_bh': Benjamini-Hochberg FDR
+                   - 'fdr_by': Benjamini-Yekutieli FDR
+            alpha: Significance level
+            
+        Returns:
+            Dictionary with corrected p-values and decisions
+        """
+        p_values = np.array(p_values)
+        n = len(p_values)
+        
+        if method == 'bonferroni':
+            corrected = np.minimum(p_values * n, 1.0)
+            threshold = alpha / n
+            
+        elif method == 'holm':
+            # Holm-Bonferroni step-down
+            sorted_idx = np.argsort(p_values)
+            corrected = np.zeros(n)
+            for i, idx in enumerate(sorted_idx):
+                corrected[idx] = min(p_values[idx] * (n - i), 1.0)
+            # Ensure monotonicity
+            for i in range(1, n):
+                corrected[sorted_idx[i]] = max(corrected[sorted_idx[i]], 
+                                                corrected[sorted_idx[i-1]])
+            threshold = alpha
+            
+        elif method == 'sidak':
+            corrected = 1 - (1 - p_values) ** n
+            threshold = 1 - (1 - alpha) ** (1/n)
+            
+        elif method == 'fdr_bh':
+            # Benjamini-Hochberg
+            sorted_idx = np.argsort(p_values)
+            sorted_p = p_values[sorted_idx]
+            corrected = np.zeros(n)
+            
+            for i in range(n):
+                corrected[sorted_idx[i]] = sorted_p[i] * n / (i + 1)
+            
+            # Ensure monotonicity (from largest to smallest)
+            for i in range(n - 2, -1, -1):
+                corrected[sorted_idx[i]] = min(corrected[sorted_idx[i]], 
+                                                corrected[sorted_idx[i+1]])
+            corrected = np.minimum(corrected, 1.0)
+            threshold = alpha
+            
+        elif method == 'fdr_by':
+            # Benjamini-Yekutieli (more conservative FDR)
+            c_m = np.sum(1 / np.arange(1, n + 1))
+            sorted_idx = np.argsort(p_values)
+            sorted_p = p_values[sorted_idx]
+            corrected = np.zeros(n)
+            
+            for i in range(n):
+                corrected[sorted_idx[i]] = sorted_p[i] * n * c_m / (i + 1)
+            
+            for i in range(n - 2, -1, -1):
+                corrected[sorted_idx[i]] = min(corrected[sorted_idx[i]], 
+                                                corrected[sorted_idx[i+1]])
+            corrected = np.minimum(corrected, 1.0)
+            threshold = alpha
+            
+        else:
+            return {'error': f'Unknown method: {method}'}
+        
+        reject = corrected < alpha
+        
+        return {
+            'original_p_values': p_values.tolist(),
+            'corrected_p_values': corrected.tolist(),
+            'reject_null': reject.tolist(),
+            'n_rejected': int(np.sum(reject)),
+            'method': method,
+            'alpha': alpha,
+            'threshold': float(threshold) if method in ['bonferroni', 'sidak'] else alpha
+        }
+    
+    # =========================================================================
+    # VARIANCE INFLATION FACTOR (VIF)
+    # =========================================================================
+    
+    def variance_inflation_factor(self, columns: List[str]) -> Dict[str, Any]:
+        """
+        Calculate Variance Inflation Factor for multicollinearity detection
+        
+        VIF > 5 suggests moderate multicollinearity
+        VIF > 10 suggests high multicollinearity
+        
+        Args:
+            columns: List of predictor columns
+            
+        Returns:
+            Dictionary with VIF for each column
+        """
+        if self.df is None:
+            return {'error': 'No data loaded'}
+        
+        data = self.df[columns].dropna()
+        
+        if len(data) < len(columns) + 1:
+            return {'error': 'Insufficient data for VIF calculation'}
+        
+        vif_data = {}
+        
+        for i, col in enumerate(columns):
+            # Regress column i on all other columns
+            y = data[col].values
+            X_cols = [c for c in columns if c != col]
+            X = data[X_cols].values
+            
+            # Add constant
+            X_with_const = np.column_stack([np.ones(len(X)), X])
+            
+            try:
+                # Calculate R-squared
+                coeffs = np.linalg.lstsq(X_with_const, y, rcond=None)[0]
+                y_pred = X_with_const @ coeffs
+                ss_res = np.sum((y - y_pred) ** 2)
+                ss_tot = np.sum((y - np.mean(y)) ** 2)
+                r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
+                
+                # VIF = 1 / (1 - R²)
+                vif = 1 / (1 - r_squared) if r_squared < 1 else float('inf')
+                
+                vif_data[col] = {
+                    'vif': float(vif),
+                    'r_squared': float(r_squared),
+                    'multicollinearity': 'high' if vif > 10 else 'moderate' if vif > 5 else 'low'
+                }
+            except:
+                vif_data[col] = {'vif': float('nan'), 'error': 'Calculation failed'}
+        
+        # Overall assessment
+        max_vif = max([v['vif'] for v in vif_data.values() if not np.isnan(v['vif'])], default=0)
+        
+        return {
+            'vif_by_column': vif_data,
+            'max_vif': float(max_vif),
+            'has_multicollinearity': max_vif > 5,
+            'severe_multicollinearity': max_vif > 10,
+            'recommendation': 'Consider removing highly correlated predictors' if max_vif > 5 else 'No action needed'
+        }
+    
+    # =========================================================================
+    # ROBUST STATISTICS
+    # =========================================================================
+    
+    def robust_statistics(self, column: str) -> Dict[str, Any]:
+        """
+        Calculate robust statistics resistant to outliers
+        
+        Args:
+            column: Column to analyze
+            
+        Returns:
+            Dictionary with robust statistics
+        """
+        if self.df is None:
+            return {'error': 'No data loaded'}
+        
+        data = self.df[column].dropna().values
+        
+        # Robust measures of central tendency
+        median = float(np.median(data))
+        
+        # Trimmed mean (10% from each tail)
+        trimmed_mean = float(stats.trim_mean(data, 0.1))
+        
+        # Winsorized mean
+        sorted_data = np.sort(data)
+        n = len(sorted_data)
+        k = int(0.1 * n)
+        winsorized = sorted_data.copy()
+        if k > 0:
+            winsorized[:k] = sorted_data[k]
+            winsorized[-k:] = sorted_data[-k-1]
+        winsorized_mean = float(np.mean(winsorized))
+        
+        # Robust measures of dispersion
+        # MAD (Median Absolute Deviation)
+        mad = float(np.median(np.abs(data - median)))
+        # Scaled MAD (consistent with std for normal)
+        scaled_mad = mad * 1.4826
+        
+        # IQR
+        q1, q3 = np.percentile(data, [25, 75])
+        iqr = float(q3 - q1)
+        
+        # Qn estimator (robust scale)
+        try:
+            diffs = []
+            for i in range(min(len(data), 500)):  # Limit for performance
+                for j in range(i + 1, min(len(data), 500)):
+                    diffs.append(abs(data[i] - data[j]))
+            qn = 2.2219 * np.percentile(diffs, 25) if diffs else scaled_mad
+        except:
+            qn = scaled_mad
+        
+        # Robust skewness (quartile skewness)
+        quartile_skewness = ((q3 - median) - (median - q1)) / iqr if iqr > 0 else 0
+        
+        # Comparison with standard statistics
+        mean = float(np.mean(data))
+        std = float(np.std(data))
+        
+        return {
+            'n': len(data),
+            'robust_center': {
+                'median': median,
+                'trimmed_mean_10pct': trimmed_mean,
+                'winsorized_mean_10pct': winsorized_mean
+            },
+            'robust_scale': {
+                'mad': mad,
+                'scaled_mad': float(scaled_mad),
+                'iqr': iqr,
+                'qn_estimator': float(qn)
+            },
+            'robust_skewness': {
+                'quartile_skewness': float(quartile_skewness),
+                'interpretation': 'right-skewed' if quartile_skewness > 0.2 else 'left-skewed' if quartile_skewness < -0.2 else 'symmetric'
+            },
+            'standard_statistics': {
+                'mean': mean,
+                'std': std
+            },
+            'outlier_impact': {
+                'mean_median_diff': float(abs(mean - median)),
+                'std_mad_ratio': float(std / scaled_mad) if scaled_mad > 0 else float('nan'),
+                'likely_outliers': abs(mean - median) > 0.2 * std
+            }
+        }
+    
+    def robust_regression(self, x_col: str, y_col: str,
+                          method: str = 'huber') -> Dict[str, Any]:
+        """
+        Robust regression resistant to outliers
+        
+        Args:
+            x_col: Predictor column
+            y_col: Response column
+            method: 'huber', 'tukey', or 'lad' (least absolute deviation)
+            
+        Returns:
+            Dictionary with regression results
+        """
+        if self.df is None:
+            return {'error': 'No data loaded'}
+        
+        data = self.df[[x_col, y_col]].dropna()
+        x = data[x_col].values
+        y = data[y_col].values
+        
+        # Standard OLS for comparison
+        X = np.column_stack([np.ones(len(x)), x])
+        ols_coeffs = np.linalg.lstsq(X, y, rcond=None)[0]
+        
+        # Robust regression (iteratively reweighted least squares)
+        if method == 'huber':
+            # Huber's M-estimator
+            c = 1.345  # tuning constant
+        elif method == 'tukey':
+            c = 4.685
+        elif method == 'lad':
+            # LAD is equivalent to L1 regression
+            c = float('inf')
+        else:
+            return {'error': f'Unknown method: {method}'}
+        
+        # Initial estimate
+        coeffs = ols_coeffs.copy()
+        
+        for iteration in range(50):
+            # Residuals
+            residuals = y - X @ coeffs
+            
+            # Scale estimate
+            scale = 1.4826 * np.median(np.abs(residuals - np.median(residuals)))
+            if scale < 1e-10:
+                scale = 1e-10
+            
+            # Standardized residuals
+            u = residuals / scale
+            
+            # Weights
+            if method == 'huber':
+                weights = np.where(np.abs(u) <= c, 1, c / np.abs(u))
+            elif method == 'tukey':
+                weights = np.where(np.abs(u) <= c, (1 - (u/c)**2)**2, 0)
+            else:  # LAD
+                weights = 1 / (np.abs(residuals) + 1e-10)
+            
+            # Weighted least squares
+            W = np.diag(weights)
+            try:
+                coeffs_new = np.linalg.lstsq(X.T @ W @ X, X.T @ W @ y, rcond=None)[0]
+            except:
+                break
+            
+            # Check convergence
+            if np.max(np.abs(coeffs_new - coeffs)) < 1e-6:
+                break
+            coeffs = coeffs_new
+        
+        return {
+            'robust_intercept': float(coeffs[0]),
+            'robust_slope': float(coeffs[1]),
+            'ols_intercept': float(ols_coeffs[0]),
+            'ols_slope': float(ols_coeffs[1]),
+            'method': method,
+            'iterations': iteration + 1,
+            'slope_difference': float(abs(coeffs[1] - ols_coeffs[1])),
+            'interpretation': 'Outliers may be affecting OLS' if abs(coeffs[1] - ols_coeffs[1]) > 0.1 * abs(ols_coeffs[1]) else 'OLS and robust estimates agree'
+        }
+
     def plot_cross_correlation(self, col1: str, col2: str) -> plt.Figure:
         """Plot cross-correlation between two columns"""
         if self.df is None:
