@@ -57,7 +57,7 @@ if clustering_method == "K-Means":
         st.write("Cluster Sizes:", results['cluster_sizes'])
 
     fig = ml.plot_clustering_results(results)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 ```
 
 ### Dimensionality Reduction Tab
@@ -78,14 +78,14 @@ if dim_method == "PCA":
 
     # Plot scree plot
     fig = ml.plot_pca_results(results)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 elif dim_method == "t-SNE":
     perplexity = st.slider("Perplexity", 5, 50, 30)
     results = ml.tsne_analysis(feature_cols, perplexity=perplexity)
 
     fig = ml.plot_dimensionality_reduction(results)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 ```
 
 ### Anomaly Detection Tab
@@ -111,7 +111,7 @@ if anomaly_method == "Isolation Forest":
         st.write("Anomaly Indices (first 10):", results['anomaly_indices'][:10])
 
     fig = ml.plot_anomalies(results)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 ```
 
 ---
@@ -167,7 +167,7 @@ for i, (dist_name, fit_data) in enumerate(results.items()):
 
 # Plot fitted distributions
 fig = stats.plot_distribution_fit(selected_col)
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width='stretch')
 
 # Show detailed analysis
 st.subheader("Distribution Analysis")
@@ -205,10 +205,10 @@ with col2:
 
 # Plots
 fig_fft = ts.plot_fft(fft_results, ts_col)
-st.plotly_chart(fig_fft, use_container_width=True)
+st.plotly_chart(fig_fft, width='stretch')
 
 fig_psd = ts.plot_power_spectral_density(psd_results, ts_col)
-st.plotly_chart(fig_psd, use_container_width=True)
+st.plotly_chart(fig_psd, width='stretch')
 ```
 
 ### Wavelet Analysis Tab
@@ -224,7 +224,7 @@ if wavelet_type == "Continuous (CWT)":
     results = ts.continuous_wavelet_transform(ts_col)
 
     fig = ts.plot_wavelet_power(results, ts_col)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     st.info("🔍 **How to Read**: Darker colors = stronger signal at that time-frequency")
 
@@ -235,7 +235,7 @@ else:  # Discrete
     results = ts.discrete_wavelet_transform(ts_col, wavelet=wavelet_family, level=level)
 
     fig = ts.plot_discrete_wavelet(results, ts_col)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 ```
 
 ---
