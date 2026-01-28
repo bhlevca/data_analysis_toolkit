@@ -570,7 +570,10 @@ def predict_array(
         probs = preds.ravel().tolist()
         label_idx = int(np.argmax(probs))
 
-    if class_names is None:
+    # Validate class_names length; fallback to numeric labels if mismatch
+    if class_names is None or len(class_names) != len(probs):
+        if class_names is not None:
+            warnings.warn(f"⚠️  class_names length ({len(class_names)}) != model outputs ({len(probs)}). Falling back to numeric labels.")
         class_names = [str(i) for i in range(len(probs))]
 
     return {'predicted_label': class_names[label_idx], 'probabilities': probs, 'confidence': max(probs)}

@@ -490,7 +490,7 @@ def render_statistical_tests_tab():
                         legend_title=factor2
                     )
                     
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
                     
                     # Add grouped bar chart option
                     with st.expander("📊 Grouped Bar Chart"):
@@ -500,7 +500,7 @@ def render_statistical_tests_tab():
                                          title=f'{data_col} by {factor1} and {factor2}',
                                          template=PLOTLY_TEMPLATE)
                         fig_bar.update_layout(height=400)
-                        st.plotly_chart(fig_bar, use_container_width=True)
+                        st.plotly_chart(fig_bar, width='stretch')
                     
                     # Add main effects box plot
                     with st.expander("📦 Main Effects Box Plots"):
@@ -510,13 +510,13 @@ def render_statistical_tests_tab():
                                          title=f'Effect of {factor1}',
                                          template=PLOTLY_TEMPLATE, points='outliers')
                             fig1.update_layout(height=350, showlegend=False)
-                            st.plotly_chart(fig1, use_container_width=True)
+                            st.plotly_chart(fig1, width='stretch')
                         with col2:
                             fig2 = px.box(df, x=factor2, y=data_col, color=factor2,
                                          title=f'Effect of {factor2}',
                                          template=PLOTLY_TEMPLATE, points='outliers')
                             fig2.update_layout(height=350, showlegend=False)
-                            st.plotly_chart(fig2, use_container_width=True)
+                            st.plotly_chart(fig2, width='stretch')
         
         elif anova_type == 'chi_square':
             # Chi-Square test results
@@ -554,7 +554,7 @@ def render_statistical_tests_tab():
                                text_auto=True,
                                template=PLOTLY_TEMPLATE)
                 fig.update_layout(height=400)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
                 
                 # Stacked/grouped bar chart
                 with st.expander("📊 Bar Chart View"):
@@ -577,7 +577,7 @@ def render_statistical_tests_tab():
                                         template=PLOTLY_TEMPLATE,
                                         labels={'value': 'Count'})
                     fig_bar.update_layout(height=400)
-                    st.plotly_chart(fig_bar, use_container_width=True)
+                    st.plotly_chart(fig_bar, width='stretch')
                 
                 # Expected vs Observed
                 with st.expander("📋 Expected vs Observed Frequencies"):
@@ -585,15 +585,15 @@ def render_statistical_tests_tab():
                     chi2, p, dof, expected = chi2_contingency(contingency)
                     
                     st.markdown("**Observed Frequencies:**")
-                    st.dataframe(contingency, use_container_width=True)
+                    st.dataframe(contingency, width='stretch')
                     
                     st.markdown("**Expected Frequencies (under independence):**")
                     expected_df = pd.DataFrame(expected, index=contingency.index, columns=contingency.columns)
-                    st.dataframe(expected_df.round(2), use_container_width=True)
+                    st.dataframe(expected_df.round(2), width='stretch')
                     
                     st.markdown("**Residuals (Observed - Expected):**")
                     residuals = contingency - expected_df
-                    st.dataframe(residuals.round(2), use_container_width=True)
+                    st.dataframe(residuals.round(2), width='stretch')
         
         elif anova_type == 'normality':
             # Normality test results
@@ -736,7 +736,7 @@ def render_statistical_tests_tab():
                     legend=dict(yanchor='bottom', y=0.01, xanchor='right', x=0.99)
                 )
                 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
                 
                 # Show additional regression info in expander
                 with st.expander("📋 Detailed Regression Statistics"):
@@ -801,7 +801,7 @@ def render_statistical_tests_tab():
                                  title=f'Repeated Measures: {data_col} across {within_factor}',
                                  template=PLOTLY_TEMPLATE)
                     fig.update_layout(height=450)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
                     
                     # Add mean plot with error bars
                     with st.expander("📈 Show Mean ± SE Plot"):
@@ -822,7 +822,7 @@ def render_statistical_tests_tab():
                             template=PLOTLY_TEMPLATE,
                             height=400
                         )
-                        st.plotly_chart(fig_mean, use_container_width=True)
+                        st.plotly_chart(fig_mean, width='stretch')
             
         elif anova_type == 'posthoc':
             # Post-hoc test results
@@ -882,7 +882,7 @@ def render_statistical_tests_tab():
                         showlegend=(i == 0)
                     ))
                 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
                 
                 # Comparison matrix heatmap
                 if comparisons:
@@ -931,7 +931,7 @@ def render_statistical_tests_tab():
                             template=PLOTLY_TEMPLATE,
                             height=400
                         )
-                        st.plotly_chart(fig_matrix, use_container_width=True)
+                        st.plotly_chart(fig_matrix, width='stretch')
                 
                 # Mean difference forest plot
                 if comparisons:
@@ -962,7 +962,7 @@ def render_statistical_tests_tab():
                             template=PLOTLY_TEMPLATE,
                             height=max(300, len(comparisons) * 40)
                         )
-                        st.plotly_chart(fig_forest, use_container_width=True)
+                        st.plotly_chart(fig_forest, width='stretch')
             
         else:
             # Standard test results (t-test, one-way ANOVA, etc.)
@@ -1001,7 +1001,7 @@ def render_statistical_tests_tab():
                                 template=PLOTLY_TEMPLATE,
                                 points='all')
                     fig.update_layout(height=400, showlegend=False)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
             
             # Box plot for One-Way ANOVA (multiple groups)
             elif 'groups' in test_results or anova_type == 'oneway':
@@ -1018,7 +1018,7 @@ def render_statistical_tests_tab():
                                     template=PLOTLY_TEMPLATE,
                                     points='outliers')
                         fig.update_layout(height=450, showlegend=False)
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width='stretch')
                         
                         # Add violin plot option
                         with st.expander("🎻 Show Violin Plot"):
@@ -1027,6 +1027,6 @@ def render_statistical_tests_tab():
                                                    title='One-Way ANOVA: Violin Plot with Box',
                                                    template=PLOTLY_TEMPLATE)
                             fig_violin.update_layout(height=450, showlegend=False)
-                            st.plotly_chart(fig_violin, use_container_width=True)
+                            st.plotly_chart(fig_violin, width='stretch')
 
 

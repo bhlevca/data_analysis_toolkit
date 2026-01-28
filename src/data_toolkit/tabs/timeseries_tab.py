@@ -108,7 +108,7 @@ def render_timeseries_tab():
         template=PLOTLY_TEMPLATE, 
         height=400
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
     
     # For analysis, use the first selected column
     series = df[selected_col].dropna()
@@ -310,7 +310,7 @@ def render_timeseries_tab():
                 template=PLOTLY_TEMPLATE,
                 height=450
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
             
             # Overlay time series plot
             with st.expander("📈 View Time Series Overlay"):
@@ -333,7 +333,7 @@ def render_timeseries_tab():
                     )
                     fig_ts.update_yaxes(title_text=col1_name, secondary_y=False)
                     fig_ts.update_yaxes(title_text=col2_name, secondary_y=True)
-                    st.plotly_chart(fig_ts, use_container_width=True)
+                    st.plotly_chart(fig_ts, width='stretch')
             
             # Export CCF data
             with st.expander("📥 Export CCF Data"):
@@ -435,7 +435,7 @@ def render_timeseries_tab():
                 height=500,
                 legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
             
             # Statistics
             with st.expander("📊 Smoothing Statistics"):
@@ -455,7 +455,7 @@ def render_timeseries_tab():
                         st.warning(ma_data['warning'])
                 
                 if stats_data:
-                    st.dataframe(pd.DataFrame(stats_data), use_container_width=True)
+                    st.dataframe(pd.DataFrame(stats_data), width='stretch')
             
             # Export smoothed data
             st.markdown("#### 📥 Export Smoothed Data")
@@ -465,7 +465,7 @@ def render_timeseries_tab():
                 if 'warning' not in ma_data:
                     export_df[f'MA_{window}'] = ma_data['values']
             
-            st.dataframe(export_df.head(20), use_container_width=True)
+            st.dataframe(export_df.head(20), width='stretch')
             st.caption("Showing first 20 rows. Download full data below.")
             
             csv_ma = export_df.to_csv(index=True)

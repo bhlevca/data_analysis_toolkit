@@ -77,6 +77,9 @@ from .statistical_analysis import StatisticalAnalysis
 from .timeseries_analysis import TimeSeriesAnalysis
 from .uncertainty_analysis import UncertaintyAnalysis
 from .visualization_methods import VisualizationMethods
+from .sensitivity_analysis import SensitivityAnalysis, analyze_dataframe_sensitivity
+from .extended_statistics import ExtendedStatisticalTests, DistributionOperations
+from .cart_analysis import CARTAnalysis, sensitivity_to_cart_workflow
 
 # New analysis modules
 from .effect_sizes import EffectSizes
@@ -189,4 +192,13 @@ __all__ = [
     'ADVANCED_TS_AVAILABLE',
     'DomainSpecificAnalysis',
     'DOMAIN_SPECIFIC_AVAILABLE',
+    # Sensitivity analysis (v10.1)
+    'SensitivityAnalysis',
+    'analyze_dataframe_sensitivity',
+    # Extended statistics (v10.1)
+    'ExtendedStatisticalTests',
+    'DistributionOperations',
+    # CART analysis (v10.1)
+    'CARTAnalysis',
+    'sensitivity_to_cart_workflow',
 ]

@@ -377,7 +377,7 @@ def render_signal_analysis_tab():
                     wavelet=wavelet_type_opt
                 )
                 if fig:
-                    st.pyplot(fig, use_container_width=True)
+                    st.pyplot(fig, width='stretch')
                     
                     # Download button for high-res PNG
                     import io
@@ -520,7 +520,7 @@ def render_signal_analysis_tab():
                 from data_toolkit import signal_analysis as sa
                 fig = sa.plot_cross_wavelet(results, show_phase_arrows=True)
                 if fig:
-                    st.pyplot(fig, use_container_width=True)
+                    st.pyplot(fig, width='stretch')
                     
                     # Download button for high-res PNG
                     import io
@@ -564,7 +564,7 @@ def render_signal_analysis_tab():
                 from data_toolkit import signal_analysis as sa
                 fig = sa.plot_wavelet_coherence(results, show_phase_arrows=True)
                 if fig:
-                    st.pyplot(fig, use_container_width=True)
+                    st.pyplot(fig, width='stretch')
                     
                     # Download button for high-res PNG
                     import io

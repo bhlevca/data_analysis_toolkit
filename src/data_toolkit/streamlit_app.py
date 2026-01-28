@@ -168,6 +168,7 @@ from tabs import (
     render_anomaly_tab as _render_anomaly_tab_module,
     render_signal_analysis_tab as _render_signal_analysis_tab_module,
     render_dimreduction_tab as _render_dimreduction_tab_module,
+    render_sensitivity_tab as _render_sensitivity_tab_module,
 )
 
 # Optional tabs that may not be installed
@@ -1831,6 +1832,271 @@ The U-Net is ideal for biomedical/ecological segmentation:
 - Environmental impact assessment
 
 💡 **Tip**: Use data augmentation (rotation, flip, zoom) to improve model robustness!
+""",
+
+    "sensitivity_analysis": """
+## 🎯 Sensitivity Analysis Guide
+
+**Location:** Main Tab: 📊 Statistics › Subtab: Sensitivity Analysis
+
+Sensitivity analysis determines which input parameters have the most impact on model outputs.
+
+---
+
+### Methods Available
+
+| Method | Type | Best For |
+|--------|------|----------|
+| **Morris Screening** | Qualitative | Initial screening of many parameters |
+| **Sobol Indices** | Quantitative | Variance decomposition, interactions |
+| **OAT (One-At-a-Time)** | Local | Quick local sensitivity check |
+
+---
+
+### 🔍 Morris Screening (Elementary Effects)
+
+**What it shows:**
+- **μ* (mu_star)**: Mean absolute effect - overall importance
+- **σ (sigma)**: Standard deviation - interaction/nonlinearity
+
+**Interpretation:**
+| μ* | σ | Meaning |
+|----|---|---------|
+| High | Low | Linear effect, no interactions |
+| High | High | Non-linear OR interacting with others |
+| Low | Low | Not important |
+| Low | High | Only important via interactions |
+
+**Workflow:**
+1. Select output column (Y)
+2. Select input parameters (X₁, X₂, ...)
+3. Set number of trajectories (r=10-20 recommended)
+4. Run analysis
+
+---
+
+### 📊 Sobol Indices
+
+**First-order (S1):** Direct contribution of each parameter
+**Total-order (ST):** Total contribution including interactions
+
+**Interpretation:**
+- ST > S1: Parameter has interaction effects
+- Sum of S1 ≈ 1: Model is additive (no interactions)
+- Sum of S1 << 1: Strong interactions present
+
+---
+
+### 🔗 Integration with CART & Monte Carlo
+
+**Workflow for Environmental Modeling:**
+
+1. **Morris Screening** → Identify top N important parameters
+2. **Export parameters** → Use hypercube sampling data
+3. **CART Analysis** → Build decision tree on important parameters
+4. **Monte Carlo** → Uncertainty propagation
+
+```python
+from data_toolkit import SensitivityAnalysis, MLModels
+
+# Step 1: Morris screening
+sa = SensitivityAnalysis(df)
+morris = sa.morris_screening('output', feature_cols, num_levels=4, num_trajectories=20)
+
+# Step 2: Get top parameters
+top_params = [p['parameter'] for p in morris['parameter_ranking'][:10]]
+
+# Step 3: CART on important parameters
+ml = MLModels(df)
+cart_result = ml.cart_analysis(top_params, 'output', max_depth=5)
+
+# Step 4: Monte Carlo with perturbations
+mc_result = ml.monte_carlo_cart_predictions(cart_result['model'], n_simulations=1000)
+```
+
+---
+
+### Best Practices
+
+1. **Start with Morris** for initial screening (fast, handles many params)
+2. **Use Sobol** for detailed analysis on top parameters
+3. **Standardize inputs** for comparable sensitivity metrics
+4. **Visualize results** with tornado plots and scatter plots
+
+💡 **Tip**: Export the Morris hypercube data for use in downstream CART analysis!
+""",
+
+    "cart_workflow": """
+## 🌳 CART + Monte Carlo Workflow Guide
+
+**Location:** Main Tab: 📊 Statistics › Subtab: Sensitivity Analysis (bottom section)
+
+This workflow implements the **Morris → CART → Monte Carlo** analysis pipeline commonly used in environmental modeling.
+
+---
+
+### Workflow Overview
+
+```
+Morris Screening → Select Top Parameters → CART Model → Monte Carlo Simulation
+      ↓                    ↓                   ↓                    ↓
+  Rank params         High μ*, σ          Decision Tree        Uncertainty
+```
+
+---
+
+### Step 1: Morris Screening
+
+**Purpose**: Identify parameters with greatest impact on model output
+
+**Key metrics**:
+- **μ*** (mu-star): Mean absolute effect - overall importance
+- **σ** (sigma): Standard deviation - indicates nonlinearity/interactions
+
+**Selection criteria**:
+- High μ* and high σ → Important AND nonlinear/interactive
+- High μ* and low σ → Important with linear effect
+
+---
+
+### Step 2: CART Analysis
+
+**Classification and Regression Trees (CART)** build interpretable decision tree models.
+
+**Parameters**:
+| Parameter | Recommended | Description |
+|-----------|-------------|-------------|
+| Top N Parameters | 10-25 | Number of important parameters to include |
+| Max Depth | 3-7 | Tree depth (deeper = more complex) |
+| Min Samples/Leaf | 5-10 | Minimum observations in leaf nodes |
+
+**Outputs**:
+- Feature importance ranking
+- Decision tree rules (interpretable!)
+- R² metrics for model fit
+
+---
+
+### Step 3: Monte Carlo Simulation
+
+**Purpose**: Quantify prediction uncertainty by varying parameters
+
+**Method**:
+1. Generate **Latin Hypercube Sample** (LHS) of parameter combinations
+2. Run CART predictions for each sample
+3. Analyze distribution of predictions
+
+**Key statistics**:
+- Mean prediction
+- Standard deviation (uncertainty)
+- 5th and 95th percentiles (90% CI)
+- Coefficient of variation (CV)
+
+---
+
+### Example Application: Cladophora Biomass
+
+From Hecky et al.'s methodology:
+
+```python
+from data_toolkit import sensitivity_to_cart_workflow
+
+# Run complete workflow
+results = sensitivity_to_cart_workflow(
+    df=model_data,
+    output_col='biomass',
+    input_cols=parameter_columns,
+    top_n_params=25,        # Select top 25 from Morris
+    num_trajectories=20,    # Morris trajectories
+    cart_max_depth=5,       # Decision tree depth
+    mc_samples=1000         # Monte Carlo samples
+)
+
+# Access results
+print(f"Selected params: {results['selected_parameters']}")
+print(f"CART R²: {results['workflow_summary']['cart_r2']:.3f}")
+print(f"MC Mean ± SD: {results['workflow_summary']['mc_mean']:.2f} ± {results['workflow_summary']['mc_std']:.2f}")
+```
+
+---
+
+### Exporting Data
+
+**Hypercube Export**: Parameter combinations used for Monte Carlo
+- Use for external simulations
+- Pass to process-based models
+- Reproducibility documentation
+
+**MC Results Export**: Predictions for each parameter combination
+- Full prediction distribution
+- Input parameters + output in single file
+- Ready for further analysis
+
+---
+
+### Best Practices
+
+1. **Parameter Selection**: Start with 25 parameters, reduce if CART overfits
+2. **Tree Depth**: Start shallow (3-4), increase if R² is too low
+3. **MC Samples**: Use 1000+ for stable uncertainty estimates
+4. **Validation**: Compare CART predictions with original model
+
+💡 **Tip**: The workflow is designed to match published environmental modeling methodologies!
+""",
+
+    "extended_statistics": """
+## 📐 Extended Statistical Tests Guide
+
+Additional statistical tests and distribution operations.
+
+---
+
+### Statistical Tests
+
+| Test | Purpose | Assumptions |
+|------|---------|-------------|
+| **Kolmogorov-Smirnov (1-sample)** | Test distribution fit | Continuous data |
+| **Kolmogorov-Smirnov (2-sample)** | Compare two distributions | Independent samples |
+| **Anderson-Darling** | Normality test (sensitive to tails) | Continuous data |
+| **Runs Test** | Test for randomness | Sequential data |
+| **Sign Test** | Paired comparison | Paired data |
+| **Mood's Median** | Compare medians | Independent groups |
+| **Friedman Test** | Repeated measures (non-parametric) | Related samples |
+| **Bartlett's Test** | Equal variances | Normal data |
+| **Brown-Forsythe** | Equal variances (robust) | Any distribution |
+
+---
+
+### Distribution Operations
+
+| Operation | Description |
+|-----------|-------------|
+| **KDE** | Non-parametric density estimation |
+| **Percentiles** | Flexible quantile calculation |
+| **Moments** | Skewness, kurtosis, etc. |
+| **Entropy** | Information content |
+| **Sampling** | Generate from fitted distributions |
+| **Probability** | CDF, PDF, survival function |
+
+---
+
+### Usage Examples
+
+```python
+from data_toolkit import ExtendedStatisticalTests, DistributionOperations
+
+# Statistical tests
+est = ExtendedStatisticalTests(df)
+result = est.anderson_darling('column', 'norm')
+result = est.friedman_test(['time1', 'time2', 'time3'])
+
+# Distribution operations
+do = DistributionOperations(df)
+kde = do.kernel_density_estimation('column')
+moments = do.moments('column')
+```
+
+💡 **Tip**: Use Anderson-Darling instead of Shapiro-Wilk for large samples - it's more sensitive to tail deviations!
 """
 }
 
@@ -1887,6 +2153,9 @@ def render_tutorial_sidebar():
                 "uncertainty": "📊 Statistics › Uncertainty Analysis",
                 "effect_sizes": "📊 Statistics › Effect Sizes (v4)",
                 "statistical_enhancements": "📊 Statistics › Multiple Testing & VIF (v4)",
+                "sensitivity_analysis": "📊 Statistics › Sensitivity Analysis (v4.1)",
+                "cart_workflow": "📊 Statistics › CART + Monte Carlo (v4.1)",
+                "extended_statistics": "📊 Statistics › Extended Tests & Distributions (v4.1)",
                 # Signal Processing group
                 "signal_analysis": "🔊 Signal Processing › FFT/Wavelet",
                 # Time Series group
@@ -2094,7 +2363,7 @@ def render_data_tab():
 
         # Data preview
         st.markdown("### Data Preview")
-        st.dataframe(df.head(10), use_container_width=True)
+        st.dataframe(df.head(10), width='stretch')
 
         # Quick plot with Plotly - only if valid selection and numeric columns available
         if len(st.session_state.feature_cols) >= 1 and len(numeric_cols) >= 1:
@@ -2136,7 +2405,7 @@ def render_data_tab():
                         fig.update_layout(height=500,
                                         xaxis_title=x_col,
                                         yaxis_title=y_col)
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width='stretch')
                     except Exception as e:
                         st.warning(f"Could not generate quick visualization: {e}")
                 else:
@@ -3849,7 +4118,7 @@ def render_ccf_tab():
                 template=PLOTLY_TEMPLATE,
                 height=400
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
             
             # Export CCF data
             st.markdown("---")
@@ -3987,7 +4256,7 @@ def render_moving_average_tab():
                     height=500,
                     legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
                 
                 # Statistics
                 st.subheader("📊 Smoothing Statistics")
@@ -4007,7 +4276,7 @@ def render_moving_average_tab():
                 
                 if stats_data:
                     stats_df = pd.DataFrame(stats_data)
-                    st.dataframe(stats_df, use_container_width=True, hide_index=True)
+                    st.dataframe(stats_df, width='stretch', hide_index=True)
                 
                 # Export
                 st.markdown("---")
@@ -4748,7 +5017,7 @@ def render_statistical_tests_tab():
             col2_test = st.selectbox("Column 2", [f for f in features if f != col1_test], key='col2_test')
             test_subtype = st.radio("Test", ["Independent t-test", "Paired t-test", "Mann-Whitney U"])
 
-            if st.button("🧪 Run Test", use_container_width=True):
+            if st.button("🧪 Run Test", width='stretch'):
                 st.info(f"⏳ Running {test_subtype}...")
                 with st.spinner(f"Running {test_subtype}..."):
                     try:
@@ -4775,7 +5044,7 @@ def render_statistical_tests_tab():
                 key='anova_cols'
             )
 
-            if st.button("🧪 Run One-Way ANOVA", use_container_width=True):
+            if st.button("🧪 Run One-Way ANOVA", width='stretch'):
                 if len(anova_cols) >= 3:
                     st.info("⏳ Starting One-Way ANOVA calculation...")
                     with st.spinner("Running One-Way ANOVA..."):
@@ -4810,7 +5079,7 @@ def render_statistical_tests_tab():
                 groups = df.groupby([factor1, factor2])[data_col].count()
                 st.caption(f"Groups: {len(groups)} combinations")
 
-            if st.button("🧪 Run Two-Way ANOVA", use_container_width=True):
+            if st.button("🧪 Run Two-Way ANOVA", width='stretch'):
                 st.info("⏳ Starting Two-Way ANOVA...")
                 with st.spinner("Running Two-Way ANOVA..."):
                     try:
@@ -4846,7 +5115,7 @@ def render_statistical_tests_tab():
                 n_conditions = df[within_factor].nunique()
                 st.caption(f"Found: {n_subjects} subjects, {n_conditions} conditions")
 
-            if st.button("🧪 Run Repeated-Measures ANOVA", use_container_width=True):
+            if st.button("🧪 Run Repeated-Measures ANOVA", width='stretch'):
                 st.info("⏳ Starting Repeated-Measures ANOVA...")
                 with st.spinner("Running Repeated-Measures ANOVA..."):
                     try:
@@ -4871,7 +5140,7 @@ def render_statistical_tests_tab():
 
             posthoc_type = st.radio("Post-Hoc Method", ["Tukey's HSD", "Bonferroni Correction"], key='posthoc_type')
 
-            if st.button("🧪 Run Post-Hoc Tests", use_container_width=True):
+            if st.button("🧪 Run Post-Hoc Tests", width='stretch'):
                 st.info("⏳ Computing pairwise comparisons...")
                 with st.spinner("Running Post-Hoc tests..."):
                     try:
@@ -4897,9 +5166,9 @@ def render_statistical_tests_tab():
             if cat_col1 and cat_col2:
                 st.markdown("**Contingency Table Preview:**")
                 contingency = pd.crosstab(df[cat_col1], df[cat_col2])
-                st.dataframe(contingency, use_container_width=True)
+                st.dataframe(contingency, width='stretch')
 
-            if st.button("🧪 Run Chi-Square Test", use_container_width=True):
+            if st.button("🧪 Run Chi-Square Test", width='stretch'):
                 with st.spinner("Computing Chi-Square test..."):
                     try:
                         results = stats.chi_square_test(cat_col1, cat_col2)
@@ -4921,9 +5190,9 @@ def render_statistical_tests_tab():
                 fig = go.Figure()
                 fig.add_trace(go.Histogram(x=data, name='Data', nbinsx=30))
                 fig.update_layout(title=f'Distribution of {norm_col}', template=PLOTLY_TEMPLATE, height=300)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
-            if st.button("🧪 Run Normality Test", use_container_width=True):
+            if st.button("🧪 Run Normality Test", width='stretch'):
                 with st.spinner("Testing normality..."):
                     try:
                         from scipy import stats as scipy_stats
@@ -4972,9 +5241,9 @@ def render_statistical_tests_tab():
                 fig.add_trace(go.Scatter(x=df[corr_col1], y=df[corr_col2], mode='markers', opacity=0.6))
                 fig.update_layout(title=f'{corr_col1} vs {corr_col2}', xaxis_title=corr_col1, yaxis_title=corr_col2,
                                   template=PLOTLY_TEMPLATE, height=300)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
 
-            if st.button("🧪 Run Correlation Test", use_container_width=True):
+            if st.button("🧪 Run Correlation Test", width='stretch'):
                 st.info("⏳ Computing correlation...")
                 with st.spinner("Computing correlation..."):
                     try:
@@ -5061,7 +5330,7 @@ def render_statistical_tests_tab():
                         'Significant': '✅' if effect_info.get('significant') else '❌'
                     })
                 if effects_data:
-                    st.dataframe(pd.DataFrame(effects_data), use_container_width=True)
+                    st.dataframe(pd.DataFrame(effects_data), width='stretch')
                 st.info(f"📊 {test_results.get('interpretation', '')}")
 
             elif anova_type == 'chi_square':
@@ -5145,7 +5414,7 @@ def render_statistical_tests_tab():
                     'Mean': list(test_results.get('group_means', {}).values()),
                     'N': list(test_results.get('group_sizes', {}).values())
                 })
-                st.dataframe(means_df, use_container_width=True)
+                st.dataframe(means_df, width='stretch')
 
                 st.markdown("**Pairwise Comparisons:**")
                 comparisons = test_results.get('comparisons', [])
@@ -5156,7 +5425,7 @@ def render_statistical_tests_tab():
                         display_cols = ['group1', 'group2', 'mean_diff', 'p_adjusted', 'significant']
                     comp_df_display = comp_df[display_cols].copy()
                     comp_df_display['significant'] = comp_df_display['significant'].map({True: '✅', False: '❌'})
-                    st.dataframe(comp_df_display, use_container_width=True)
+                    st.dataframe(comp_df_display, width='stretch')
                 st.info(f"📊 {test_results.get('interpretation', '')}")
 
             else:
@@ -7284,7 +7553,7 @@ def render_domain_specific_tab():
             st.write("**Sen's Slope Estimator**")
             sens_col = st.selectbox("Column", numeric_cols, key="sens_col")
             
-            if st.button("📈 Calculate Sen's Slope", key="run_sens"):
+            if st.button("📈 Calculate Sen's Slope", key="run_sens_slope"):
                 if domain:
                     try:
                         result = domain.sens_slope(sens_col)
@@ -7830,16 +8099,17 @@ def main():
             render_data_quality_tab()
 
     # =========================================================================
-    # 📊 STATISTICS GROUP (5 subtabs - added Effect Sizes)
+    # 📊 STATISTICS GROUP (6 subtabs - added Effect Sizes and Sensitivity)
     # =========================================================================
     with main_tabs[1]:
         st.markdown("#### 📊 Statistics Group")
-        st.caption("Descriptive statistics, hypothesis testing, effect sizes, and uncertainty quantification")
+        st.caption("Descriptive statistics, hypothesis testing, effect sizes, sensitivity, and uncertainty quantification")
 
         stats_subtabs = st.tabs([
             "📊 Descriptive Statistics",
             "🧪 Hypothesis Tests",
             "📏 Effect Sizes",
+            "🎯 Sensitivity Analysis",
             "📈 Bayesian Inference",
             "🎲 Uncertainty Analysis"
         ])
@@ -7851,8 +8121,10 @@ def main():
         with stats_subtabs[2]:
             render_effect_sizes_tab()
         with stats_subtabs[3]:
-            render_bayesian_tab()
+            _render_sensitivity_tab_module()
         with stats_subtabs[4]:
+            render_bayesian_tab()
+        with stats_subtabs[5]:
             render_uncertainty_tab()
 
     # =========================================================================
