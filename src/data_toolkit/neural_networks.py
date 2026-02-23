@@ -19,6 +19,10 @@ warnings.filterwarnings('ignore')
 
 # TensorFlow imports with graceful fallback
 try:
+    # Configure GPU before importing TF ops (handles Blackwell/unsupported arch)
+    from data_toolkit.gpu_config import ensure_gpu_ready
+    _gpu_info = ensure_gpu_ready()
+
     import tensorflow as tf
     from tensorflow import keras
     from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau

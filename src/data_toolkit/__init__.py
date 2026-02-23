@@ -118,6 +118,9 @@ except ImportError:
     DomainSpecificAnalysis = None
     DOMAIN_SPECIFIC_AVAILABLE = False
 
+# GPU configuration (auto-detects unsupported GPU architectures)
+from .gpu_config import configure_gpu, ensure_gpu_ready, is_gpu_usable, get_device_summary
+
 # Neural Networks (optional - requires TensorFlow)
 try:
     from .neural_networks import NeuralNetworkModels
@@ -136,7 +139,29 @@ from .rust_accelerated import (  # Settings and status; Accelerated functions
     lead_lag_correlations, monte_carlo_predictions, mutual_information,
     rolling_statistics, set_rust_enabled, transfer_entropy)
 
-__version__ = "10.0.0"
+# Single source of truth: version comes from pyproject.toml
+# Tries pyproject.toml first (always current), then installed package metadata.
+def _get_version() -> str:
+    # 1. Parse pyproject.toml directly (works in dev / editable installs)
+    try:
+        import re as _re
+        from pathlib import Path as _Path
+        _pyproject = _Path(__file__).resolve().parents[2] / "pyproject.toml"
+        _text = _pyproject.read_text()
+        _m = _re.search(r'^version\s*=\s*"([^"]+)"', _text, _re.MULTILINE)
+        if _m:
+            return _m.group(1)
+    except Exception:
+        pass
+    # 2. Fallback: installed package metadata
+    try:
+        from importlib.metadata import version as _pkg_version
+        return _pkg_version("advanced-data-toolkit")
+    except Exception:
+        pass
+    return "0.0.0"
+
+__version__ = _get_version()
 __author__ = "Data Analysis Toolkit Contributors"
 __license__ = "MIT"
 
