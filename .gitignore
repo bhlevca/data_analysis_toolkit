@@ -146,6 +146,18 @@ data/
 output/
 wvenv/
 
-# But include test data filesq
+# But include test data files
 !test_data/*.csv
-src/data_toolkit/streamlit_app (conflicted copy 2025-12-12 205147).py
+!test_data/**/*.csv
+
+# Nextcloud conflict copies
+*conflicted copy*
+
+# Rust build artifacts
+rust_extensions/target/
+
+# Model debug/error logs (models themselves are tracked)
+models/*.log
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
