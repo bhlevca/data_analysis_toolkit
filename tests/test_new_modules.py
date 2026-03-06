@@ -267,8 +267,8 @@ class TestDataQuality:
         assert 'total_missing' in result
         assert result['total_missing'] == 2
     
-    def test_detect_outliers(self, test_df):
-        """Test outlier detection"""
+    def test_detect_outliers_iqr_basic(self, test_df):
+        """Test IQR outlier detection - basic functionality"""
         from data_toolkit.data_quality import DataQuality
         
         dq = DataQuality(test_df)
@@ -277,6 +277,173 @@ class TestDataQuality:
         assert 'n_outliers' in result
         assert 'outlier_indices' in result
         assert 'method' in result
+        assert 'threshold_used' in result
+        assert result['threshold_used'] == 1.5  # Default IQR multiplier
+    
+    def test_detect_outliers_iqr_known_outliers(self):
+        """Test IQR method with known outliers"""
+        from data_toolkit.data_quality import DataQuality
+        
+        # Create data with known outliers
+        # Normal values: 10-20, with outliers at 100 and -50
+        data = [10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 100, -50]
+        df = pd.DataFrame({'value': data})
+        
+        dq = DataQuality(df)
+        result = dq.detect_outliers('value', method='iqr', iqr_multiplier=1.5)
+        
+        # 100 and -50 should be detected as outliers
+        assert result['total_outliers'] == 2
+        outlier_values = result['per_column']['value']['outlier_values']
+        assert 100 in outlier_values
+        assert -50 in outlier_values
+        
+        # Verify bounds are reasonable
+        bounds = result['per_column']['value']['bounds']
+        assert bounds['lower'] < 10  # Lower bound should be below min normal value
+        assert bounds['upper'] < 100  # Upper bound should be below the extreme outlier
+    
+    def test_detect_outliers_zscore_basic(self, test_df):
+        """Test Z-score outlier detection - basic functionality"""
+        from data_toolkit.data_quality import DataQuality
+        
+        dq = DataQuality(test_df)
+        result = dq.detect_outliers('value', method='zscore')
+        
+        assert 'n_outliers' in result
+        assert 'threshold_used' in result
+        assert result['threshold_used'] == 3.0  # Default z-score threshold
+    
+    def test_detect_outliers_zscore_known_outliers(self):
+        """Test Z-score method with known outliers"""
+        from data_toolkit.data_quality import DataQuality
+        
+        # Create normally distributed data with extreme outliers
+        np.random.seed(42)
+        normal_data = np.random.normal(50, 5, 100).tolist()  # mean=50, std=5
+        # Add outliers more than 3 std away: 50 + 3*5 = 65, 50 - 3*5 = 35
+        outliers = [80, 20]  # 6 std away
+        data = normal_data + outliers
+        df = pd.DataFrame({'value': data})
+        
+        dq = DataQuality(df)
+        result = dq.detect_outliers('value', method='zscore', zscore_threshold=3.0)
+        
+        # Should detect at least the extreme outliers
+        assert result['total_outliers'] >= 2
+        outlier_indices = result['per_column']['value']['outlier_indices']
+        # The outliers are at indices 100 and 101
+        assert 100 in outlier_indices
+        assert 101 in outlier_indices
+    
+    def test_detect_outliers_mad_basic(self, test_df):
+        """Test MAD outlier detection - basic functionality"""
+        from data_toolkit.data_quality import DataQuality
+        
+        dq = DataQuality(test_df)
+        result = dq.detect_outliers('value', method='mad')
+        
+        assert 'n_outliers' in result
+        assert 'threshold_used' in result
+        assert result['threshold_used'] == 3.5  # Default MAD threshold
+    
+    def test_detect_outliers_mad_known_outliers(self):
+        """Test MAD method with known outliers"""
+        from data_toolkit.data_quality import DataQuality
+        
+        # Create data with known outliers - MAD is robust to outliers
+        data = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 200]  # 200 is extreme
+        df = pd.DataFrame({'value': data})
+        
+        dq = DataQuality(df)
+        result = dq.detect_outliers('value', method='mad', mad_threshold=3.5)
+        
+        # The extreme value 200 should be detected
+        assert result['total_outliers'] >= 1
+        outlier_values = result['per_column']['value']['outlier_values']
+        assert 200 in outlier_values
+        
+        # Verify MAD parameters
+        bounds = result['per_column']['value']['bounds']
+        assert 'median' in bounds
+        assert 'mad' in bounds
+        # Median should be around 14-15 (middle of 10-20 range)
+        assert 10 < bounds['median'] < 20
+    
+    def test_detect_outliers_threshold_sensitivity(self):
+        """Test that threshold changes affect outlier counts"""
+        from data_toolkit.data_quality import DataQuality
+        
+        # Data with borderline outliers
+        data = list(range(1, 21)) + [30, 35, 40]  # 1-20 normal, 30-40 borderline
+        df = pd.DataFrame({'value': data})
+        
+        dq = DataQuality(df)
+        
+        # Strict threshold should detect more
+        strict_result = dq.detect_outliers('value', method='iqr', iqr_multiplier=1.0)
+        # Lenient threshold should detect fewer
+        lenient_result = dq.detect_outliers('value', method='iqr', iqr_multiplier=2.5)
+        
+        # Strict should find more or equal outliers than lenient
+        assert strict_result['total_outliers'] >= lenient_result['total_outliers']
+    
+    def test_detect_outliers_no_outliers(self):
+        """Test behavior when no outliers exist"""
+        from data_toolkit.data_quality import DataQuality
+        
+        # Uniform data with no outliers
+        data = list(range(1, 101))  # 1 to 100 evenly spaced
+        df = pd.DataFrame({'value': data})
+        
+        dq = DataQuality(df)
+        result = dq.detect_outliers('value', method='iqr', iqr_multiplier=1.5)
+        
+        # Should find no outliers in uniform data
+        assert result['total_outliers'] == 0
+    
+    def test_detect_outliers_all_same_values(self):
+        """Test behavior when all values are identical"""
+        from data_toolkit.data_quality import DataQuality
+        
+        # All same values
+        data = [5] * 100
+        df = pd.DataFrame({'value': data})
+        
+        dq = DataQuality(df)
+        
+        # IQR should find 0 (IQR = 0)
+        iqr_result = dq.detect_outliers('value', method='iqr')
+        assert iqr_result['total_outliers'] == 0
+        
+        # Z-score should find 0 (std = 0)
+        zscore_result = dq.detect_outliers('value', method='zscore')
+        assert zscore_result['total_outliers'] == 0
+        
+        # MAD should find 0 (MAD = 0)
+        mad_result = dq.detect_outliers('value', method='mad')
+        assert mad_result['total_outliers'] == 0
+    
+    def test_detect_outliers_multicolumn(self):
+        """Test outlier detection on multiple columns"""
+        from data_toolkit.data_quality import DataQuality
+        
+        # Two columns with different outlier patterns
+        df = pd.DataFrame({
+            'col1': [1, 2, 3, 4, 5, 6, 7, 8, 9, 100],  # One outlier at 100
+            'col2': [10, 20, 30, 40, 50, 60, 70, 80, 90, 1000]  # One outlier at 1000
+        })
+        
+        dq = DataQuality(df)
+        result = dq.detect_outliers(['col1', 'col2'], method='iqr')
+        
+        # Should detect outliers in both columns
+        assert 'per_column' in result
+        assert 'col1' in result['per_column']
+        assert 'col2' in result['per_column']
+        assert result['per_column']['col1']['n_outliers'] == 1
+        assert result['per_column']['col2']['n_outliers'] == 1
+        assert result['total_outliers'] == 2
     
     def test_impute_missing(self, test_df):
         """Test missing value imputation"""
@@ -300,6 +467,71 @@ class TestDataQuality:
         assert 'overview' in result
         assert 'quality_score' in result
         assert result['quality_score'] >= 0
+
+    def test_coefficient_of_variation(self, test_df):
+        """Test CV calculation for burst data QA"""
+        from data_toolkit.data_quality import DataQuality
+        
+        dq = DataQuality(test_df)
+        result = dq.coefficient_of_variation('measurement1')
+        
+        assert 'overall_cv' in result
+        assert 'mean' in result
+        assert 'std' in result
+        assert 'quality_flag' in result
+        assert result['quality_flag'] in ['good', 'acceptable', 'poor']
+        assert result['overall_cv'] >= 0
+
+    def test_coefficient_of_variation_grouped(self, test_df):
+        """Test CV calculation with grouping"""
+        from data_toolkit.data_quality import DataQuality
+        
+        dq = DataQuality(test_df)
+        result = dq.coefficient_of_variation('measurement1', group_column='group')
+        
+        assert 'group_cv' in result
+        assert 'group_flags' in result
+        assert len(result['group_cv']) > 0
+
+    def test_median_absolute_deviation(self, test_df):
+        """Test MAD calculation for robust outlier detection"""
+        from data_toolkit.data_quality import DataQuality
+        
+        dq = DataQuality(test_df)
+        result = dq.median_absolute_deviation('measurement1', threshold=3.5)
+        
+        assert 'median' in result
+        assert 'mad' in result
+        assert 'n_outliers' in result
+        assert 'outlier_indices' in result
+        assert result['mad'] >= 0
+
+    def test_median_absolute_deviation_grouped(self, test_df):
+        """Test MAD calculation with grouping"""
+        from data_toolkit.data_quality import DataQuality
+        
+        dq = DataQuality(test_df)
+        result = dq.median_absolute_deviation('measurement1', threshold=3.5, group_column='group')
+        
+        assert 'group_analysis' in result
+        assert len(result['group_analysis']) > 0
+
+    def test_burst_quality_analysis(self, test_df):
+        """Test comprehensive burst QA analysis"""
+        from data_toolkit.data_quality import DataQuality
+        
+        dq = DataQuality(test_df)
+        result = dq.burst_quality_analysis('measurement1', 'group', cv_threshold=30.0, mad_threshold=3.5)
+        
+        assert 'overall_statistics' in result
+        assert 'recommendation' in result
+        assert 'cv' in result['overall_statistics']
+        assert 'mad' in result['overall_statistics']
+        
+        # Check burst summary is present when groups exist
+        if 'burst_summary' in result:
+            assert 'n_bursts' in result
+            assert 'n_poor_bursts' in result
 
 
 # =============================================================================

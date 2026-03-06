@@ -43,6 +43,11 @@ import os
 import warnings
 from typing import Optional
 
+# Suppress TensorFlow v1 deprecation warnings from Keras internals
+# (e.g., tf.reset_default_graph being deprecated in keras/backend/global_state.py)
+warnings.filterwarnings('ignore', message='.*reset_default_graph.*', category=DeprecationWarning)
+warnings.filterwarnings('ignore', message='.*reset_default_graph.*')
+
 logger = logging.getLogger(__name__)
 
 # Module-level state

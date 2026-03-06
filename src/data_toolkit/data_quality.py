@@ -545,18 +545,27 @@ class DataQuality:
     # =========================================================================
 
     def detect_outliers(self, columns: Union[str, List[str]], method: str = 'iqr',
-                        threshold: float = 1.5) -> Dict[str, Any]:
+                        threshold: float = None,
+                        iqr_multiplier: float = None,
+                        zscore_threshold: float = None,
+                        mad_threshold: float = None) -> Dict[str, Any]:
         """
         Detect outliers in one or more columns
 
         Args:
             columns: Column name (str) or list of column names to analyze
             method: Detection method
-                   - 'iqr': Interquartile range method
-                   - 'zscore': Z-score method
-                   - 'mad': Median Absolute Deviation
+                   - 'iqr': Interquartile range method (default threshold: 1.5)
+                   - 'zscore': Z-score method (default threshold: 3.0)
+                   - 'mad': Median Absolute Deviation (default threshold: 3.5)
                    - 'isolation_forest': Isolation Forest
-            threshold: Threshold for outlier detection
+            threshold: General threshold (deprecated, use method-specific params)
+            iqr_multiplier: IQR multiplier (default 1.5). Values outside 
+                           Q1 - k*IQR to Q3 + k*IQR are outliers.
+            zscore_threshold: Z-score threshold (default 3.0). Values with 
+                             |z-score| > threshold are outliers.
+            mad_threshold: MAD modified z-score threshold (default 3.5). 
+                          Values with |modified_z| > threshold are outliers.
 
         Returns:
             Dictionary with outlier indices and statistics.
@@ -564,6 +573,25 @@ class DataQuality:
         """
         if self.df is None:
             return {'error': 'No data loaded'}
+
+        # Set method-specific defaults
+        # Standard defaults: IQR=1.5, Z-score=3.0, MAD=3.5
+        DEFAULT_IQR = 1.5
+        DEFAULT_ZSCORE = 3.0
+        DEFAULT_MAD = 3.5
+        
+        # Determine the actual threshold to use
+        if method == 'iqr':
+            effective_threshold = iqr_multiplier if iqr_multiplier is not None else (
+                threshold if threshold is not None else DEFAULT_IQR)
+        elif method == 'zscore':
+            effective_threshold = zscore_threshold if zscore_threshold is not None else (
+                threshold if threshold is not None else DEFAULT_ZSCORE)
+        elif method == 'mad':
+            effective_threshold = mad_threshold if mad_threshold is not None else (
+                threshold if threshold is not None else DEFAULT_MAD)
+        else:
+            effective_threshold = threshold if threshold is not None else 1.5
 
         # Handle single column case
         if isinstance(columns, str):
@@ -593,25 +621,38 @@ class DataQuality:
                 q1 = float(data.quantile(0.25))
                 q3 = float(data.quantile(0.75))
                 iqr = q3 - q1
-                lower = q1 - threshold * iqr
-                upper = q3 + threshold * iqr
+                lower = q1 - effective_threshold * iqr
+                upper = q3 + effective_threshold * iqr
                 outliers = (data < lower) | (data > upper)
-                bounds = {'lower': float(lower), 'upper': float(upper)}
+                bounds = {'lower': float(lower), 'upper': float(upper), 
+                         'q1': q1, 'q3': q3, 'iqr': iqr, 'multiplier': effective_threshold}
 
             elif method == 'zscore':
-                z_scores = np.abs(stats.zscore(data))
-                outliers = z_scores > threshold
-                bounds = {'threshold': threshold}
+                mean_val = float(data.mean())
+                std_val = float(data.std())
+                if std_val > 0:
+                    z_scores = (data - mean_val) / std_val
+                    outliers = np.abs(z_scores) > effective_threshold
+                else:
+                    outliers = pd.Series(False, index=data.index)
+                    z_scores = pd.Series(0, index=data.index)
+                bounds = {'mean': mean_val, 'std': std_val, 'threshold': effective_threshold}
 
             elif method == 'mad':
                 median = float(data.median())
-                mad = float(np.median(np.abs(data - median)))
-                if mad > 0:
-                    modified_z = 0.6745 * (data - median) / mad
+                # MAD = median(|x - median|) * 1.4826 for consistency with std
+                # But the formula uses 0.6745 = 1/1.4826 to scale
+                mad_value = float(np.median(np.abs(data - median)))
+                if mad_value > 0:
+                    # Modified Z-score: 0.6745 * (x - median) / MAD
+                    # The 0.6745 constant makes MAD comparable to standard deviation
+                    modified_z = 0.6745 * (data - median) / mad_value
+                    outliers = np.abs(modified_z) > effective_threshold
                 else:
-                    modified_z = pd.Series(np.zeros(len(data)), index=data.index)
-                outliers = np.abs(modified_z) > threshold
-                bounds = {'median': median, 'mad': mad}
+                    # All values are the same (MAD = 0), no outliers
+                    outliers = pd.Series(False, index=data.index)
+                    modified_z = pd.Series(0, index=data.index)
+                bounds = {'median': median, 'mad': mad_value, 'threshold': effective_threshold}
 
             elif method == 'isolation_forest':
                 from sklearn.ensemble import IsolationForest
@@ -649,6 +690,7 @@ class DataQuality:
             'outlier_indices': list(all_outlier_indices),
             'per_column': per_column_results,
             'method': method,
+            'threshold_used': effective_threshold,
             # For backward compatibility with single-column usage
             'n_outliers': total_outliers,
             'pct_outliers': float(total_outliers / len(self.df) * 100) if len(self.df) > 0 else 0.0
@@ -701,6 +743,248 @@ class DataQuality:
             data.loc[outlier_indices] = median_val
 
         return data
+
+    # =========================================================================
+    # BURST DATA QA/QC (CV and MAD methods)
+    # =========================================================================
+
+    def coefficient_of_variation(self, column: str, 
+                                  group_column: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Calculate Coefficient of Variation (CV) for burst data QA/QC.
+        
+        CV = (standard deviation / mean) * 100
+        
+        Useful for identifying high-variability measurement bursts.
+        Typical thresholds:
+        - CV < 10%: Low variability (excellent quality)
+        - CV 10-30%: Moderate variability (acceptable)
+        - CV > 30%: High variability (potential quality issue)
+        
+        Args:
+            column: Column to analyze
+            group_column: Optional grouping column for burst-wise CV calculation
+            
+        Returns:
+            Dictionary with CV statistics and quality flags
+        """
+        if self.df is None:
+            return {'error': 'No data loaded'}
+        
+        if column not in self.df.columns:
+            return {'error': f'Column {column} not found'}
+        
+        data = self.df[column].dropna()
+        
+        if len(data) == 0:
+            return {'error': 'No valid data'}
+        
+        # Overall CV
+        mean_val = float(data.mean())
+        std_val = float(data.std())
+        
+        if mean_val == 0:
+            overall_cv = np.nan
+        else:
+            overall_cv = (std_val / abs(mean_val)) * 100
+        
+        result = {
+            'overall_cv': overall_cv,
+            'mean': mean_val,
+            'std': std_val,
+            'n_samples': len(data),
+            'quality_flag': 'good' if overall_cv < 10 else ('acceptable' if overall_cv < 30 else 'poor')
+        }
+        
+        # Group-wise CV if grouping column provided
+        if group_column and group_column in self.df.columns:
+            group_cvs = {}
+            group_flags = {}
+            
+            for group_name, group_data in self.df.groupby(group_column):
+                group_vals = group_data[column].dropna()
+                if len(group_vals) > 1:
+                    g_mean = float(group_vals.mean())
+                    g_std = float(group_vals.std())
+                    if g_mean != 0:
+                        g_cv = (g_std / abs(g_mean)) * 100
+                        group_cvs[str(group_name)] = g_cv
+                        group_flags[str(group_name)] = 'good' if g_cv < 10 else ('acceptable' if g_cv < 30 else 'poor')
+            
+            result['group_cv'] = group_cvs
+            result['group_flags'] = group_flags
+            result['n_poor_groups'] = sum(1 for f in group_flags.values() if f == 'poor')
+            result['pct_poor_groups'] = (result['n_poor_groups'] / len(group_flags) * 100) if group_flags else 0
+        
+        return result
+
+    def median_absolute_deviation(self, column: str, 
+                                   threshold: float = 3.5,
+                                   group_column: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Calculate Median Absolute Deviation (MAD) for robust outlier detection.
+        
+        MAD = median(|X - median(X)|)
+        Modified Z-score = 0.6745 * (X - median) / MAD
+        
+        More robust than standard deviation for non-normal distributions
+        and data with outliers (common in sensor burst data).
+        
+        Args:
+            column: Column to analyze
+            threshold: Modified Z-score threshold for outlier detection (default 3.5)
+            group_column: Optional grouping column for burst-wise analysis
+            
+        Returns:
+            Dictionary with MAD statistics and outlier information
+        """
+        if self.df is None:
+            return {'error': 'No data loaded'}
+        
+        if column not in self.df.columns:
+            return {'error': f'Column {column} not found'}
+        
+        data = self.df[column].dropna()
+        
+        if len(data) == 0:
+            return {'error': 'No valid data'}
+        
+        # Calculate MAD
+        median_val = float(data.median())
+        mad = float(np.median(np.abs(data - median_val)))
+        
+        # Calculate modified Z-scores
+        if mad > 0:
+            modified_z = 0.6745 * (data - median_val) / mad
+            outliers = np.abs(modified_z) > threshold
+        else:
+            modified_z = pd.Series(np.zeros(len(data)), index=data.index)
+            outliers = pd.Series(False, index=data.index)
+        
+        outlier_indices = data.index[outliers].tolist()
+        
+        result = {
+            'median': median_val,
+            'mad': mad,
+            'threshold': threshold,
+            'n_outliers': int(outliers.sum()),
+            'pct_outliers': float(outliers.sum() / len(data) * 100),
+            'outlier_indices': outlier_indices,
+            'outlier_values': data[outliers].tolist(),
+            'n_samples': len(data)
+        }
+        
+        # Group-wise MAD analysis if grouping column provided
+        if group_column and group_column in self.df.columns:
+            group_results = {}
+            
+            for group_name, group_data in self.df.groupby(group_column):
+                group_vals = group_data[column].dropna()
+                if len(group_vals) > 1:
+                    g_median = float(group_vals.median())
+                    g_mad = float(np.median(np.abs(group_vals - g_median)))
+                    
+                    if g_mad > 0:
+                        g_modified_z = 0.6745 * (group_vals - g_median) / g_mad
+                        g_outliers = np.abs(g_modified_z) > threshold
+                    else:
+                        g_outliers = pd.Series(False, index=group_vals.index)
+                    
+                    group_results[str(group_name)] = {
+                        'median': g_median,
+                        'mad': g_mad,
+                        'n_outliers': int(g_outliers.sum()),
+                        'n_samples': len(group_vals)
+                    }
+            
+            result['group_analysis'] = group_results
+            result['groups_with_outliers'] = sum(1 for g in group_results.values() if g['n_outliers'] > 0)
+        
+        return result
+
+    def burst_quality_analysis(self, value_column: str, 
+                                burst_column: str,
+                                cv_threshold: float = 30.0,
+                                mad_threshold: float = 3.5) -> Dict[str, Any]:
+        """
+        Comprehensive burst data quality analysis combining CV and MAD methods.
+        
+        Designed for sensor burst data (e.g., chlorophyll measurements) where
+        multiple readings are taken in quick succession.
+        
+        Args:
+            value_column: Column containing measurement values
+            burst_column: Column identifying burst groups (e.g., timestamp, burst_id)
+            cv_threshold: CV percentage threshold for flagging (default 30%)
+            mad_threshold: Modified Z-score threshold for outliers (default 3.5)
+            
+        Returns:
+            Dictionary with comprehensive burst quality assessment
+        """
+        if self.df is None:
+            return {'error': 'No data loaded'}
+        
+        # Get CV analysis
+        cv_result = self.coefficient_of_variation(value_column, burst_column)
+        if 'error' in cv_result:
+            return cv_result
+        
+        # Get MAD analysis
+        mad_result = self.median_absolute_deviation(value_column, mad_threshold, burst_column)
+        if 'error' in mad_result:
+            return mad_result
+        
+        # Combine results
+        result = {
+            'value_column': value_column,
+            'burst_column': burst_column,
+            'overall_statistics': {
+                'cv': cv_result['overall_cv'],
+                'cv_quality': cv_result['quality_flag'],
+                'median': mad_result['median'],
+                'mad': mad_result['mad'],
+                'n_outliers': mad_result['n_outliers'],
+                'pct_outliers': mad_result['pct_outliers']
+            },
+            'cv_thresholds': {
+                'good': '< 10%',
+                'acceptable': '10-30%',
+                'poor': '> 30%'
+            },
+            'outlier_indices': mad_result['outlier_indices'],
+            'outlier_values': mad_result['outlier_values']
+        }
+        
+        # Burst-level summary
+        if 'group_cv' in cv_result and 'group_analysis' in mad_result:
+            burst_summary = []
+            for burst_id in cv_result.get('group_cv', {}).keys():
+                burst_info = {
+                    'burst_id': burst_id,
+                    'cv': cv_result['group_cv'].get(burst_id, np.nan),
+                    'cv_flag': cv_result['group_flags'].get(burst_id, 'unknown')
+                }
+                if burst_id in mad_result.get('group_analysis', {}):
+                    mad_info = mad_result['group_analysis'][burst_id]
+                    burst_info['mad'] = mad_info['mad']
+                    burst_info['n_outliers'] = mad_info['n_outliers']
+                    burst_info['n_samples'] = mad_info['n_samples']
+                burst_summary.append(burst_info)
+            
+            result['burst_summary'] = burst_summary
+            result['n_bursts'] = len(burst_summary)
+            result['n_poor_bursts'] = sum(1 for b in burst_summary if b.get('cv_flag') == 'poor')
+            result['n_bursts_with_outliers'] = sum(1 for b in burst_summary if b.get('n_outliers', 0) > 0)
+        
+        # Quality recommendation
+        if cv_result['quality_flag'] == 'poor' or mad_result['pct_outliers'] > 10:
+            result['recommendation'] = 'Review data quality - high variability or many outliers detected'
+        elif cv_result['quality_flag'] == 'acceptable' or mad_result['pct_outliers'] > 5:
+            result['recommendation'] = 'Data quality acceptable but review flagged bursts'
+        else:
+            result['recommendation'] = 'Data quality good'
+        
+        return result
 
     # =========================================================================
     # DATA QUALITY REPORT

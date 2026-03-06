@@ -68,6 +68,12 @@ Or use as a library::
     cohens_d = effect.cohens_d('group1_col', 'group2_col')
 """
 
+# Suppress TensorFlow v1 deprecation warnings from Keras internals
+# (e.g., tf.reset_default_graph deprecated in keras/backend/global_state.py)
+import warnings
+warnings.filterwarnings('ignore', message='.*reset_default_graph.*', category=DeprecationWarning)
+warnings.filterwarnings('ignore', message='.*reset_default_graph.*')
+
 from .bayesian_analysis import BayesianAnalysis
 from .cart_analysis import CARTAnalysis, sensitivity_to_cart_workflow
 from .causality_analysis import CausalityAnalysis

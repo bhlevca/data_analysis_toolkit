@@ -278,6 +278,56 @@ Detects outliers using multiple methods.
 - `outlier_counts`: Per-column counts
 - `summary`: Overall summary
 
+##### `coefficient_of_variation(column, group_column=None)`
+Calculate Coefficient of Variation (CV) for burst data QA/QC.
+
+CV = (standard deviation / mean) × 100
+
+**Parameters:**
+- `column` (str): Column to analyze
+- `group_column` (str, optional): Grouping column for burst-wise CV
+
+**Returns:** dict with:
+- `overall_cv`: CV percentage
+- `mean`, `std`: Basic statistics
+- `quality_flag`: 'good' (<10%), 'acceptable' (10-30%), 'poor' (>30%)
+- `group_cv`: Per-group CV values (if group_column provided)
+- `group_flags`: Per-group quality flags
+
+##### `median_absolute_deviation(column, threshold=3.5, group_column=None)`
+Calculate MAD for robust outlier detection.
+
+MAD = median(|X - median(X)|)
+Modified Z-score = 0.6745 × (X - median) / MAD
+
+**Parameters:**
+- `column` (str): Column to analyze
+- `threshold` (float): Modified Z-score threshold (default 3.5)
+- `group_column` (str, optional): Grouping column for burst-wise analysis
+
+**Returns:** dict with:
+- `median`, `mad`: Robust statistics
+- `n_outliers`, `pct_outliers`: Outlier counts
+- `outlier_indices`, `outlier_values`: Detected outliers
+- `group_analysis`: Per-group results (if group_column provided)
+
+##### `burst_quality_analysis(value_column, burst_column, cv_threshold=30.0, mad_threshold=3.5)`
+Comprehensive burst data quality analysis combining CV and MAD methods.
+
+Designed for sensor burst data (e.g., chlorophyll measurements).
+
+**Parameters:**
+- `value_column` (str): Column containing measurement values
+- `burst_column` (str): Column identifying burst groups
+- `cv_threshold` (float): CV percentage threshold (default 30%)
+- `mad_threshold` (float): Modified Z-score threshold (default 3.5)
+
+**Returns:** dict with:
+- `overall_statistics`: CV, MAD, outlier summary
+- `burst_summary`: Per-burst quality metrics
+- `n_bursts`, `n_poor_bursts`, `n_bursts_with_outliers`: Counts
+- `recommendation`: Quality assessment recommendation
+
 ##### `transform_data(columns, method='log')`
 Applies transformations for normality or variance stabilization.
 
