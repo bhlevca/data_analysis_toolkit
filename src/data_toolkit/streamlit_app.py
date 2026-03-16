@@ -379,10 +379,19 @@ FUNCTION_INDEX = {
     'quality report': {'tab': '📊 Statistics', 'subtab': 'Data Quality', 'tabIdx': 1, 'subtabIdx': 4, 'description': 'Generate data quality report'},
     
     # Bayesian (Statistics tab idx 1, subtab idx 5)
-    'bayesian': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Bayesian inference and posteriors'},
+    'bayesian': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Bayesian inference with priors and posteriors'},
     'posterior': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Posterior distribution analysis'},
-    'credible interval': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Bayesian credible intervals'},
-    'bayes factor': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Bayesian hypothesis testing'},
+    'posterior predictive': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Posterior predictive distribution for new data'},
+    'credible interval': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Bayesian credible intervals (not confidence intervals)'},
+    'bayes factor': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Bayesian model comparison (BIC)'},
+    'prior': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Prior specification for Bayesian regression'},
+    'prior file': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Load/save prior from JSON files'},
+    'prior sensitivity': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Prior sensitivity analysis (weak → strong)'},
+    'conjugate': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Conjugate Normal-Inverse-Gamma prior'},
+    'noise variance': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Noise variance estimation (empirical Bayes)'},
+    'informative prior': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Informative prior from domain knowledge'},
+    'weakly informative': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Weakly informative (vague) prior'},
+    'prior precision': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Prior precision / strength parameter'},
     
     # Uncertainty (Statistics tab idx 1, subtab idx 6)
     'bootstrap': {'tab': '📊 Statistics', 'subtab': 'Uncertainty', 'tabIdx': 1, 'subtabIdx': 6, 'description': 'Bootstrap confidence intervals'},
@@ -561,7 +570,7 @@ Welcome! This toolkit provides comprehensive data analysis capabilities organize
 | Main Tab | Subtabs Inside |
 |----------|----------------|
 | **📁 Data** | Data Loading (upload files, select columns) |
-| **📊 Statistics** | Descriptive Statistics, Hypothesis Tests, Bayesian Inference, Uncertainty Analysis |
+| **📊 Statistics** | Descriptive Stats, Hypothesis Tests, Effect Sizes, Sensitivity, Data Quality, **Bayesian Inference** (priors + credible intervals), Uncertainty |
 | **🔊 Signal Processing** | FFT/Wavelet (frequency and time-frequency analysis) |
 | **⏱️ Time Series** | Time Series Analysis, Causality (Granger) |
 | **🤖 Machine Learning** | Regression/Classification, PCA, Clustering, Anomaly Detection, Dimensionality Reduction, Non-Linear Analysis |
@@ -586,7 +595,8 @@ Welcome! This toolkit provides comprehensive data analysis capabilities organize
 |---------------|-------------------|
 | Basic statistics? | 📊 Statistics → Descriptive Statistics |
 | Significant difference? | 📊 Statistics → Hypothesis Tests |
-| Effect size? | Use API: `EffectSizes` |
+| Effect size? | 📊 Statistics → Effect Sizes |
+| Bayesian with priors? | 📊 Statistics → Bayesian Inference |
 | Confidence intervals? | 📊 Statistics → Uncertainty Analysis |
 | Frequency content? | 🔊 Signal Processing → FFT/Wavelet |
 | Time patterns? | ⏱️ Time Series → Analysis |
@@ -851,39 +861,87 @@ PCA finds eigenvectors of the covariance matrix:
     "bayesian": """
 ## 📈 Bayesian Analysis Guide
 
+> **Navigate here:** 📊 Statistics → 📈 Bayesian Inference
+
 ### What is Bayesian Analysis?
-Unlike classical statistics that gives single-point estimates, Bayesian analysis provides **probability distributions** for parameters.
+Unlike classical (frequentist) statistics that gives single-point estimates, Bayesian analysis provides **probability distributions** for parameters by combining **prior knowledge** with data.
 
 **Key Concept:** `Posterior ∝ Likelihood × Prior`
 
+| Feature | Frequentist | Bayesian |
+|---------|------------|----------|
+| **Probability** | Long-run frequency | Degree of belief |
+| **Prior knowledge** | Not used | Incorporated via priors |
+| **Key metrics** | p-values, Confidence Intervals | Posterior, **Credible Intervals** |
+| **Goal** | Evaluate under assumptions | Infer given data + priors |
+
+---
+
+### 🔧 Prior Configuration (3 ways)
+
+Before running Bayesian regression you **choose a prior** — your beliefs before seeing data:
+
+| Mode | How |
+|------|-----|
+| **📂 Preset file** | Pick from `test_data/priors/*.json` (weak, informative, strong, domain) |
+| **📤 Upload JSON** | Upload your own prior JSON file |
+| **✏️ Manual entry** | Set prior mean & precision via sliders / inputs, then 💾 save to file |
+
+**Prior JSON format:**
+```json
+{
+  "name": "My prior",
+  "prior_mean": [5.0, 2.0, -1.5, 0.8],
+  "prior_precision": 1.0,
+  "noise_var_estimate": 4.0
+}
+```
+
+- `prior_mean` — expected coefficients [intercept, β₁, β₂, …]
+- `prior_precision` — how strongly to trust the prior (0.001 = vague, 100 = strong)
+- `noise_var_estimate` — known noise σ² or `null` to estimate from data
+
+---
+
 ### Methods Available
 
-**📊 Bayesian Regression**
-- Estimates regression coefficients as distributions
-- Shows uncertainty in each coefficient
-- Wider distribution = more uncertainty
+**🎲 Bayesian Regression**
+- Conjugate Normal-Inverse-Gamma prior for coefficients
+- Explicit prior mean and precision that you control
+- Posterior samples drawn from the exact conjugate posterior
+- Coefficient histograms with 95% credible bounds
 
-**📐 Credible Intervals (CI)**
-- Bayesian version of confidence intervals
-- 95% CI: "There's 95% probability the true value is in this range"
-- **Note**: Unlike frequentist CIs, this is a probability statement!
+**📊 Credible Intervals**
+- Bayesian **credible** intervals — NOT frequentist confidence intervals
+- 95% CI means: "There is a 95% posterior probability the true value lies in this range"
+- Student-t posterior predictive distribution
+- Actual vs predicted plot with credible band
 
-**📏 Posterior Distributions**
-- Full probability distribution for each parameter
-- Can answer: "What's the probability coefficient > 0?"
-- More informative than single-point estimates
+**🔍 Prior Sensitivity**
+- Automatically varies prior precision from 0.001 to 100
+- Table + line chart of posterior means across prior strengths
+- Stable results → data dominates; shifting → choose prior carefully
 
-**🔄 Model Comparison (BIC)**
-- **BIC (Bayesian Information Criterion)**: Lower = better model
-- Penalizes complexity to prevent overfitting
-- Compare multiple models: choose lowest BIC
+---
 
 ### Interpreting Results
 - **Narrow posteriors**: High certainty about parameter value
-- **Wide posteriors**: High uncertainty (need more data)
-- **Posterior mean**: Best estimate of parameter
+- **Wide posteriors**: High uncertainty — need more data
+- **Prior info panel**: Shows exactly which prior was used
+- **R² (posterior mean)**: Goodness-of-fit with posterior coefficients
+- **Wrong prior + enough data**: Posterior still converges toward truth
 
-💡 **Tip**: Wide credible intervals suggest you need more data!
+---
+
+### Quick Start
+1. Load data → select features & target (📁 Data tab)
+2. Go to **📊 Statistics → 📈 Bayesian Inference**
+3. Choose a prior (📂 Preset: try *informative_correct*)
+4. Click **🎲 Bayesian Regression**
+5. Review posterior means, credible intervals, histograms
+6. Click **🔍 Prior Sensitivity** to see the prior's influence
+
+💡 **Tip**: Start with the *weakly informative* preset, then compare with *informative_correct* and *strong_wrong* to build intuition!
 """,
 
     "uncertainty": """

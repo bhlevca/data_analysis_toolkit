@@ -1,0 +1,13 @@
+{
+  "name": "Sparse Laplace prior (MCMC)",
+  "description": "Laplace (double-exponential) priors on coefficients induce sparsity — similar to LASSO regularisation. Coefficients that are near zero get shrunk to exactly zero. Good for feature selection with sparse data.",
+  "features": ["predictor_1", "predictor_2", "predictor_3"],
+  "target": "response_homoscedastic",
+  "priors": {
+    "Intercept": {"distribution": "normal", "loc": 0.0, "scale": 10.0, "df": 3.0, "a": 1.0, "b": 1.0},
+    "predictor_1": {"distribution": "laplace", "loc": 0.0, "scale": 1.0, "df": 3.0, "a": 1.0, "b": 1.0},
+    "predictor_2": {"distribution": "laplace", "loc": 0.0, "scale": 1.0, "df": 3.0, "a": 1.0, "b": 1.0},
+    "predictor_3": {"distribution": "laplace", "loc": 0.0, "scale": 1.0, "df": 3.0, "a": 1.0, "b": 1.0},
+    "sigma2": {"distribution": "inverse_gamma", "loc": 0.0, "scale": 1.0, "df": 3.0, "a": 1.0, "b": 1.0}
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "Strong prior (deliberately wrong)",
+  "description": "High-precision prior centred on incorrect values (zero). With internal feature standardisation, precision=100 strongly dominates 300 observations (data precision ~75). Demonstrates prior-data conflict and shrinkage. Useful for sensitivity demonstrations.",
+  "features": ["predictor_1", "predictor_2", "predictor_3"],
+  "target": "response_homoscedastic",
+  "prior_mean": [0.0, 0.0, 0.0, 0.0],
+  "prior_precision": 100.0,
+  "noise_var_estimate": 1.0
+}

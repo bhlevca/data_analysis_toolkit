@@ -1,0 +1,9 @@
+{
+  "name": "Informative prior (correct domain knowledge)",
+  "description": "Prior centred on the true coefficients (intercept=5, x1=2, x2=-1.5, x3=0.8) with moderate precision. Features are internally standardised, so precision=1.0 adds roughly 1 observation worth of information per feature. Noise variance set to 4.0.",
+  "features": ["predictor_1", "predictor_2", "predictor_3"],
+  "target": "response_homoscedastic",
+  "prior_mean": [5.0, 2.0, -1.5, 0.8],
+  "prior_precision": 1.0,
+  "noise_var_estimate": 4.0
+}

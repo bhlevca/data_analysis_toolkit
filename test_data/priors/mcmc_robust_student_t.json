@@ -1,0 +1,13 @@
+{
+  "name": "Robust Student-t prior (MCMC)",
+  "description": "Student-t priors with df=3 offer heavy tails, making the model robust to outliers in prior specification. If the prior mean is wrong, the heavy tails allow the data to override it more easily than a Normal prior would.",
+  "features": ["predictor_1", "predictor_2", "predictor_3"],
+  "target": "response_homoscedastic",
+  "priors": {
+    "Intercept": {"distribution": "student_t", "loc": 0.0, "scale": 5.0, "df": 3.0, "a": 1.0, "b": 1.0},
+    "predictor_1": {"distribution": "student_t", "loc": 2.0, "scale": 3.0, "df": 3.0, "a": 1.0, "b": 1.0},
+    "predictor_2": {"distribution": "student_t", "loc": -1.5, "scale": 3.0, "df": 3.0, "a": 1.0, "b": 1.0},
+    "predictor_3": {"distribution": "student_t", "loc": 0.5, "scale": 3.0, "df": 3.0, "a": 1.0, "b": 1.0},
+    "sigma2": {"distribution": "inverse_gamma", "loc": 0.0, "scale": 1.0, "df": 3.0, "a": 2.0, "b": 4.0}
+  }
+}

@@ -79,6 +79,7 @@ from .cart_analysis import CARTAnalysis, sensitivity_to_cart_workflow
 from .causality_analysis import CausalityAnalysis
 from .data_loading_methods import DataLoader
 from .data_quality import DataQuality
+from .mcmc import MCMCSampler, Prior
 # New analysis modules
 from .effect_sizes import EffectSizes
 from .extended_statistics import (DistributionOperations,
@@ -183,6 +184,8 @@ __all__ = [
     'NeuralNetworkModels',
     'NEURAL_NETWORKS_AVAILABLE',
     'BayesianAnalysis',
+    'MCMCSampler',
+    'Prior',
     'UncertaintyAnalysis',
     'NonLinearAnalysis',
     'TimeSeriesAnalysis',
