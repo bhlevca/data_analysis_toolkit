@@ -7372,7 +7372,17 @@ def render_feature_selection_tab():
             "Permutation Importance"
         ], key="fs_method")
 
-        n_features = st.slider("Number of Features to Select", 1, len(features), min(5, len(features)), key="fs_n")
+        if len(features) == 1:
+            st.info("Only one feature is available, so selection is not required.")
+            n_features = 1
+        else:
+            n_features = st.slider(
+                "Number of Features to Select",
+                min_value=1,
+                max_value=len(features),
+                value=min(5, len(features)),
+                key="fs_n"
+            )
 
         if st.button("🔍 Run Feature Selection", key="run_fs"):
             with st.spinner("Selecting features..."):
