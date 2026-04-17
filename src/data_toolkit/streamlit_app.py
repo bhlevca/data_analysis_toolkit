@@ -328,7 +328,7 @@ FUNCTION_INDEX = {
     'excel': {'tab': '📁 Data', 'tabIdx': 0, 'description': 'Load Excel files'},
     'data loading': {'tab': '📁 Data', 'tabIdx': 0, 'description': 'Load and preview data'},
     'upload': {'tab': '📁 Data', 'tabIdx': 0, 'description': 'Upload data files'},
-    
+
     # Descriptive Statistics (Statistics tab idx 1, subtab idx 0)
     'mean': {'tab': '📊 Statistics', 'subtab': 'Descriptive', 'tabIdx': 1, 'subtabIdx': 0, 'description': 'Calculate mean, median, mode'},
     'median': {'tab': '📊 Statistics', 'subtab': 'Descriptive', 'tabIdx': 1, 'subtabIdx': 0, 'description': 'Calculate central tendency'},
@@ -336,7 +336,7 @@ FUNCTION_INDEX = {
     'descriptive statistics': {'tab': '📊 Statistics', 'subtab': 'Descriptive', 'tabIdx': 1, 'subtabIdx': 0, 'description': 'Summary statistics'},
     'histogram': {'tab': '📊 Statistics', 'subtab': 'Descriptive', 'tabIdx': 1, 'subtabIdx': 0, 'description': 'Distribution visualization'},
     'correlation': {'tab': '📊 Statistics', 'subtab': 'Descriptive', 'tabIdx': 1, 'subtabIdx': 0, 'description': 'Correlation matrix and analysis'},
-    
+
     # Hypothesis Tests (Statistics tab idx 1, subtab idx 1)
     't-test': {'tab': '📊 Statistics', 'subtab': 'Tests', 'tabIdx': 1, 'subtabIdx': 1, 'description': 'Compare two group means'},
     'anova': {'tab': '📊 Statistics', 'subtab': 'Tests', 'tabIdx': 1, 'subtabIdx': 1, 'description': 'Compare multiple group means'},
@@ -347,20 +347,20 @@ FUNCTION_INDEX = {
     'levene': {'tab': '📊 Statistics', 'subtab': 'Tests', 'tabIdx': 1, 'subtabIdx': 1, 'description': 'Test homogeneity of variance'},
     'tukey': {'tab': '📊 Statistics', 'subtab': 'Tests', 'tabIdx': 1, 'subtabIdx': 1, 'description': 'Post-hoc pairwise comparisons'},
     'bonferroni': {'tab': '📊 Statistics', 'subtab': 'Tests', 'tabIdx': 1, 'subtabIdx': 1, 'description': 'Multiple comparison correction'},
-    
+
     # Effect Sizes (Statistics tab idx 1, subtab idx 2)
     'effect size': {'tab': '📊 Statistics', 'subtab': 'Effect Sizes', 'tabIdx': 1, 'subtabIdx': 2, 'description': 'Effect size calculations'},
     "cohen's d": {'tab': '📊 Statistics', 'subtab': 'Effect Sizes', 'tabIdx': 1, 'subtabIdx': 2, 'description': "Cohen's d for two groups"},
     "hedges' g": {'tab': '📊 Statistics', 'subtab': 'Effect Sizes', 'tabIdx': 1, 'subtabIdx': 2, 'description': "Hedges' g (corrected)"},
     'eta squared': {'tab': '📊 Statistics', 'subtab': 'Effect Sizes', 'tabIdx': 1, 'subtabIdx': 2, 'description': 'Eta-squared for ANOVA'},
-    
+
     # Sensitivity Analysis (Statistics tab idx 1, subtab idx 3)
     'sensitivity': {'tab': '📊 Statistics', 'subtab': 'Sensitivity', 'tabIdx': 1, 'subtabIdx': 3, 'description': 'Sensitivity analysis methods'},
     'morris': {'tab': '📊 Statistics', 'subtab': 'Sensitivity', 'tabIdx': 1, 'subtabIdx': 3, 'description': 'Morris screening method'},
     'sobol': {'tab': '📊 Statistics', 'subtab': 'Sensitivity', 'tabIdx': 1, 'subtabIdx': 3, 'description': 'Sobol sensitivity indices'},
     'cart': {'tab': '📊 Statistics', 'subtab': 'Sensitivity', 'tabIdx': 1, 'subtabIdx': 3, 'description': 'CART decision tree analysis'},
     'monte carlo': {'tab': '📊 Statistics', 'subtab': 'Sensitivity', 'tabIdx': 1, 'subtabIdx': 3, 'description': 'Monte Carlo simulation'},
-    
+
     # Data Quality & Outliers (Statistics tab idx 1, subtab idx 4) - MOVED HERE
     'missing data': {'tab': '📊 Statistics', 'subtab': 'Data Quality', 'tabIdx': 1, 'subtabIdx': 4, 'description': 'Missing data analysis and imputation'},
     'imputation': {'tab': '📊 Statistics', 'subtab': 'Data Quality', 'tabIdx': 1, 'subtabIdx': 4, 'description': 'Missing value imputation'},
@@ -377,7 +377,7 @@ FUNCTION_INDEX = {
     'qaqc': {'tab': '📊 Statistics', 'subtab': 'Data Quality', 'tabIdx': 1, 'subtabIdx': 4, 'description': 'Quality assurance / quality control'},
     'qa/qc': {'tab': '📊 Statistics', 'subtab': 'Data Quality', 'tabIdx': 1, 'subtabIdx': 4, 'description': 'Quality assurance / quality control'},
     'quality report': {'tab': '📊 Statistics', 'subtab': 'Data Quality', 'tabIdx': 1, 'subtabIdx': 4, 'description': 'Generate data quality report'},
-    
+
     # Bayesian (Statistics tab idx 1, subtab idx 5)
     'bayesian': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Bayesian inference with priors and posteriors'},
     'posterior': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Posterior distribution analysis'},
@@ -392,12 +392,12 @@ FUNCTION_INDEX = {
     'informative prior': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Informative prior from domain knowledge'},
     'weakly informative': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Weakly informative (vague) prior'},
     'prior precision': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Prior precision / strength parameter'},
-    
+
     # Uncertainty (Statistics tab idx 1, subtab idx 6)
     'bootstrap': {'tab': '📊 Statistics', 'subtab': 'Uncertainty', 'tabIdx': 1, 'subtabIdx': 6, 'description': 'Bootstrap confidence intervals'},
     'confidence interval': {'tab': '📊 Statistics', 'subtab': 'Uncertainty', 'tabIdx': 1, 'subtabIdx': 6, 'description': 'Interval estimation'},
     'uncertainty': {'tab': '📊 Statistics', 'subtab': 'Uncertainty', 'tabIdx': 1, 'subtabIdx': 6, 'description': 'Uncertainty quantification'},
-    
+
     # Time Series (tab idx 3)
     'time series': {'tab': '⏱️ Time Series', 'tabIdx': 3, 'subtabIdx': 0, 'description': 'Time series analysis'},
     'autocorrelation': {'tab': '⏱️ Time Series', 'subtab': 'Analysis', 'tabIdx': 3, 'subtabIdx': 0, 'description': 'ACF and PACF'},
@@ -409,7 +409,7 @@ FUNCTION_INDEX = {
     'granger': {'tab': '⏱️ Time Series', 'subtab': 'Causality', 'tabIdx': 3, 'subtabIdx': 3, 'description': 'Granger causality test'},
     'arima': {'tab': '⏱️ Time Series', 'subtab': 'Advanced', 'tabIdx': 3, 'subtabIdx': 4, 'description': 'ARIMA forecasting'},
     'forecast': {'tab': '⏱️ Time Series', 'subtab': 'Advanced', 'tabIdx': 3, 'subtabIdx': 4, 'description': 'Time series forecasting'},
-    
+
     # Signal Processing (tab idx 2)
     'fft': {'tab': '🔊 Signal Processing', 'tabIdx': 2, 'description': 'Fast Fourier Transform'},
     'fourier': {'tab': '🔊 Signal Processing', 'tabIdx': 2, 'description': 'Fourier analysis'},
@@ -418,7 +418,7 @@ FUNCTION_INDEX = {
     'frequency': {'tab': '🔊 Signal Processing', 'tabIdx': 2, 'description': 'Frequency domain analysis'},
     'filtering': {'tab': '🔊 Signal Processing', 'tabIdx': 2, 'description': 'Signal filtering'},
     'signal': {'tab': '🔊 Signal Processing', 'tabIdx': 2, 'description': 'Signal processing and spectral analysis'},
-    
+
     # Machine Learning (tab idx 4) - General keywords
     'machine learning': {'tab': '🤖 Machine Learning', 'tabIdx': 4, 'description': 'All machine learning methods'},
     'ml': {'tab': '🤖 Machine Learning', 'tabIdx': 4, 'description': 'Machine learning overview'},
@@ -432,7 +432,7 @@ FUNCTION_INDEX = {
     'computer vision': {'tab': '🤖 Machine Learning', 'subtab': 'Vision > Image Recognition', 'tabIdx': 4, 'description': 'Computer vision & image analysis'},
     'biomass': {'tab': '🤖 Machine Learning', 'subtab': 'Vision > Biomass Segmentation', 'tabIdx': 4, 'description': 'Biomass segmentation from images'},
     'segmentation': {'tab': '🤖 Machine Learning', 'subtab': 'Vision > Biomass Segmentation', 'tabIdx': 4, 'description': 'Image segmentation for biomass'},
-    
+
     # Machine Learning - Supervised Learning category
     'regression': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Models', 'tabIdx': 4, 'description': 'Regression models (Linear, RF, etc.)'},
     'classification': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Models', 'tabIdx': 4, 'description': 'Classification models'},
@@ -459,7 +459,7 @@ FUNCTION_INDEX = {
     'exponential': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Non-Linear', 'tabIdx': 4, 'description': 'Exponential curve fitting'},
     'logistic': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Non-Linear', 'tabIdx': 4, 'description': 'Logistic growth model'},
     'curve fitting': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Non-Linear', 'tabIdx': 4, 'description': 'Non-linear curve fitting'},
-    
+
     # Machine Learning - Unsupervised category
     'pca': {'tab': '🤖 Machine Learning', 'subtab': 'Unsupervised > PCA', 'tabIdx': 4, 'description': 'Principal Component Analysis'},
     'principal component': {'tab': '🤖 Machine Learning', 'subtab': 'Unsupervised > PCA', 'tabIdx': 4, 'description': 'PCA biplot and loadings'},
@@ -476,18 +476,18 @@ FUNCTION_INDEX = {
     'silhouette': {'tab': '🤖 Machine Learning', 'subtab': 'Unsupervised > Clustering', 'tabIdx': 4, 'description': 'Silhouette score for clustering'},
     'anomaly': {'tab': '🤖 Machine Learning', 'subtab': 'Unsupervised > Anomaly', 'tabIdx': 4, 'description': 'Anomaly detection methods'},
     'isolation forest': {'tab': '🤖 Machine Learning', 'subtab': 'Unsupervised > Anomaly', 'tabIdx': 4, 'description': 'Isolation Forest algorithm'},
-    
+
     # Visualization (tab idx 6)
     'scatter': {'tab': '📈 Visualization', 'tabIdx': 6, 'description': 'Scatter plots'},
     'boxplot': {'tab': '📈 Visualization', 'tabIdx': 6, 'description': 'Box plots'},
     'heatmap': {'tab': '📈 Visualization', 'tabIdx': 6, 'description': 'Heatmaps and correlation matrices'},
     'violin': {'tab': '📈 Visualization', 'tabIdx': 6, 'description': 'Violin plots'},
     'pair plot': {'tab': '📈 Visualization', 'tabIdx': 6, 'description': 'Pairwise scatter matrix'},
-    
+
     # Visualization (tab idx 6) - additional keywords
     'plot': {'tab': '📈 Visualization', 'tabIdx': 6, 'description': 'Interactive plotting and charts'},
     'chart': {'tab': '📈 Visualization', 'tabIdx': 6, 'description': 'Create interactive charts'},
-    
+
     # Domain Specific / Scientific Tools (tab idx 5)
     'survival': {'tab': '🔬 Scientific Tools', 'subtab': 'Survival', 'tabIdx': 5, 'subtabIdx': 0, 'description': 'Survival analysis (Kaplan-Meier)'},
     'kaplan-meier': {'tab': '🔬 Scientific Tools', 'subtab': 'Survival', 'tabIdx': 5, 'subtabIdx': 0, 'description': 'Kaplan-Meier survival curves'},
@@ -498,7 +498,7 @@ FUNCTION_INDEX = {
     'clinical': {'tab': '🔬 Scientific Tools', 'subtab': 'Domain-Specific', 'tabIdx': 5, 'subtabIdx': 1, 'description': 'Clinical trial analysis'},
     'environmental': {'tab': '🔬 Scientific Tools', 'subtab': 'Domain-Specific', 'tabIdx': 5, 'subtabIdx': 1, 'description': 'Environmental data analysis'},
     'diversity': {'tab': '🔬 Scientific Tools', 'subtab': 'Domain-Specific', 'tabIdx': 5, 'subtabIdx': 1, 'description': 'Biodiversity indices'},
-    
+
     # Reports (tab idx 7)
     'report': {'tab': '📄 Reports', 'tabIdx': 7, 'description': 'Generate HTML/Markdown analysis reports'},
     'export': {'tab': '📄 Reports', 'tabIdx': 7, 'description': 'Export analysis results to reports'},
@@ -510,7 +510,7 @@ def search_functions(query: str) -> list:
     query = query.lower().strip()
     if not query:
         return []
-    
+
     results = []
     for keyword, info in FUNCTION_INDEX.items():
         # Match on keyword or description
@@ -524,7 +524,7 @@ def search_functions(query: str) -> list:
                 'description': info['description']
             }
             results.append(result)
-    
+
     # Remove duplicates based on description
     seen = set()
     unique_results = []
@@ -533,7 +533,7 @@ def search_functions(query: str) -> list:
         if key not in seen:
             seen.add(key)
             unique_results.append(r)
-    
+
     return unique_results[:10]  # Limit to 10 results
 
 
@@ -2455,7 +2455,7 @@ def render_tutorial_sidebar():
     """Render the tutorial sidebar matching the tab/subtab structure"""
     with st.sidebar:
         st.markdown("# 📚 Help & Documentation")
-        
+
         # Function Search
         st.markdown("### 🔍 Search Functions")
         search_query = st.text_input(
@@ -2464,7 +2464,7 @@ def render_tutorial_sidebar():
             key="function_search",
             help="Search for analysis methods, statistical tests, or features"
         )
-        
+
         if search_query:
             results = search_functions(search_query)
             if results:
@@ -2498,7 +2498,7 @@ def render_tutorial_sidebar():
                         st.markdown("---")
             else:
                 st.info("No matching functions found. Try different keywords.")
-        
+
         st.markdown("---")
 
         st.session_state.show_tutorial = st.checkbox(
@@ -7163,21 +7163,21 @@ def render_data_quality_tab():
         # Method-specific threshold sliders with appropriate defaults
         if outlier_method == "iqr":
             threshold_value = st.slider(
-                "IQR Multiplier", 
+                "IQR Multiplier",
                 min_value=0.5, max_value=3.0, value=1.5, step=0.1,
                 help="Standard: 1.5 (moderate), 3.0 (extreme only). Values outside Q1 - k×IQR to Q3 + k×IQR are outliers.",
                 key="iqr_threshold"
             )
         elif outlier_method == "zscore":
             threshold_value = st.slider(
-                "Z-Score Threshold", 
+                "Z-Score Threshold",
                 min_value=1.5, max_value=5.0, value=3.0, step=0.1,
                 help="Standard: 3.0 (±3 std from mean). Lower values detect more outliers.",
                 key="zscore_threshold"
             )
         else:  # mad
             threshold_value = st.slider(
-                "MAD Threshold", 
+                "MAD Threshold",
                 min_value=2.0, max_value=5.0, value=3.5, step=0.1,
                 help="Standard: 3.5. Based on modified Z-score using median and MAD.",
                 key="mad_threshold"
@@ -7204,11 +7204,11 @@ def render_data_quality_tab():
                             'Outliers': col_info['n_outliers'],
                             '%': f"{col_info['pct_outliers']:.1f}%"
                         })
-                    
+
                     if results_data:
                         outlier_df = pd.DataFrame(results_data)
                         st.dataframe(outlier_df, width='stretch')
-                        
+
                         # Show bounds info for first column
                         first_col = outlier_cols[0]
                         if first_col in result['per_column']:
@@ -7244,35 +7244,35 @@ def render_data_quality_tab():
         st.markdown("---")
         st.subheader("📊 Sensor QA/QC (CV & MAD)")
         st.caption("Quality analysis for sensor measurements using Coefficient of Variation and Median Absolute Deviation")
-        
+
         burst_value_col = st.selectbox(
-            "Value Column (measurements)", 
-            numeric_cols, 
+            "Value Column (measurements)",
+            numeric_cols,
             key="sensor_value_col",
             help="Select the column containing measurement values (e.g., chlorophyll readings)"
         )
-        
+
         all_cols = df.columns.tolist()
         burst_group_col = st.selectbox(
-            "Grouping Column (optional)", 
-            ["None"] + all_cols, 
+            "Grouping Column (optional)",
+            ["None"] + all_cols,
             key="sensor_group_col",
             help="Select column to group measurements (e.g., station, timestamp, sensor_id)"
         )
-        
+
         col_cv, col_mad = st.columns(2)
         with col_cv:
-            cv_threshold = st.number_input("CV Threshold (%)", value=30.0, min_value=1.0, max_value=100.0, 
+            cv_threshold = st.number_input("CV Threshold (%)", value=30.0, min_value=1.0, max_value=100.0,
                                            help="CV above this is flagged as poor quality")
         with col_mad:
             mad_threshold = st.number_input("MAD Threshold", value=3.5, min_value=1.0, max_value=10.0,
                                             help="Modified Z-score threshold for outlier detection")
-        
+
         if st.button("🔬 Run Sensor QA/QC Analysis", key="run_sensor_qa"):
             if burst_value_col:
                 try:
                     group_col = None if burst_group_col == "None" else burst_group_col
-                    
+
                     if group_col:
                         result = dqa.burst_quality_analysis(burst_value_col, group_col, cv_threshold, mad_threshold)
                     else:
@@ -7291,13 +7291,13 @@ def render_data_quality_tab():
                             'outlier_indices': mad_result.get('outlier_indices', []),
                             'recommendation': 'Run with grouping column for detailed group-level analysis'
                         }
-                    
+
                     if 'error' in result:
                         st.error(result['error'])
                     else:
                         # Display results
                         st.success("✅ Sensor QA/QC Analysis Complete")
-                        
+
                         stats = result.get('overall_statistics', {})
                         col1, col2, col3, col4 = st.columns(4)
                         with col1:
@@ -7309,7 +7309,7 @@ def render_data_quality_tab():
                             st.metric("MAD", f"{stats.get('mad', 0):.3f}")
                         with col4:
                             st.metric("Outliers", f"{stats.get('n_outliers', 0)} ({stats.get('pct_outliers', 0):.1f}%)")
-                        
+
                         # Show CV interpretation guide
                         with st.expander("📖 CV Interpretation Guide"):
                             st.markdown("""
@@ -7319,23 +7319,23 @@ def render_data_quality_tab():
                             | 10-30% | **Acceptable** | Moderate variability, typical for field measurements |
                             | > 30% | **Poor** | High variability, investigate sensor issues or environmental factors |
                             """)
-                        
+
                         # Burst summary if available
                         if 'burst_summary' in result:
                             st.subheader("Group-Level Summary")
                             burst_df = pd.DataFrame(result['burst_summary'])
                             st.dataframe(burst_df, width='stretch')
-                            
+
                             st.write(f"**Total Bursts:** {result.get('n_bursts', 0)}")
                             st.write(f"**Poor Quality Bursts:** {result.get('n_poor_bursts', 0)}")
                             st.write(f"**Bursts with Outliers:** {result.get('n_bursts_with_outliers', 0)}")
-                        
+
                         # Recommendation
                         if 'recommendation' in result:
                             st.info(f"💡 **Recommendation:** {result['recommendation']}")
-                        
+
                         st.session_state.analysis_results['burst_qa'] = result
-                        
+
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
 
