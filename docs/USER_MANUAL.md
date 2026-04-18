@@ -14,11 +14,16 @@
 10. [Tab: Time Series](#tab-time-series)
 11. [Tab: Causality Analysis](#tab-causality-analysis)
 12. [Tab: Visualizations](#tab-visualizations)
-13. [Tab: Plugins](#tab-plugins)
-14. [Rust Acceleration Toggle](#rust-acceleration-toggle)
-15. [Tips and Best Practices](#tips-and-best-practices)
-16. [Troubleshooting](#troubleshooting)
-17. [New in v4.0: Scientific Research Features](#new-in-v100-scientific-research-features)
+13. [Tab: Scientific Tools](#tab-scientific-tools)
+    - [Community Ecology](#community-ecology)
+    - [Ordination](#ordination)
+    - [Multivariate Analysis](#multivariate-analysis)
+    - [Curve Fitting](#curve-fitting)
+14. [Tab: Plugins](#tab-plugins)
+15. [Rust Acceleration Toggle](#rust-acceleration-toggle)
+16. [Tips and Best Practices](#tips-and-best-practices)
+17. [Troubleshooting](#troubleshooting)
+18. [New in v4.3: Scientific Research Features](#new-in-v43-scientific-research-features)
 
 ---
 
@@ -812,6 +817,154 @@ results = nn.autoencoder_anomaly_detection(
 
 ---
 
+## Tab: Scientific Tools
+
+**Purpose**: Specialised methods for community ecology, multivariate ordination, multivariate hypothesis testing, and non-linear curve fitting.
+
+**Location**: 🔬 Scientific Tools main tab → subtabs.
+
+### Community Ecology
+
+**Purpose**: Quantify and compare biological community composition.
+
+#### Alpha Diversity
+**What it does**: Calculates within-sample diversity indices.
+
+| Index | Formula | Interpretation |
+|-------|---------|----------------|
+| **Shannon (H')** | $-\sum p_i \ln p_i$ | Entropy-based; higher = more diverse |
+| **Simpson (1-D)** | $1 - \sum p_i^2$ | Probability two random individuals differ |
+| **Inverse Simpson** | $1 / \sum p_i^2$ | Effective number of equally common species |
+| **Margalef** | $(S-1) / \ln N$ | Species richness corrected for sample size |
+| **Pielou's Evenness** | $H' / \ln S$ | 0–1, how evenly individuals are distributed |
+| **Chao1** | Richness estimator using singletons/doubletons | Estimates true richness including unobserved species |
+
+**When to use**: Comparing diversity across sites, treatments, or time periods.
+
+#### Beta Diversity
+**What it does**: Measures community compositional turnover between sites.
+
+| Metric | Range | What it measures |
+|--------|-------|------------------|
+| **Bray-Curtis** | 0–1 | Quantitative dissimilarity (abundance data) |
+| **Jaccard** | 0–1 | Presence/absence dissimilarity |
+| **Sørensen** | 0–1 | Presence/absence (double-weights shared species) |
+| **Morisita-Horn** | 0–1 | Abundance-based, sample-size independent |
+
+**Output**: Distance matrix + heatmap visualization.
+
+#### Rarefaction
+**What it does**: Estimates species richness at standardised sample sizes.
+
+**When to use**: Comparing richness across samples with unequal sampling effort. The rarefaction curve flattens when additional sampling yields few new species.
+
+#### Species Accumulation Curves
+**What it does**: Shows how total observed species richness grows as more samples are added (permutation-based mean ± SD).
+
+#### SHE Analysis
+**What it does**: Decomposes Shannon diversity into its richness (S) and evenness (E) components across cumulative samples.
+
+---
+
+### Ordination
+
+**Purpose**: Reduce high-dimensional community/environmental data to 2–3 interpretable axes.
+
+#### Available Methods
+
+| Method | Type | Best for |
+|--------|------|----------|
+| **PCoA** (Principal Coordinates Analysis) | Unconstrained | Any distance metric → Euclidean embedding; preserves original distances |
+| **NMDS** (Non-metric Multidimensional Scaling) | Unconstrained | Preserves rank-order of distances; robust to non-linearity |
+| **CA** (Correspondence Analysis) | Unconstrained | Species × sites matrices with unimodal species response |
+| **DCA** (Detrended Correspondence Analysis) | Unconstrained | CA with arch-effect removal for long ecological gradients |
+| **CCA** (Canonical Correspondence Analysis) | Constrained | Relates species composition to environmental variables |
+| **RDA** (Redundancy Analysis) | Constrained | Linear species response constrained by environmental variables |
+
+#### Interpreting Ordination Plots
+- Points close together = similar composition
+- Axis % = proportion of variance (or inertia) explained
+- **Biplot arrows** (CCA/RDA): direction and length show environmental variable effects
+- **Species scores** (CA/DCA/CCA): show species optima along gradients
+
+#### Mantel Test
+**What it does**: Tests correlation between two distance matrices via permutation.
+
+**Output**: Mantel *r* statistic (−1 to +1) and *p*-value.
+
+**When to use**: Testing whether spatial distance predicts community dissimilarity, or whether two distance matrices are correlated.
+
+---
+
+### Multivariate Analysis
+
+**Purpose**: Hypothesis testing on multivariate data — do groups differ in their multivariate composition?
+
+#### PERMANOVA (Permutational MANOVA)
+**What it does**: Tests for differences among groups using distance matrices and permutation (Anderson, 2001).
+
+**Output**: Pseudo-F, p-value, R² (proportion of variation explained by grouping).
+
+**Assumptions**: No distributional assumptions; only requires exchangeability under H₀.
+
+**When to use**: The default choice for testing community composition differences among treatments or sites.
+
+#### ANOSIM (Analysis of Similarities)
+**What it does**: Rank-based test comparing between-group vs within-group dissimilarities (Clarke, 1993).
+
+**Output**: R statistic (−1 to +1), p-value.
+
+**Interpretation**: R = 1 = complete separation; R ≈ 0 = no difference; R < 0 = more variation within groups.
+
+#### SIMPER (Similarity Percentages)
+**What it does**: Identifies which species/variables contribute most to between-group Bray-Curtis dissimilarity.
+
+**Output**: Per-species contribution (%), cumulative %, mean contribution ± SD for each pair of groups.
+
+**When to use**: After a significant PERMANOVA — "which species drive the difference?"
+
+#### MANOVA (Multivariate ANOVA)
+**What it does**: Parametric multivariate test using Wilks' Lambda, Pillai's Trace, and Hotelling-Lawley Trace.
+
+**Assumptions**: Multivariate normality, homogeneity of covariance matrices.
+
+**When to use**: When data satisfy normality assumptions and you want classical test statistics.
+
+#### Hotelling's T²
+**What it does**: Multivariate two-sample t-test.
+
+**When to use**: Comparing multivariate means of exactly 2 groups.
+
+#### Discriminant Analysis (LDA / CVA)
+**What it does**: Finds linear combinations that best separate groups; provides classification accuracy, confusion matrix, and ordination plot in discriminant space.
+
+---
+
+### Curve Fitting
+
+**Purpose**: Fit specialised non-linear models beyond polynomial regression.
+
+#### Available Models
+
+| Model | Equation | Typical Use |
+|-------|----------|-------------|
+| **Power (Allometric)** | $y = a \cdot x^b$ | Species-area, allometric scaling |
+| **Exponential (2-param)** | $y = a \cdot e^{bx}$ | Growth/decay without asymptote |
+| **Exponential (3-param)** | $y = a \cdot e^{bx} + c$ | Growth/decay with baseline offset |
+| **Logistic (4-param)** | $y = d + \frac{a - d}{1 + (x/c)^b}$ | Dose-response, population growth |
+| **Sinusoidal** | $y = A \sin(2\pi f x + \phi) + \text{offset}$ | Seasonal/cyclical patterns |
+| **Gompertz** | $y = a \cdot e^{-b \cdot e^{-cx}}$ | Asymmetric sigmoid, tumour growth |
+| **RMA Regression** | Type II regression | Both variables have measurement error |
+| **GLM** | $g(E[y]) = X\beta$ | Generalized linear model with link function |
+
+#### Model Comparison
+**Multi-Model Comparison** mode fits all selected models and compares by AIC, BIC, R², and RMSE. Best model is highlighted.
+
+#### Residual Diagnostics
+Each fit includes a residuals-vs-fitted plot to check for systematic patterns.
+
+---
+
 ## Tab: Plugins
 
 **Purpose**: Extend toolkit with custom processing functions.
@@ -1209,4 +1362,75 @@ For complete API documentation, see [API_REFERENCE.md](API_REFERENCE.md).
 
 ---
 
-*Last updated: January 2025*
+## New in v4.3: Scientific Research Features
+
+All features from v4.0 remain available. v4.3 adds:
+
+### Community Ecology Module
+
+Full community ecology analysis without external ecology packages:
+
+```python
+from data_toolkit.ecology import all_alpha_diversity, distance_matrix, rarefaction_curve
+
+# Alpha diversity (12+ indices at once)
+indices = all_alpha_diversity(abundance_array)
+# → {'shannon': 2.31, 'simpson': 0.87, 'chao1': 45.2, ...}
+
+# Beta diversity distance matrix
+dm = distance_matrix(abundance_matrix, metric='bray_curtis')
+
+# Rarefaction curve
+rare = rarefaction_curve(abundance_array, n_steps=50)
+```
+
+### Ordination Module
+
+Multivariate ordination—PCoA, NMDS, CA, DCA, CCA, RDA, Mantel test:
+
+```python
+from data_toolkit.ordination import pcoa, nmds, canonical_correspondence_analysis, mantel_test
+
+# PCoA on a distance matrix
+result = pcoa(distance_matrix, n_components=3)
+# result['coordinates'], result['explained_variance'], result['eigenvalues']
+
+# CCA with environmental constraints
+result = canonical_correspondence_analysis(species_matrix, env_matrix)
+# result['site_scores'], result['biplot_scores'], result['explained_inertia']
+
+# Mantel test
+result = mantel_test(dm1, dm2, method='spearman', permutations=999)
+```
+
+### Multivariate Hypothesis Testing
+
+PERMANOVA, ANOSIM, SIMPER, MANOVA, Hotelling T², Discriminant Analysis:
+
+```python
+from data_toolkit.multivariate_analysis import permanova, anosim, simper
+
+result = permanova(distance_matrix, group_labels, permutations=999)
+# result['F_statistic'], result['p_value'], result['R2']
+
+result = simper(abundance_matrix, group_labels, feature_names=species_names)
+# Per-pair species contributions to dissimilarity
+```
+
+### Curve Fitting Module
+
+Non-linear models—power, exponential, logistic, sinusoidal, Gompertz, RMA, GLM:
+
+```python
+from data_toolkit.curve_fitting import power_fit, logistic_fit, compare_fits
+
+result = power_fit(x, y)
+# result['parameters'], result['r_squared'], result['aic'], result['x_fit'], result['y_fit']
+
+# Compare all models at once
+comparison = compare_fits(x, y, models=['power', 'exponential', 'logistic', 'gompertz'])
+```
+
+---
+
+*Last updated: April 2026*

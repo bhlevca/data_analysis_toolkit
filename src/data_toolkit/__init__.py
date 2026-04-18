@@ -68,18 +68,11 @@ Or use as a library::
     cohens_d = effect.cohens_d('group1_col', 'group2_col')
 """
 
-# Suppress TensorFlow v1 deprecation warnings from Keras internals
-# (e.g., tf.reset_default_graph deprecated in keras/backend/global_state.py)
-import warnings
-warnings.filterwarnings('ignore', message='.*reset_default_graph.*', category=DeprecationWarning)
-warnings.filterwarnings('ignore', message='.*reset_default_graph.*')
-
 from .bayesian_analysis import BayesianAnalysis
 from .cart_analysis import CARTAnalysis, sensitivity_to_cart_workflow
 from .causality_analysis import CausalityAnalysis
 from .data_loading_methods import DataLoader
 from .data_quality import DataQuality
-from .mcmc import MCMCSampler, Prior
 # New analysis modules
 from .effect_sizes import EffectSizes
 from .extended_statistics import (DistributionOperations,
@@ -139,6 +132,20 @@ except ImportError:
 # Plugin system
 from .plugin_system import (Plugin, PluginInfo, PluginManager, PluginParameter,
                             get_example_plugins, get_plugin_template)
+
+# New scientific modules (v4.3)
+from .ecology import (shannon_index, simpson_index, all_alpha_diversity,
+                       distance_matrix, rarefaction_curve, species_accumulation,
+                       she_analysis, analyze_community_dataframe)
+from .ordination import (pcoa, nmds, correspondence_analysis,
+                          detrended_correspondence_analysis,
+                          canonical_correspondence_analysis,
+                          redundancy_analysis, mantel_test)
+from .multivariate_analysis import (permanova, anosim, simper, manova,
+                                    hotelling_t2, discriminant_analysis)
+from .curve_fitting import (power_fit, exponential_fit, logistic_fit,
+                             sinusoidal_fit, gompertz_fit, rma_regression,
+                             glm_fit, compare_fits)
 # Optional Rust-accelerated functions (with Python fallback)
 from .rust_accelerated import (  # Settings and status; Accelerated functions
     AccelerationSettings, bootstrap_linear_regression, detect_outliers_iqr,
@@ -184,8 +191,6 @@ __all__ = [
     'NeuralNetworkModels',
     'NEURAL_NETWORKS_AVAILABLE',
     'BayesianAnalysis',
-    'MCMCSampler',
-    'Prior',
     'UncertaintyAnalysis',
     'NonLinearAnalysis',
     'TimeSeriesAnalysis',
@@ -236,4 +241,20 @@ __all__ = [
     # CART analysis (v10.1)
     'CARTAnalysis',
     'sensitivity_to_cart_workflow',
+    # Ecology & community analysis (v4.3)
+    'shannon_index', 'simpson_index', 'all_alpha_diversity',
+    'distance_matrix', 'rarefaction_curve', 'species_accumulation',
+    'she_analysis', 'analyze_community_dataframe',
+    # Ordination (v4.3)
+    'pcoa', 'nmds', 'correspondence_analysis',
+    'detrended_correspondence_analysis',
+    'canonical_correspondence_analysis',
+    'redundancy_analysis', 'mantel_test',
+    # Multivariate tests (v4.3)
+    'permanova', 'anosim', 'simper', 'manova',
+    'hotelling_t2', 'discriminant_analysis',
+    # Curve fitting (v4.3)
+    'power_fit', 'exponential_fit', 'logistic_fit',
+    'sinusoidal_fit', 'gompertz_fit', 'rma_regression',
+    'glm_fit', 'compare_fits',
 ]

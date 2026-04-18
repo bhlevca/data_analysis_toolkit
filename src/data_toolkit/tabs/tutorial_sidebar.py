@@ -15,11 +15,11 @@ TUTORIALS = {
     "getting_started": """
 ## 🚀 Getting Started with the Advanced Data Analysis Toolkit
 
-Welcome! This toolkit provides comprehensive data analysis capabilities organized into **7 main tabs** with **subtabs** inside each group.
+Welcome! This toolkit provides comprehensive data analysis capabilities organized into **9 main tabs** with **subtabs** inside each group.
 
 ---
 
-### 📂 Tab Structure (7 Main Tabs → Subtabs)
+### 📂 Tab Structure (9 Main Tabs → Subtabs)
 
 **Click a main tab, then click a subtab inside to access specific features:**
 
@@ -30,8 +30,10 @@ Welcome! This toolkit provides comprehensive data analysis capabilities organize
 | **🔊 Signal Processing** | FFT/Wavelet (frequency and time-frequency analysis) |
 | **⏱️ Time Series** | Time Series Analysis, Causality (Granger) |
 | **🤖 Machine Learning** | Regression/Classification, 🧠 Neural Networks, PCA, Clustering, Anomaly Detection, Dimensionality Reduction, Non-Linear Analysis |
+| **🔬 Scientific Tools** | Survival Analysis, Domain-Specific, Community Ecology, Ordination, Multivariate Tests, Curve Fitting |
 | **📈 Visualization** | Interactive Plots (scatter, box, 3D, regression lines) |
-| **🖼️ Image** | Image Recognition (training, prediction, dataset formats) |
+| **📋 Reports** | Generate and export analysis reports |
+| **🔌 Plugins** | Load and run custom analysis plugins |
 
 ---
 
@@ -62,6 +64,11 @@ Welcome! This toolkit provides comprehensive data analysis capabilities organize
 | Find clusters? | 🤖 ML → Clustering |
 | Find outliers? | 🤖 ML → Anomaly Detection |
 | Visualize data? | 📈 Visualization → Plots |
+| Species diversity? | 🔬 Scientific Tools → Community Ecology |
+| Ordination (PCoA, NMDS)? | 🔬 Scientific Tools → Ordination |
+| Multivariate group tests? | 🔬 Scientific Tools → Multivariate Tests |
+| Non-linear curve fitting? | 🔬 Scientific Tools → Curve Fitting |
+| Custom analysis? | 🔌 Plugins → Load and run |
 
 ---
 
@@ -1180,6 +1187,406 @@ Classes: Background, Dreissena mussels, Cladophora algae, Other vegetation
 
 💡 **Tip**: Transfer learning with VGG backbone works best for small datasets!
 """,
+
+    "ecology": """
+## 🌿 Community Ecology Analysis Guide
+
+**Location:** Main Tab: 🔬 Scientific Tools › Subtab: Community Ecology
+
+### Overview
+
+Analyse species × sites data with standard ecological diversity metrics,
+rarefaction, accumulation curves, and SHE analysis.
+
+---
+
+### Alpha Diversity (Within-Sample)
+
+Indices computed for each sample (row):
+
+| Index | Formula Concept | Sensitive To |
+|-------|-----------------|--------------|
+| **Shannon H'** | −Σ pᵢ ln(pᵢ) | Rare species |
+| **Simpson 1-D** | 1 − Σ pᵢ² | Dominant species |
+| **Inv. Simpson** | 1 / Σ pᵢ² | Dominance |
+| **Fisher's α** | S = α ln(1 + N/α) | Sample-size robust |
+| **Margalef** | (S−1) / ln(N) | Richness scaled by N |
+| **Chao1** | S + f₁²/(2f₂) | Undetected species |
+| **ACE** | Similar to Chao1 | Rare-species-based |
+| **Pielou J'** | H' / ln(S) | Evenness |
+
+**Typical workflow:**
+1. Select species columns and (optionally) a sample-label column
+2. Click **Calculate Alpha Diversity**
+3. Compare indices across sites in the results table
+
+---
+
+### Beta Diversity (Between-Sample)
+
+| Metric | Data Type | Range |
+|--------|-----------|-------|
+| **Bray-Curtis** | Abundance | 0–1 |
+| **Jaccard** | Presence/Absence | 0–1 |
+| **Sørensen** | Presence/Absence | 0–1 |
+| **Morisita-Horn** | Abundance | 0–1 |
+| **Whittaker βW** | Presence/Absence | 0–∞ |
+
+0 = identical communities, 1 = completely different.
+
+---
+
+### Rarefaction Curves
+
+Rarefaction standardises richness to a common sampling effort, answering:
+*"If I had only sampled N individuals, how many species would I expect?"*
+
+- Curves that plateau indicate adequate sampling.
+- Curves still rising suggest more species remain undetected.
+
+---
+
+### Species Accumulation
+
+Shows cumulative species richness as more samples are added.
+The curve's approach to an asymptote indicates sampling completeness.
+
+---
+
+### SHE Analysis
+
+Plots **S** (richness), **H'** (Shannon), and **E** (evenness) against
+cumulative N to diagnose the community abundance model:
+- **Log-normal community**: H' and E increase together
+- **Broken-stick**: H' increases linearly with ln(N)
+
+💡 **Tip**: Start with alpha diversity to characterise each site, then use beta
+diversity + ordination to compare sites!
+""",
+
+    "ordination": """
+## 🧭 Ordination Methods Guide
+
+**Location:** Main Tab: 🔬 Scientific Tools › Subtab: Ordination
+
+### Overview
+
+Ordination projects multivariate data into a low-dimensional space
+for visualisation and pattern discovery.
+
+---
+
+### Unconstrained Methods
+
+These methods find the axes of maximum variation in your data:
+
+**PCoA (Principal Coordinates Analysis)**
+- Input: distance matrix (Bray-Curtis, Jaccard, etc.)
+- Output: Euclidean embedding preserving distances
+- Eigenvalue-based → deterministic, fast
+- Use when: any distance metric is appropriate
+
+**NMDS (Non-Metric Multidimensional Scaling)**
+- Input: distance matrix
+- Output: configuration preserving rank-order of distances
+- Iterative → check stress value
+- Stress interpretation: < 0.05 excellent, < 0.1 good, < 0.2 acceptable
+
+**CA (Correspondence Analysis)**
+- Input: species × sites abundance matrix
+- Assumes unimodal species response to environment
+- Produces joint species + site ordination
+- Eigenvalues = "inertia" (total chi-squared / N)
+
+**DCA (Detrended Correspondence Analysis)**
+- Removes the **arch effect** from CA
+- Axis units in **SD units** (standard deviations of turnover)
+- If DCA Axis 1 length > 4 SD → unimodal methods preferred (CA/CCA)
+- If DCA Axis 1 length < 3 SD → linear methods OK (PCA/RDA)
+
+---
+
+### Constrained Methods
+
+These test how environmental variables explain community composition:
+
+**CCA (Canonical Correspondence Analysis)**
+- Species ~ environment, assuming unimodal response
+- Biplot: species optima + environmental arrows
+- Axis eigenvalues = constrained inertia
+
+**RDA (Redundancy Analysis)**
+- Species ~ environment, assuming linear response
+- Biplot: species loadings + environmental arrows
+- Use when DCA axis 1 < 3 SD
+
+---
+
+### Mantel Test
+
+Tests correlation between two distance matrices (permutation-based).
+- Mantel r: −1 to 1 (correlation strength)
+- p-value: permutation significance
+- Use for: spatial autocorrelation, distance-decay of similarity
+
+---
+
+### Reading an Ordination Plot
+
+- **Points close together** → similar composition
+- **Points far apart** → different composition
+- **Arrows** (CCA/RDA) → environmental gradients (longer = stronger)
+- **Species points** (CA/CCA) → species' optimal positions along gradients
+- **Axis labels** show % variance explained
+
+💡 **Tip**: Always report the stress (NMDS) or % variance explained (PCoA/CA)
+alongside your ordination plots!
+""",
+
+    "multivariate_tests": """
+## 📊 Multivariate Hypothesis Tests Guide
+
+**Location:** Main Tab: 🔬 Scientific Tools › Subtab: Multivariate Tests
+
+### Overview
+
+Tests whether groups differ in multivariate response variables.
+These are the multivariate extensions of ANOVA and t-tests.
+
+---
+
+### Non-Parametric Tests
+
+**PERMANOVA (Permutational MANOVA)**
+- Tests multivariate location differences between groups
+- No distributional assumptions — uses permutations
+- Works on any distance matrix
+- Sensitive to both location AND dispersion differences
+- Report: pseudo-F, p-value, R² (effect size)
+
+**ANOSIM (Analysis of Similarities)**
+- Rank-based test of group differences
+- R statistic: −1 to 1
+  - R ≈ 0: no difference between groups
+  - R ≈ 1: groups completely separated
+  - R < 0: within-group dissimilarity > between-group
+- Less powerful than PERMANOVA but more robust to dispersion differences
+
+**SIMPER (Similarity Percentages)**
+- Not a hypothesis test — diagnostic breakdown
+- Shows which species contribute most to between-group dissimilarity
+- Reports: contribution %, cumulative %, mean abundance per group
+- Use after PERMANOVA/ANOSIM to explain *what* differs
+
+---
+
+### Parametric Tests
+
+**MANOVA (Multivariate ANOVA)**
+- Requires multivariate normality and homogeneous covariance
+- Test statistics: Wilks' Λ, Pillai's trace, Hotelling-Lawley, Roy's root
+- More powerful than PERMANOVA when assumptions are met
+- Use with 3+ groups
+
+**Hotelling T² (Two-Sample)**
+- Multivariate extension of the two-sample t-test
+- Tests whether two group centroids differ
+- Requires multivariate normality
+- Reports: T² statistic, F-approximation, p-value
+
+---
+
+### Discriminant Analysis (LDA)
+
+- Finds linear combinations of variables that best separate groups
+- Canonical variates: directions of maximum between-group separation
+- Cross-validated classification accuracy
+- Useful for both testing and predicting group membership
+
+---
+
+### Workflow
+
+```
+1. Check groups have ≥ 5 observations each
+2. Test normality? → Yes: MANOVA / Hotelling T²
+                   → No:  PERMANOVA / ANOSIM
+3. Significant? → Run SIMPER to find which variables differ
+4. Visualise  → LDA biplot or ordination coloured by group
+```
+
+💡 **Tip**: PERMANOVA is the most widely used test in ecology because it makes
+no distributional assumptions — start there if unsure!
+""",
+
+    "curve_fitting": """
+## 📈 Curve Fitting & Non-Linear Models Guide
+
+**Location:** Main Tab: 🔬 Scientific Tools › Subtab: Curve Fitting
+
+### Overview
+
+Fit non-linear and specialised regression models to your data,
+with single-model fitting and multi-model comparison.
+
+---
+
+### Available Models
+
+| Model | Equation | When to Use |
+|-------|----------|-------------|
+| **Power** | y = a·xᵇ | Allometric scaling, species-area |
+| **Exponential (2p)** | y = a·e^(bx) | Growth/decay without bound |
+| **Exponential (3p)** | y = a·e^(bx) + c | Growth/decay with baseline |
+| **Logistic (4p)** | y = d + (a−d)/(1+(x/c)^b) | Dose-response, S-curves |
+| **Sinusoidal** | y = A·sin(2πfx + φ) + offset | Seasonal, periodic data |
+| **Gompertz** | y = a·e^(−b·e^(−cx)) | Asymmetric growth, tumour growth |
+| **RMA Regression** | y = a + bx (Type II) | Both variables measured with error |
+| **GLM** | g(E[y]) = Xβ | Generalised linear model |
+
+---
+
+### Single Model Fit
+
+1. Select X (predictor) and Y (response) columns
+2. Choose a model from the dropdown
+3. Click **Fit Model**
+4. Review the fitted parameters, R², RMSE, and AIC
+5. Inspect the plot: data points + fitted curve + prediction band
+
+---
+
+### Multi-Model Comparison
+
+1. Select X and Y columns
+2. Choose which models to compare (checkboxes)
+3. Click **Compare All**
+4. A ranking table shows each model's AIC, BIC, R², and RMSE
+5. ΔAIC is computed relative to the best model:
+   - ΔAIC < 2: substantial support (competing models)
+   - ΔAIC 2–10: less support
+   - ΔAIC > 10: essentially no support
+
+---
+
+### RMA Regression (Type II)
+
+Standard OLS minimises vertical residuals (assumes X is error-free).
+RMA (Reduced Major Axis) minimises in both X and Y directions:
+- Use when **both** variables are measured with error
+- Common in allometry (e.g. body length vs. body mass)
+- Reports slope, intercept, R², and confidence intervals
+
+---
+
+### GLM (Generalised Linear Model)
+
+Extends regression to non-normal responses via link functions:
+
+| Family | Link | Response Type |
+|--------|------|---------------|
+| Gaussian | Identity | Continuous |
+| Poisson | Log | Count data |
+| Binomial | Logit | Binary / proportion |
+| Gamma | Log | Positive continuous |
+| Inverse Gaussian | Inverse | Positive continuous |
+
+---
+
+### Interpreting Residual Plots
+
+After fitting any model, check the residual plot:
+- **Random scatter** → good fit
+- **Pattern / curve** → model is misspecified, try a different form
+- **Funnel shape** → heteroscedasticity (consider weighted regression or GLM)
+
+💡 **Tip**: Always try Multi-Model Comparison first — let the data decide
+which functional form is most appropriate!
+""",
+
+    "plugins": """
+## 🔌 Plugin System Guide
+
+**Location:** Main Tab: 🔌 Plugins
+
+### Overview
+
+The plugin system lets you add custom analyses, preprocessing steps,
+or visualisations without modifying the core toolkit.
+
+---
+
+### Loading a Plugin
+
+Three methods:
+1. **From file**: Upload a `.py` file
+2. **Paste code**: Write/paste Python code directly
+3. **Example templates**: Load bundled example plugins
+
+---
+
+### Creating a Plugin
+
+Every plugin needs three components:
+
+**1. PLUGIN_INFO** — metadata dict:
+```python
+PLUGIN_INFO = {
+    "name": "My Analysis",
+    "description": "What it does",
+    "category": "analysis",   # analysis | preprocessing | visualization
+    "version": "1.0",
+    "author": "Your Name"
+}
+```
+
+**2. PLUGIN_PARAMETERS** — auto-generated UI controls:
+```python
+PLUGIN_PARAMETERS = {
+    "alpha": {"type": "float", "default": 0.05,
+              "min": 0.0, "max": 1.0,
+              "description": "Significance level"},
+    "method": {"type": "select",
+               "options": ["anova", "kruskal"],
+               "default": "anova",
+               "description": "Test method"}
+}
+```
+
+Supported types: `float`, `int`, `bool`, `str`, `select`
+
+**3. process()** — main function:
+```python
+def process(data, columns, target=None, **params):
+    # data: pandas DataFrame
+    # columns: list of feature columns
+    # target: optional target column
+    # params: configured parameter values
+    result_df = ...
+    return {"summary": "Analysis complete", "data": result_df}
+```
+
+---
+
+### Bundled Examples
+
+| Plugin | Category | Description |
+|--------|----------|-------------|
+| **Enhanced Scatter** | Visualization | Scatter + regression + marginals |
+| **Lag Features** | Preprocessing | Create lagged time series columns |
+| **Outlier Removal** | Preprocessing | IQR / Z-score outlier filtering |
+
+---
+
+### Tips
+
+- Return a `"data"` key (DataFrame) to enable CSV download of results
+- Plugins run in an isolated namespace — no risk to the core toolkit
+- Save frequently used plugins to files for quick reloading
+- Check `example_plugins/README.md` for the full API reference
+
+💡 **Tip**: Start from an example template and modify it to save time!
+""",
 }
 
 
@@ -1238,8 +1645,15 @@ def render_tutorial_sidebar():
                 "anomaly": "🤖 ML › Anomaly Detection",
                 "dim_reduction": "🤖 ML › Dimensionality Reduction",
                 "nonlinear": "🤖 ML › Non-Linear Analysis",
+                # Scientific Tools group
+                "ecology": "🔬 Scientific Tools › Community Ecology",
+                "ordination": "🔬 Scientific Tools › Ordination",
+                "multivariate_tests": "🔬 Scientific Tools › Multivariate Tests",
+                "curve_fitting": "🔬 Scientific Tools › Curve Fitting",
                 # Visualization group
                 "visualization": "📈 Visualization › Plots",
+                # Plugins
+                "plugins": "🔌 Plugins › Plugin System",
             }
 
             # Use Streamlit's `key` to bind the selectbox directly to

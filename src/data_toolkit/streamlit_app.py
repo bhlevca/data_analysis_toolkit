@@ -5,7 +5,7 @@ Advanced Data Analysis Toolkit - Streamlit Version with Plotly
 A comprehensive data analysis application with integrated tutorial guidance.
 Uses Plotly for interactive, zoomable charts.
 
-Version: 4.0.0 - Scientific Research Edition
+Version is read from pyproject.toml (single source of truth).
 
 # =============================================================================
 # ⚠️  IMPORTANT WARNING FOR AI ASSISTANTS AND DEVELOPERS  ⚠️
@@ -40,9 +40,33 @@ from plotly.subplots import make_subplots
 
 warnings.filterwarnings('ignore')
 
+# ---------------------------------------------------------------------------
+# Version: single source of truth is pyproject.toml
+# ---------------------------------------------------------------------------
+def _get_app_version() -> str:
+    """Read version from pyproject.toml (single source of truth)."""
+    try:
+        import re as _re
+        from pathlib import Path as _Path
+        _pyproject = _Path(__file__).resolve().parents[2] / "pyproject.toml"
+        _text = _pyproject.read_text()
+        _m = _re.search(r'^version\s*=\s*"([^"]+)"', _text, _re.MULTILINE)
+        if _m:
+            return _m.group(1)
+    except Exception:
+        pass
+    try:
+        from importlib.metadata import version as _pkg_version
+        return _pkg_version("advanced-data-toolkit")
+    except Exception:
+        pass
+    return "0.0.0"
+
+APP_VERSION = _get_app_version()
+
 # Page configuration - MUST be first Streamlit command
 st.set_page_config(
-    page_title="Advanced Data Analysis Toolkit v4.0",
+    page_title=f"Advanced Data Analysis Toolkit v{APP_VERSION}",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -169,6 +193,7 @@ except ImportError:
 from tabs import render_anomaly_tab as _render_anomaly_tab_module
 from tabs import render_bayesian_tab as _render_bayesian_tab_module
 from tabs import render_causality_tab as _render_causality_tab_module
+from tabs import render_neural_networks_tab
 from tabs import render_clustering_tab as _render_clustering_tab_module
 from tabs import render_data_tab as _render_data_tab_module
 from tabs import render_dimreduction_tab as _render_dimreduction_tab_module
@@ -184,6 +209,11 @@ from tabs import \
 from tabs import render_timeseries_tab as _render_timeseries_tab_module
 from tabs import render_uncertainty_tab as _render_uncertainty_tab_module
 from tabs import render_visualization_tab as _render_visualization_tab_module
+from tabs import render_plugin_tab
+from tabs import render_ecology_tab
+from tabs import render_ordination_tab
+from tabs import render_multivariate_analysis_tab
+from tabs import render_curve_fitting_tab
 
 # Optional tabs that may not be installed
 try:
@@ -492,12 +522,29 @@ FUNCTION_INDEX = {
     'survival': {'tab': '🔬 Scientific Tools', 'subtab': 'Survival', 'tabIdx': 5, 'subtabIdx': 0, 'description': 'Survival analysis (Kaplan-Meier)'},
     'kaplan-meier': {'tab': '🔬 Scientific Tools', 'subtab': 'Survival', 'tabIdx': 5, 'subtabIdx': 0, 'description': 'Kaplan-Meier survival curves'},
     'cox': {'tab': '🔬 Scientific Tools', 'subtab': 'Survival', 'tabIdx': 5, 'subtabIdx': 0, 'description': 'Cox proportional hazards'},
-    'ecology': {'tab': '🔬 Scientific Tools', 'subtab': 'Domain-Specific', 'tabIdx': 5, 'subtabIdx': 1, 'description': 'Ecological indices (Shannon, Simpson)'},
-    'shannon': {'tab': '🔬 Scientific Tools', 'subtab': 'Domain-Specific', 'tabIdx': 5, 'subtabIdx': 1, 'description': 'Shannon diversity index'},
-    'simpson': {'tab': '🔬 Scientific Tools', 'subtab': 'Domain-Specific', 'tabIdx': 5, 'subtabIdx': 1, 'description': 'Simpson diversity index'},
+    'ecology': {'tab': '🔬 Scientific Tools', 'subtab': 'Community Ecology', 'tabIdx': 5, 'subtabIdx': 2, 'description': 'Community ecology (alpha/beta diversity, rarefaction)'},
+    'shannon': {'tab': '🔬 Scientific Tools', 'subtab': 'Community Ecology', 'tabIdx': 5, 'subtabIdx': 2, 'description': 'Shannon diversity index'},
+    'simpson': {'tab': '🔬 Scientific Tools', 'subtab': 'Community Ecology', 'tabIdx': 5, 'subtabIdx': 2, 'description': 'Simpson diversity index'},
     'clinical': {'tab': '🔬 Scientific Tools', 'subtab': 'Domain-Specific', 'tabIdx': 5, 'subtabIdx': 1, 'description': 'Clinical trial analysis'},
     'environmental': {'tab': '🔬 Scientific Tools', 'subtab': 'Domain-Specific', 'tabIdx': 5, 'subtabIdx': 1, 'description': 'Environmental data analysis'},
-    'diversity': {'tab': '🔬 Scientific Tools', 'subtab': 'Domain-Specific', 'tabIdx': 5, 'subtabIdx': 1, 'description': 'Biodiversity indices'},
+    'diversity': {'tab': '🔬 Scientific Tools', 'subtab': 'Community Ecology', 'tabIdx': 5, 'subtabIdx': 2, 'description': 'Biodiversity indices'},
+    'rarefaction': {'tab': '🔬 Scientific Tools', 'subtab': 'Community Ecology', 'tabIdx': 5, 'subtabIdx': 2, 'description': 'Rarefaction analysis'},
+    'ordination': {'tab': '🔬 Scientific Tools', 'subtab': 'Ordination', 'tabIdx': 5, 'subtabIdx': 3, 'description': 'Multivariate ordination (PCoA, NMDS, CA, CCA, RDA)'},
+    'pcoa': {'tab': '🔬 Scientific Tools', 'subtab': 'Ordination', 'tabIdx': 5, 'subtabIdx': 3, 'description': 'Principal Coordinates Analysis'},
+    'nmds': {'tab': '🔬 Scientific Tools', 'subtab': 'Ordination', 'tabIdx': 5, 'subtabIdx': 3, 'description': 'Non-metric Multidimensional Scaling'},
+    'cca': {'tab': '🔬 Scientific Tools', 'subtab': 'Ordination', 'tabIdx': 5, 'subtabIdx': 3, 'description': 'Canonical Correspondence Analysis'},
+    'rda': {'tab': '🔬 Scientific Tools', 'subtab': 'Ordination', 'tabIdx': 5, 'subtabIdx': 3, 'description': 'Redundancy Analysis'},
+    'permanova': {'tab': '🔬 Scientific Tools', 'subtab': 'Multivariate Tests', 'tabIdx': 5, 'subtabIdx': 4, 'description': 'Permutational MANOVA'},
+    'anosim': {'tab': '🔬 Scientific Tools', 'subtab': 'Multivariate Tests', 'tabIdx': 5, 'subtabIdx': 4, 'description': 'Analysis of Similarities'},
+    'manova': {'tab': '🔬 Scientific Tools', 'subtab': 'Multivariate Tests', 'tabIdx': 5, 'subtabIdx': 4, 'description': 'Multivariate ANOVA'},
+    'hotelling': {'tab': '🔬 Scientific Tools', 'subtab': 'Multivariate Tests', 'tabIdx': 5, 'subtabIdx': 4, 'description': 'Hotelling T² test'},
+    'discriminant': {'tab': '🔬 Scientific Tools', 'subtab': 'Multivariate Tests', 'tabIdx': 5, 'subtabIdx': 4, 'description': 'Discriminant analysis (LDA)'},
+    'curve fitting': {'tab': '🔬 Scientific Tools', 'subtab': 'Curve Fitting', 'tabIdx': 5, 'subtabIdx': 5, 'description': 'Non-linear curve fitting'},
+    'allometric': {'tab': '🔬 Scientific Tools', 'subtab': 'Curve Fitting', 'tabIdx': 5, 'subtabIdx': 5, 'description': 'Allometric/power curve fitting'},
+    'logistic': {'tab': '🔬 Scientific Tools', 'subtab': 'Curve Fitting', 'tabIdx': 5, 'subtabIdx': 5, 'description': 'Logistic curve fitting'},
+    'gompertz': {'tab': '🔬 Scientific Tools', 'subtab': 'Curve Fitting', 'tabIdx': 5, 'subtabIdx': 5, 'description': 'Gompertz growth curve'},
+    'rma': {'tab': '🔬 Scientific Tools', 'subtab': 'Curve Fitting', 'tabIdx': 5, 'subtabIdx': 5, 'description': 'Reduced Major Axis regression'},
+    'plugin': {'tab': '🔌 Plugins', 'tabIdx': 8, 'description': 'Custom analysis plugins'},
 
     # Reports (tab idx 7)
     'report': {'tab': '📄 Reports', 'tabIdx': 7, 'description': 'Generate HTML/Markdown analysis reports'},
@@ -2399,6 +2446,7 @@ MAIN_TAB_LABELS = [
     "🔬 Scientific Tools",
     "📈 Visualization",
     "📄 Reports",
+    "🔌 Plugins",
 ]
 
 SUBTAB_LABELS = {
@@ -2421,6 +2469,10 @@ SUBTAB_LABELS = {
     5: [  # Scientific Tools
         "⏳ Survival Analysis",
         "🌿 Domain-Specific",
+        "🦠 Community Ecology",
+        "🗺️ Ordination",
+        "📊 Multivariate Tests",
+        "📈 Curve Fitting",
     ],
 }
 
@@ -5141,6 +5193,40 @@ def render_clustering_tab():
                 )
                 fig.update_layout(height=500)
                 st.plotly_chart(fig, width='stretch')
+
+            # Dendrogram for Hierarchical clustering
+            linkage_matrix = results.get('linkage_matrix')
+            if linkage_matrix is not None:
+                st.subheader("🌳 Dendrogram")
+                from scipy.cluster.hierarchy import dendrogram as scipy_dendrogram
+                import io, matplotlib
+                matplotlib.use('Agg')
+                import matplotlib.pyplot as plt
+
+                fig_mpl, ax = plt.subplots(figsize=(12, 6))
+                dendro = scipy_dendrogram(
+                    linkage_matrix,
+                    truncate_mode='lastp',
+                    p=min(40, len(linkage_matrix) + 1),
+                    leaf_rotation=90,
+                    leaf_font_size=9,
+                    color_threshold=linkage_matrix[-(results.get('n_clusters', 3) - 1), 2]
+                    if len(linkage_matrix) >= results.get('n_clusters', 3)
+                    else None,
+                    ax=ax,
+                )
+                ax.set_title('Hierarchical Clustering Dendrogram', fontsize=14)
+                ax.set_xlabel('Sample index (or cluster size)')
+                ax.set_ylabel('Distance')
+                ax.axhline(
+                    y=linkage_matrix[-(results.get('n_clusters', 3) - 1), 2]
+                    if len(linkage_matrix) >= results.get('n_clusters', 3) else 0,
+                    color='r', linestyle='--', label=f"Cut for {results.get('n_clusters', 3)} clusters"
+                )
+                ax.legend()
+                fig_mpl.tight_layout()
+                st.pyplot(fig_mpl)
+                plt.close(fig_mpl)
 
             # Export clustering results
             st.subheader("📥 Export Clustering Results")
@@ -8595,7 +8681,7 @@ def main():
     render_tutorial_sidebar()
 
     st.title("📊 Advanced Data Analysis Toolkit")
-    st.caption("Version 4.0 - Scientific Research Edition with Interactive Plotly Charts")
+    st.caption(f"Version {APP_VERSION} — Scientific Research Edition with Interactive Plotly Charts")
 
     # =========================================================================
     # LEVEL 1: Main Category Tabs (8 groups - expanded for v4.0)
@@ -8608,7 +8694,8 @@ def main():
         "🤖 Machine Learning",
         "🔬 Scientific Tools",
         "📈 Visualization",
-        "📄 Reports"
+        "📄 Reports",
+        "🔌 Plugins"
     ])
 
     # ---- Auto-switch tab via JS when user clicked "Go ➜" from search ----
@@ -8756,6 +8843,7 @@ def main():
             # Supervised learning: Regression, Classification, Validation, Feature Selection, Interpretability
             ml_super_tabs = st.tabs([
                 "🤖 Regression/Classification",
+                "🧠 Neural Networks",
                 "✅ Model Validation",
                 "🎯 Feature Selection",
                 "🔮 Interpretability",
@@ -8765,12 +8853,14 @@ def main():
             with ml_super_tabs[0]:
                 render_ml_tab()
             with ml_super_tabs[1]:
-                render_model_validation_tab()
+                render_neural_networks_tab()
             with ml_super_tabs[2]:
-                render_feature_selection_tab()
+                render_model_validation_tab()
             with ml_super_tabs[3]:
-                render_interpretability_tab()
+                render_feature_selection_tab()
             with ml_super_tabs[4]:
+                render_interpretability_tab()
+            with ml_super_tabs[5]:
                 render_nonlinear_tab()
 
         elif ml_category == "🔍 Unsupervised Learning":
@@ -8808,17 +8898,29 @@ def main():
     # =========================================================================
     with main_tabs[5]:
         st.markdown("#### 🔬 Scientific Tools (v4.0)")
-        st.caption("Survival analysis, domain-specific methods for environmental, clinical, and ecology research")
+        st.caption("Survival analysis, ecology, ordination, multivariate tests, and domain-specific methods")
 
         sci_subtabs = st.tabs([
             "⏳ Survival Analysis",
-            "🌿 Domain-Specific"
+            "🌿 Domain-Specific",
+            "🦠 Community Ecology",
+            "🗺️ Ordination",
+            "📊 Multivariate Tests",
+            "📈 Curve Fitting"
         ])
 
         with sci_subtabs[0]:
             render_survival_tab()
         with sci_subtabs[1]:
             render_domain_specific_tab()
+        with sci_subtabs[2]:
+            render_ecology_tab()
+        with sci_subtabs[3]:
+            render_ordination_tab()
+        with sci_subtabs[4]:
+            render_multivariate_analysis_tab()
+        with sci_subtabs[5]:
+            render_curve_fitting_tab()
 
     # =========================================================================
     # 📈 VISUALIZATION GROUP
@@ -8835,6 +8937,14 @@ def main():
         st.markdown("#### 📄 Report Generation (v4.0)")
         st.caption("Generate publication-ready HTML and Markdown reports")
         render_report_tab()
+
+    # =========================================================================
+    # 🔌 PLUGINS GROUP (v4.3 - NEW)
+    # =========================================================================
+    with main_tabs[8]:
+        st.markdown("#### 🔌 Plugin System (v4.3)")
+        st.caption("Load, manage, and execute custom analysis plugins")
+        render_plugin_tab()
 
     st.markdown("---")
     st.caption("💡 All charts are **interactive**: zoom, pan, hover, download! | v4.0 Scientific Research Edition")

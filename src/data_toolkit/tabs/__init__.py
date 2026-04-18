@@ -22,6 +22,11 @@ from .timeseries_tab import render_timeseries_tab
 from .tutorial_sidebar import render_tutorial_sidebar
 from .uncertainty_tab import render_uncertainty_tab
 from .visualization_tab import render_visualization_tab
+from .plugin_tab import render_plugin_tab
+from .ecology_tab import render_ecology_tab
+from .ordination_tab import render_ordination_tab
+from .multivariate_analysis_tab import render_multivariate_analysis_tab
+from .curve_fitting_tab import render_curve_fitting_tab
 
 __all__ = [
     'render_data_tab',
@@ -42,4 +47,9 @@ __all__ = [
     'render_dimreduction_tab',
     'render_tutorial_sidebar',
     'render_sensitivity_tab',
+    'render_plugin_tab',
+    'render_ecology_tab',
+    'render_ordination_tab',
+    'render_multivariate_analysis_tab',
+    'render_curve_fitting_tab',
 ]
