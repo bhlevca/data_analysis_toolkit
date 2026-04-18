@@ -117,6 +117,92 @@ def render_clustering_tab():
                 fig.update_layout(height=500)
                 st.plotly_chart(fig, width='stretch')
 
+            # Dendrogram for Hierarchical clustering
+            linkage_matrix = results.get('linkage_matrix')
+            if linkage_matrix is not None:
+                st.subheader("🌳 Dendrogram")
+                from scipy.cluster.hierarchy import dendrogram as scipy_dendrogram
+
+                n_clust = results.get('n_clusters', 3)
+                n_samples = len(linkage_matrix) + 1
+                color_thresh = (
+                    float(linkage_matrix[-(n_clust - 1), 2])
+                    if len(linkage_matrix) >= n_clust else None
+                )
+
+                # Build sample labels from the dataframe index
+                df_clean = df[features].dropna()
+                raw_labels = [str(v) for v in df_clean.index[:n_samples]]
+
+                # Use scipy dendrogram to get the layout data
+                dendro_data = scipy_dendrogram(
+                    linkage_matrix,
+                    labels=raw_labels,
+                    no_plot=True,
+                    color_threshold=color_thresh,
+                )
+
+                # Map scipy colour keys to plotly-friendly colours
+                _color_map = {
+                    'C0': '#1f77b4', 'C1': '#ff7f0e', 'C2': '#2ca02c',
+                    'C3': '#d62728', 'C4': '#9467bd', 'C5': '#8c564b',
+                    'C6': '#e377c2', 'C7': '#7f7f7f', 'C8': '#bcbd22',
+                    'C9': '#17becf', 'b': '#1f77b4', 'g': '#2ca02c',
+                    'r': '#d62728', 'c': '#17becf', 'm': '#9467bd',
+                    'y': '#bcbd22', 'k': '#000000',
+                }
+
+                fig_dendro = go.Figure()
+
+                for xk, yk, ck in zip(
+                    dendro_data['icoord'],
+                    dendro_data['dcoord'],
+                    dendro_data['color_list'],
+                ):
+                    fig_dendro.add_trace(go.Scatter(
+                        x=xk, y=yk,
+                        mode='lines',
+                        line=dict(color=_color_map.get(ck, ck), width=2),
+                        hoverinfo='y',
+                        showlegend=False,
+                    ))
+
+                # Cut-line for chosen number of clusters
+                if color_thresh is not None:
+                    fig_dendro.add_hline(
+                        y=color_thresh, line_dash='dash', line_color='red',
+                        annotation_text=f"Cut for {n_clust} clusters",
+                        annotation_position='top left',
+                    )
+
+                # X-axis tick labels (sample names) — thin out if too many
+                tick_positions = list(range(5, 10 * len(dendro_data['ivl']), 10))
+                ivl = dendro_data['ivl']
+                if len(ivl) > 50:
+                    # Show every Nth label so they stay readable
+                    step = max(1, len(ivl) // 30)
+                    shown_pos = tick_positions[::step]
+                    shown_lbl = [ivl[i] for i in range(0, len(ivl), step)]
+                else:
+                    shown_pos = tick_positions
+                    shown_lbl = ivl
+
+                fig_dendro.update_layout(
+                    title='Hierarchical Clustering Dendrogram',
+                    xaxis=dict(
+                        title='Samples',
+                        tickvals=shown_pos,
+                        ticktext=shown_lbl,
+                        tickangle=90,
+                        tickfont=dict(size=max(7, min(11, 500 // max(len(shown_lbl), 1)))),
+                    ),
+                    yaxis=dict(title='Distance'),
+                    template=PLOTLY_TEMPLATE,
+                    height=550,
+                )
+
+                st.plotly_chart(fig_dendro, use_container_width=True)
+
             # Export clustering results
             st.subheader("📥 Export Clustering Results")
             df_cluster_results = df[features].dropna().copy()

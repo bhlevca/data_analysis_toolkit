@@ -12,8 +12,13 @@
 8. [Non-Linear Analysis](#non-linear-analysis)
 9. [Time Series Analysis](#time-series-analysis)
 10. [Causality Analysis](#causality-analysis)
-11. [Decision Flowcharts](#decision-flowcharts)
-12. [Common Workflows](#common-workflows)
+11. [Community Ecology](#community-ecology)
+12. [Ordination](#ordination)
+13. [Multivariate Hypothesis Tests](#multivariate-hypothesis-tests)
+14. [Curve Fitting & Non-Linear Models](#curve-fitting--non-linear-models)
+15. [Plugin System](#plugin-system)
+16. [Decision Flowcharts](#decision-flowcharts)
+17. [Common Workflows](#common-workflows)
 
 ---
 
@@ -32,6 +37,11 @@ The Advanced Data Analysis Toolkit is a comprehensive application for exploring,
 | 🔀 Find Non-linear Patterns | Distance correlation, mutual information, GP |
 | ⏱️ Analyze Time Series | ACF/PACF, stationarity, ARIMA |
 | 🔗 Test Causality | Granger causality, lead-lag analysis |
+| 🌿 Community Ecology | Alpha/beta diversity, rarefaction, SHE analysis |
+| 🧭 Ordination | PCoA, NMDS, CA, DCA, CCA, RDA, Mantel test |
+| 📊 Multivariate Tests | PERMANOVA, ANOSIM, SIMPER, MANOVA, Hotelling T², LDA |
+| 📈 Curve Fitting | Power, exponential, logistic, Gompertz, RMA, GLM |
+| 🔌 Plugins | Extend with custom analysis, preprocessing, or visualisation |
 
 ---
 
@@ -57,16 +67,16 @@ streamlit run src/data_toolkit/streamlit_app.py
 ### Interface Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  📊 Advanced Data Analysis Toolkit              [Sidebar: Tutorial]
-├─────────────────────────────────────────────────────────────────┤
-│  📁 Data | 📊 Statistical | 🤖 ML | 📈 Bayesian | 🎲 Uncertainty │
-│          | 🔀 Non-Linear | ⏱️ Time Series | 🔗 Causality | 📉 Viz │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│                        [Main Content Area]                      │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│  📊 Advanced Data Analysis Toolkit                   [Sidebar: Tutorial]│
+├─────────────────────────────────────────────────────────────────────────┤
+│  📁 Data | 📊 Statistics | 🔊 Signal | ⏱️ Time Series | 🤖 ML         │
+│  🔬 Scientific Tools | 📈 Visualization | 📋 Reports | 🔌 Plugins     │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│                        [Main Content Area]                              │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 **Sidebar Features:**
@@ -444,6 +454,248 @@ Interpretation:
 
 ---
 
+## Community Ecology
+
+**Location:** 🔬 Scientific Tools → Community Ecology
+
+### Data Format
+
+Your data should have **sites as rows** and **species as columns**:
+
+| site | sp_A | sp_B | sp_C |
+|------|------|------|------|
+| S1   | 12   | 0    | 5    |
+| S2   | 0    | 8    | 7    |
+| S3   | 4    | 3    | 0    |
+
+### Step-by-Step: Alpha Diversity
+
+1. Go to **🔬 Scientific Tools → Community Ecology**
+2. Select the **Alpha Diversity** subtab
+3. Choose species columns (numeric abundance columns)
+4. Optionally select a sample label column
+5. Click **Calculate Alpha Diversity**
+6. Review: Shannon H', Simpson, Chao1, evenness, and more
+
+**Interpreting indices:**
+
+| Index | Meaning |
+|-------|---------|
+| **Shannon H'** | Higher = more diverse (0–~5 in practice) |
+| **Simpson 1-D** | Higher = more even dominance (0–1) |
+| **Chao1** | Estimated total species richness (≥ observed) |
+| **Pielou J'** | Evenness: 1 = perfectly even, 0 = one dominant species |
+
+### Step-by-Step: Beta Diversity
+
+1. Select the **Beta Diversity** subtab
+2. Choose species columns
+3. Select a dissimilarity metric (Bray-Curtis for abundances, Jaccard for presence/absence)
+4. View the distance matrix heatmap
+5. Sites with low values (blue) are more similar
+
+### Step-by-Step: Rarefaction
+
+1. Select the **Rarefaction** subtab
+2. Choose species columns
+3. Set the maximum sample size
+4. Review the rarefaction curves:
+   - **Plateau** = sampling is sufficient
+   - **Still rising** = more species likely remain undetected
+
+### Step-by-Step: Species Accumulation
+
+1. Select the **Accumulation** subtab
+2. Choose species columns
+3. The curve shows cumulative richness as more samples are added
+4. Approaching an asymptote indicates adequate sampling effort
+
+---
+
+## Ordination
+
+**Location:** 🔬 Scientific Tools → Ordination
+
+### Choosing a Method
+
+```
+Do you have environmental variables?
+    │
+    ├── No  → Unconstrained
+    │       Is species response unimodal?
+    │           ├── Yes → CA / DCA
+    │           └── No  → PCoA / NMDS
+    │
+    └── Yes → Constrained
+            Is species response unimodal?
+                ├── Yes → CCA
+                └── No  → RDA
+```
+
+### Step-by-Step: PCoA / NMDS
+
+1. Go to **🔬 Scientific Tools → Ordination**
+2. Select **PCoA** or **NMDS**
+3. Choose species columns (numeric)
+4. Select a distance metric (Bray-Curtis is common)
+5. Optionally choose a grouping column to colour points
+6. Click **Run Ordination**
+7. Interpret:
+   - Points close together = similar community composition
+   - For NMDS: check stress < 0.2
+
+### Step-by-Step: CCA / RDA
+
+1. Select **CCA** or **RDA**
+2. Choose species columns (response)
+3. Choose environmental columns (predictors)
+4. Click **Run Ordination**
+5. The biplot shows:
+   - **Points** = sites in ordination space
+   - **Arrows** = environmental gradients (longer = stronger effect)
+   - **Species labels** (CCA) = species optima along gradients
+
+### Step-by-Step: Mantel Test
+
+1. Select **Mantel Test**
+2. Choose columns for distance matrix 1
+3. Choose columns for distance matrix 2
+4. Select distance metrics and number of permutations
+5. Interpret: significant p-value means the two distance matrices are correlated
+
+---
+
+## Multivariate Hypothesis Tests
+
+**Location:** 🔬 Scientific Tools → Multivariate Tests
+
+### Choosing a Test
+
+| Situation | Test |
+|-----------|------|
+| Non-normal data, group differences | **PERMANOVA** |
+| Rank-based group comparison | **ANOSIM** |
+| Which species cause the difference? | **SIMPER** |
+| Normal data, 3+ groups | **MANOVA** |
+| Normal data, 2 groups | **Hotelling T²** |
+| Classify and visualise groups | **LDA** |
+
+### Step-by-Step: PERMANOVA
+
+1. Go to **🔬 Scientific Tools → Multivariate Tests**
+2. Select **PERMANOVA**
+3. Choose response variables (numeric species/measurement columns)
+4. Choose the grouping variable (categorical)
+5. Select distance metric and number of permutations
+6. Click **Run Test**
+7. Interpret:
+   - **Pseudo-F**: larger = stronger group effect
+   - **p < 0.05**: groups differ significantly
+   - **R²**: proportion of variation explained by groups
+
+### Step-by-Step: SIMPER (after PERMANOVA)
+
+1. Select **SIMPER** from the dropdown
+2. Use the same response and grouping columns
+3. Click **Run Test**
+4. The results table shows:
+   - Each species' contribution to between-group dissimilarity
+   - Cumulative percentage (species ranked by contribution)
+   - Mean abundance per group
+
+### Step-by-Step: LDA (Discriminant Analysis)
+
+1. Select **Discriminant Analysis (LDA)**
+2. Choose measurement columns and grouping variable
+3. Click **Run Test**
+4. Review:
+   - Classification accuracy (cross-validated)
+   - Canonical variate plot (2D separation of groups)
+   - Variable loadings (which variables best separate groups)
+
+---
+
+## Curve Fitting & Non-Linear Models
+
+**Location:** 🔬 Scientific Tools → Curve Fitting
+
+### Available Models
+
+| Model | Equation | When to Use |
+|-------|----------|-------------|
+| Power | y = a·xᵇ | Allometric scaling, species-area |
+| Exponential (2p) | y = a·e^(bx) | Unbounded growth/decay |
+| Exponential (3p) | y = a·e^(bx) + c | Growth/decay with baseline |
+| Logistic (4p) | y = d + (a-d)/(1+(x/c)^b) | Dose-response, S-curves |
+| Sinusoidal | y = A·sin(2πfx + φ) + offset | Seasonal/periodic |
+| Gompertz | y = a·e^(−b·e^(−cx)) | Asymmetric growth |
+| RMA Regression | y = a + bx (Type II) | Both X and Y have error |
+| GLM | g(E[y]) = Xβ | Generalised linear model |
+
+### Step-by-Step: Single Model Fit
+
+1. Go to **🔬 Scientific Tools → Curve Fitting**
+2. Select **Single Model Fit** mode
+3. Choose X (predictor) and Y (response) columns
+4. Select a model from the dropdown
+5. Click **Fit Model**
+6. Review: fitted parameters, R², RMSE, AIC
+7. Inspect the plot: data points + fitted curve
+
+### Step-by-Step: Multi-Model Comparison
+
+1. Select **Multi-Model Comparison** mode
+2. Choose X and Y columns
+3. Select which models to compare (checkboxes)
+4. Click **Compare All**
+5. The ranking table shows AIC, BIC, R², RMSE for each model
+6. ΔAIC interpretation:
+   - < 2: competing models (both supported)
+   - 2–10: less support
+   - > 10: essentially no support
+
+### When to Use RMA vs OLS
+
+| Scenario | Use |
+|----------|-----|
+| Only Y has measurement error | Standard OLS regression |
+| Both X and Y have error | RMA regression |
+| Common in: allometry, method comparison | RMA is preferred |
+
+---
+
+## Plugin System
+
+**Location:** 🔌 Plugins
+
+### Step-by-Step: Loading a Plugin
+
+1. Go to the **🔌 Plugins** tab
+2. Choose a loading method:
+   - **From file**: Upload a `.py` file
+   - **Paste code**: Write/paste Python code
+   - **Example templates**: Load a bundled example
+3. The plugin appears in the loaded plugins list
+
+### Step-by-Step: Running a Plugin
+
+1. Select a loaded plugin from the list
+2. Configure any parameters (auto-generated from PLUGIN_PARAMETERS)
+3. Click **Execute**
+4. View results in the output area
+5. If the plugin returns data, download it as CSV
+
+### Creating Your Own Plugin
+
+Every plugin needs:
+1. `PLUGIN_INFO` dict — name, description, category
+2. `PLUGIN_PARAMETERS` dict — configurable parameters with types/defaults
+3. `process(data, columns, target, **params)` — main analysis function
+
+See `example_plugins/` for ready-to-use templates.
+
+---
+
 ## Decision Flowcharts
 
 ### What Analysis Should I Use?
@@ -466,8 +718,17 @@ What's your goal?
     ├── Analyze time-dependent data
     │       └── ⏱️ Time Series → ACF/PACF, ARIMA
     │
-    └── Test if X predicts/causes Y
-            └── 🔗 Causality → Granger Test, Lead-Lag
+    ├── Test if X predicts/causes Y
+    │       └── 🔗 Causality → Granger Test, Lead-Lag
+    │
+    ├── Analyse species communities
+    │       └── 🔬 Scientific Tools → Ecology, Ordination, Multivariate Tests
+    │
+    ├── Fit a non-linear model
+    │       └── 🔬 Scientific Tools → Curve Fitting
+    │
+    └── Custom analysis
+            └── 🔌 Plugins → Load and execute
 ```
 
 ### Which Correlation Method?
@@ -560,6 +821,40 @@ What do you need?
 6. Interpret with caution!            [Remember: correlation ≠ causation]
 ```
 
+### Workflow 5: Community Ecology Analysis
+
+```
+1. Load species × sites data          [📁 Data Loading]
+2. Calculate alpha diversity           [🔬 Scientific Tools → Ecology]
+3. Compare sites with beta diversity   [🔬 Scientific Tools → Ecology]
+4. Check sampling with rarefaction     [🔬 Scientific Tools → Ecology]
+5. Ordinate sites (PCoA or NMDS)       [🔬 Scientific Tools → Ordination]
+6. Test group differences (PERMANOVA)  [🔬 Scientific Tools → Multivariate Tests]
+7. Identify key species (SIMPER)       [🔬 Scientific Tools → Multivariate Tests]
+```
+
+### Workflow 6: Curve Fitting
+
+```
+1. Load data                           [📁 Data Loading]
+2. Visualise scatter plot               [📈 Visualization]
+3. Try Multi-Model Comparison           [🔬 Scientific Tools → Curve Fitting]
+4. Select best model (lowest AIC)       [🔬 Scientific Tools → Curve Fitting]
+5. Inspect residuals                    [🔬 Scientific Tools → Curve Fitting]
+6. Report parameters + R² + AIC        [📋 Reports]
+```
+
+### Workflow 7: Extending with Plugins
+
+```
+1. Load data                           [📁 Data Loading]
+2. Browse example templates             [🔌 Plugins]
+3. Load or paste a custom plugin        [🔌 Plugins]
+4. Configure parameters                 [🔌 Plugins]
+5. Execute on your data                 [🔌 Plugins]
+6. Download results                     [🔌 Plugins]
+```
+
 ---
 
 ## Tips for Best Results
@@ -589,4 +884,4 @@ What do you need?
 
 ---
 
-*Tutorial Version 9.0 - Last Updated December 2024*
+*Tutorial Version 9.1 - Last Updated April 2026*

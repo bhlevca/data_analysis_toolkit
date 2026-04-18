@@ -1,0 +1,9 @@
+{
+  "name": "Weakly informative (vague)",
+  "description": "Zero-centred prior with very low precision (0.001). Effectively lets the data speak — posterior ≈ OLS. Features are internally standardised so this is comparable across all predictors.",
+  "features": ["predictor_1", "predictor_2", "predictor_3"],
+  "target": "response_homoscedastic",
+  "prior_mean": [0.0, 0.0, 0.0, 0.0],
+  "prior_precision": 0.001,
+  "noise_var_estimate": null
+}

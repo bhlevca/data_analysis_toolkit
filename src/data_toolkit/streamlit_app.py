@@ -5,7 +5,7 @@ Advanced Data Analysis Toolkit - Streamlit Version with Plotly
 A comprehensive data analysis application with integrated tutorial guidance.
 Uses Plotly for interactive, zoomable charts.
 
-Version: 4.0.0 - Scientific Research Edition
+Version is read from pyproject.toml (single source of truth).
 
 # =============================================================================
 # ⚠️  IMPORTANT WARNING FOR AI ASSISTANTS AND DEVELOPERS  ⚠️
@@ -35,13 +35,38 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+import streamlit.components.v1 as components
 from plotly.subplots import make_subplots
 
 warnings.filterwarnings('ignore')
 
+# ---------------------------------------------------------------------------
+# Version: single source of truth is pyproject.toml
+# ---------------------------------------------------------------------------
+def _get_app_version() -> str:
+    """Read version from pyproject.toml (single source of truth)."""
+    try:
+        import re as _re
+        from pathlib import Path as _Path
+        _pyproject = _Path(__file__).resolve().parents[2] / "pyproject.toml"
+        _text = _pyproject.read_text()
+        _m = _re.search(r'^version\s*=\s*"([^"]+)"', _text, _re.MULTILINE)
+        if _m:
+            return _m.group(1)
+    except Exception:
+        pass
+    try:
+        from importlib.metadata import version as _pkg_version
+        return _pkg_version("advanced-data-toolkit")
+    except Exception:
+        pass
+    return "0.0.0"
+
+APP_VERSION = _get_app_version()
+
 # Page configuration - MUST be first Streamlit command
 st.set_page_config(
-    page_title="Advanced Data Analysis Toolkit v4.0",
+    page_title=f"Advanced Data Analysis Toolkit v{APP_VERSION}",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -168,6 +193,7 @@ except ImportError:
 from tabs import render_anomaly_tab as _render_anomaly_tab_module
 from tabs import render_bayesian_tab as _render_bayesian_tab_module
 from tabs import render_causality_tab as _render_causality_tab_module
+from tabs import render_neural_networks_tab
 from tabs import render_clustering_tab as _render_clustering_tab_module
 from tabs import render_data_tab as _render_data_tab_module
 from tabs import render_dimreduction_tab as _render_dimreduction_tab_module
@@ -183,6 +209,11 @@ from tabs import \
 from tabs import render_timeseries_tab as _render_timeseries_tab_module
 from tabs import render_uncertainty_tab as _render_uncertainty_tab_module
 from tabs import render_visualization_tab as _render_visualization_tab_module
+from tabs import render_plugin_tab
+from tabs import render_ecology_tab
+from tabs import render_ordination_tab
+from tabs import render_multivariate_analysis_tab
+from tabs import render_curve_fitting_tab
 
 # Optional tabs that may not be installed
 try:
@@ -316,6 +347,244 @@ def detect_and_convert_datetime_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # =============================================================================
+# FUNCTION SEARCH INDEX
+# =============================================================================
+# Maps function/feature names to their tab locations for searchability
+# Format: {'keyword': {'tab': 'Tab Name', 'subtab': 'Subtab (optional)', 'tabIdx': main_tab_index, 'subtabIdx': subtab_index, 'description': 'Brief description'}}
+# Main tab indices: 0=Data, 1=Statistics, 2=Signal, 3=TimeSeries, 4=ML, 5=Scientific, 6=Visualization, 7=Reports
+FUNCTION_INDEX = {
+    # Data Loading
+    'csv': {'tab': '📁 Data', 'tabIdx': 0, 'description': 'Load CSV files'},
+    'excel': {'tab': '📁 Data', 'tabIdx': 0, 'description': 'Load Excel files'},
+    'data loading': {'tab': '📁 Data', 'tabIdx': 0, 'description': 'Load and preview data'},
+    'upload': {'tab': '📁 Data', 'tabIdx': 0, 'description': 'Upload data files'},
+
+    # Descriptive Statistics (Statistics tab idx 1, subtab idx 0)
+    'mean': {'tab': '📊 Statistics', 'subtab': 'Descriptive', 'tabIdx': 1, 'subtabIdx': 0, 'description': 'Calculate mean, median, mode'},
+    'median': {'tab': '📊 Statistics', 'subtab': 'Descriptive', 'tabIdx': 1, 'subtabIdx': 0, 'description': 'Calculate central tendency'},
+    'standard deviation': {'tab': '📊 Statistics', 'subtab': 'Descriptive', 'tabIdx': 1, 'subtabIdx': 0, 'description': 'Calculate spread measures'},
+    'descriptive statistics': {'tab': '📊 Statistics', 'subtab': 'Descriptive', 'tabIdx': 1, 'subtabIdx': 0, 'description': 'Summary statistics'},
+    'histogram': {'tab': '📊 Statistics', 'subtab': 'Descriptive', 'tabIdx': 1, 'subtabIdx': 0, 'description': 'Distribution visualization'},
+    'correlation': {'tab': '📊 Statistics', 'subtab': 'Descriptive', 'tabIdx': 1, 'subtabIdx': 0, 'description': 'Correlation matrix and analysis'},
+
+    # Hypothesis Tests (Statistics tab idx 1, subtab idx 1)
+    't-test': {'tab': '📊 Statistics', 'subtab': 'Tests', 'tabIdx': 1, 'subtabIdx': 1, 'description': 'Compare two group means'},
+    'anova': {'tab': '📊 Statistics', 'subtab': 'Tests', 'tabIdx': 1, 'subtabIdx': 1, 'description': 'Compare multiple group means'},
+    'chi-square': {'tab': '📊 Statistics', 'subtab': 'Tests', 'tabIdx': 1, 'subtabIdx': 1, 'description': 'Test categorical associations'},
+    'mann-whitney': {'tab': '📊 Statistics', 'subtab': 'Tests', 'tabIdx': 1, 'subtabIdx': 1, 'description': 'Non-parametric two-group comparison'},
+    'kruskal-wallis': {'tab': '📊 Statistics', 'subtab': 'Tests', 'tabIdx': 1, 'subtabIdx': 1, 'description': 'Non-parametric ANOVA'},
+    'shapiro-wilk': {'tab': '📊 Statistics', 'subtab': 'Tests', 'tabIdx': 1, 'subtabIdx': 1, 'description': 'Test for normality'},
+    'levene': {'tab': '📊 Statistics', 'subtab': 'Tests', 'tabIdx': 1, 'subtabIdx': 1, 'description': 'Test homogeneity of variance'},
+    'tukey': {'tab': '📊 Statistics', 'subtab': 'Tests', 'tabIdx': 1, 'subtabIdx': 1, 'description': 'Post-hoc pairwise comparisons'},
+    'bonferroni': {'tab': '📊 Statistics', 'subtab': 'Tests', 'tabIdx': 1, 'subtabIdx': 1, 'description': 'Multiple comparison correction'},
+
+    # Effect Sizes (Statistics tab idx 1, subtab idx 2)
+    'effect size': {'tab': '📊 Statistics', 'subtab': 'Effect Sizes', 'tabIdx': 1, 'subtabIdx': 2, 'description': 'Effect size calculations'},
+    "cohen's d": {'tab': '📊 Statistics', 'subtab': 'Effect Sizes', 'tabIdx': 1, 'subtabIdx': 2, 'description': "Cohen's d for two groups"},
+    "hedges' g": {'tab': '📊 Statistics', 'subtab': 'Effect Sizes', 'tabIdx': 1, 'subtabIdx': 2, 'description': "Hedges' g (corrected)"},
+    'eta squared': {'tab': '📊 Statistics', 'subtab': 'Effect Sizes', 'tabIdx': 1, 'subtabIdx': 2, 'description': 'Eta-squared for ANOVA'},
+
+    # Sensitivity Analysis (Statistics tab idx 1, subtab idx 3)
+    'sensitivity': {'tab': '📊 Statistics', 'subtab': 'Sensitivity', 'tabIdx': 1, 'subtabIdx': 3, 'description': 'Sensitivity analysis methods'},
+    'morris': {'tab': '📊 Statistics', 'subtab': 'Sensitivity', 'tabIdx': 1, 'subtabIdx': 3, 'description': 'Morris screening method'},
+    'sobol': {'tab': '📊 Statistics', 'subtab': 'Sensitivity', 'tabIdx': 1, 'subtabIdx': 3, 'description': 'Sobol sensitivity indices'},
+    'cart': {'tab': '📊 Statistics', 'subtab': 'Sensitivity', 'tabIdx': 1, 'subtabIdx': 3, 'description': 'CART decision tree analysis'},
+    'monte carlo': {'tab': '📊 Statistics', 'subtab': 'Sensitivity', 'tabIdx': 1, 'subtabIdx': 3, 'description': 'Monte Carlo simulation'},
+
+    # Data Quality & Outliers (Statistics tab idx 1, subtab idx 4) - MOVED HERE
+    'missing data': {'tab': '📊 Statistics', 'subtab': 'Data Quality', 'tabIdx': 1, 'subtabIdx': 4, 'description': 'Missing data analysis and imputation'},
+    'imputation': {'tab': '📊 Statistics', 'subtab': 'Data Quality', 'tabIdx': 1, 'subtabIdx': 4, 'description': 'Missing value imputation'},
+    'data quality': {'tab': '📊 Statistics', 'subtab': 'Data Quality', 'tabIdx': 1, 'subtabIdx': 4, 'description': 'Data quality assessment'},
+    'outlier': {'tab': '📊 Statistics', 'subtab': 'Data Quality', 'tabIdx': 1, 'subtabIdx': 4, 'description': 'Outlier detection (IQR, Z-score, MAD)'},
+    'iqr': {'tab': '📊 Statistics', 'subtab': 'Data Quality', 'tabIdx': 1, 'subtabIdx': 4, 'description': 'IQR outlier detection'},
+    'z-score': {'tab': '📊 Statistics', 'subtab': 'Data Quality', 'tabIdx': 1, 'subtabIdx': 4, 'description': 'Z-score outlier detection'},
+    'cv': {'tab': '📊 Statistics', 'subtab': 'Data Quality', 'tabIdx': 1, 'subtabIdx': 4, 'description': 'Coefficient of Variation for QA'},
+    'coefficient of variation': {'tab': '📊 Statistics', 'subtab': 'Data Quality', 'tabIdx': 1, 'subtabIdx': 4, 'description': 'CV for measurement variability'},
+    'mad': {'tab': '📊 Statistics', 'subtab': 'Data Quality', 'tabIdx': 1, 'subtabIdx': 4, 'description': 'Median Absolute Deviation for outliers'},
+    'sensor qa': {'tab': '📊 Statistics', 'subtab': 'Data Quality', 'tabIdx': 1, 'subtabIdx': 4, 'description': 'Sensor QA/QC (CV + MAD)'},
+    'sensor qc': {'tab': '📊 Statistics', 'subtab': 'Data Quality', 'tabIdx': 1, 'subtabIdx': 4, 'description': 'Sensor QA/QC (CV + MAD)'},
+    'chlorophyll': {'tab': '📊 Statistics', 'subtab': 'Data Quality', 'tabIdx': 1, 'subtabIdx': 4, 'description': 'Chlorophyll measurement QA'},
+    'qaqc': {'tab': '📊 Statistics', 'subtab': 'Data Quality', 'tabIdx': 1, 'subtabIdx': 4, 'description': 'Quality assurance / quality control'},
+    'qa/qc': {'tab': '📊 Statistics', 'subtab': 'Data Quality', 'tabIdx': 1, 'subtabIdx': 4, 'description': 'Quality assurance / quality control'},
+    'quality report': {'tab': '📊 Statistics', 'subtab': 'Data Quality', 'tabIdx': 1, 'subtabIdx': 4, 'description': 'Generate data quality report'},
+
+    # Bayesian (Statistics tab idx 1, subtab idx 5)
+    'bayesian': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Bayesian inference with priors and posteriors'},
+    'posterior': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Posterior distribution analysis'},
+    'posterior predictive': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Posterior predictive distribution for new data'},
+    'credible interval': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Bayesian credible intervals (not confidence intervals)'},
+    'bayes factor': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Bayesian model comparison (BIC)'},
+    'prior': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Prior specification for Bayesian regression'},
+    'prior file': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Load/save prior from JSON files'},
+    'prior sensitivity': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Prior sensitivity analysis (weak → strong)'},
+    'conjugate': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Conjugate Normal-Inverse-Gamma prior'},
+    'noise variance': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Noise variance estimation (empirical Bayes)'},
+    'informative prior': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Informative prior from domain knowledge'},
+    'weakly informative': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Weakly informative (vague) prior'},
+    'prior precision': {'tab': '📊 Statistics', 'subtab': 'Bayesian', 'tabIdx': 1, 'subtabIdx': 5, 'description': 'Prior precision / strength parameter'},
+
+    # Uncertainty (Statistics tab idx 1, subtab idx 6)
+    'bootstrap': {'tab': '📊 Statistics', 'subtab': 'Uncertainty', 'tabIdx': 1, 'subtabIdx': 6, 'description': 'Bootstrap confidence intervals'},
+    'confidence interval': {'tab': '📊 Statistics', 'subtab': 'Uncertainty', 'tabIdx': 1, 'subtabIdx': 6, 'description': 'Interval estimation'},
+    'uncertainty': {'tab': '📊 Statistics', 'subtab': 'Uncertainty', 'tabIdx': 1, 'subtabIdx': 6, 'description': 'Uncertainty quantification'},
+
+    # Time Series (tab idx 3)
+    'time series': {'tab': '⏱️ Time Series', 'tabIdx': 3, 'subtabIdx': 0, 'description': 'Time series analysis'},
+    'autocorrelation': {'tab': '⏱️ Time Series', 'subtab': 'Analysis', 'tabIdx': 3, 'subtabIdx': 0, 'description': 'ACF and PACF'},
+    'stationarity': {'tab': '⏱️ Time Series', 'subtab': 'Analysis', 'tabIdx': 3, 'subtabIdx': 0, 'description': 'ADF test for stationarity'},
+    'decomposition': {'tab': '⏱️ Time Series', 'subtab': 'Analysis', 'tabIdx': 3, 'subtabIdx': 0, 'description': 'Seasonal decomposition'},
+    'ccf': {'tab': '⏱️ Time Series', 'subtab': 'CCF', 'tabIdx': 3, 'subtabIdx': 1, 'description': 'Cross-correlation function'},
+    'cross-correlation': {'tab': '⏱️ Time Series', 'subtab': 'CCF', 'tabIdx': 3, 'subtabIdx': 1, 'description': 'Cross-correlation analysis'},
+    'moving average': {'tab': '⏱️ Time Series', 'subtab': 'Moving Average', 'tabIdx': 3, 'subtabIdx': 2, 'description': 'Moving averages and smoothing'},
+    'granger': {'tab': '⏱️ Time Series', 'subtab': 'Causality', 'tabIdx': 3, 'subtabIdx': 3, 'description': 'Granger causality test'},
+    'arima': {'tab': '⏱️ Time Series', 'subtab': 'Advanced', 'tabIdx': 3, 'subtabIdx': 4, 'description': 'ARIMA forecasting'},
+    'forecast': {'tab': '⏱️ Time Series', 'subtab': 'Advanced', 'tabIdx': 3, 'subtabIdx': 4, 'description': 'Time series forecasting'},
+
+    # Signal Processing (tab idx 2)
+    'fft': {'tab': '🔊 Signal Processing', 'tabIdx': 2, 'description': 'Fast Fourier Transform'},
+    'fourier': {'tab': '🔊 Signal Processing', 'tabIdx': 2, 'description': 'Fourier analysis'},
+    'wavelet': {'tab': '🔊 Signal Processing', 'tabIdx': 2, 'description': 'Wavelet transform'},
+    'spectrum': {'tab': '🔊 Signal Processing', 'tabIdx': 2, 'description': 'Power spectrum analysis'},
+    'frequency': {'tab': '🔊 Signal Processing', 'tabIdx': 2, 'description': 'Frequency domain analysis'},
+    'filtering': {'tab': '🔊 Signal Processing', 'tabIdx': 2, 'description': 'Signal filtering'},
+    'signal': {'tab': '🔊 Signal Processing', 'tabIdx': 2, 'description': 'Signal processing and spectral analysis'},
+
+    # Machine Learning (tab idx 4) - General keywords
+    'machine learning': {'tab': '🤖 Machine Learning', 'tabIdx': 4, 'description': 'All machine learning methods'},
+    'ml': {'tab': '🤖 Machine Learning', 'tabIdx': 4, 'description': 'Machine learning overview'},
+    'prediction': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Models', 'tabIdx': 4, 'description': 'Predictive modelling (regression & classification)'},
+    'model': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Models', 'tabIdx': 4, 'description': 'Build and evaluate ML models'},
+    'deep learning': {'tab': '🤖 Machine Learning', 'subtab': 'Vision > Image Recognition', 'tabIdx': 4, 'description': 'Deep learning / CNN image models'},
+    'neural network': {'tab': '🤖 Machine Learning', 'subtab': 'Vision > Image Recognition', 'tabIdx': 4, 'description': 'Neural network image classification'},
+    'cnn': {'tab': '🤖 Machine Learning', 'subtab': 'Vision > Image Recognition', 'tabIdx': 4, 'description': 'Convolutional Neural Network'},
+    'image': {'tab': '🤖 Machine Learning', 'subtab': 'Vision > Image Recognition', 'tabIdx': 4, 'description': 'Image recognition and classification'},
+    'image recognition': {'tab': '🤖 Machine Learning', 'subtab': 'Vision > Image Recognition', 'tabIdx': 4, 'description': 'Image recognition with CNN models'},
+    'computer vision': {'tab': '🤖 Machine Learning', 'subtab': 'Vision > Image Recognition', 'tabIdx': 4, 'description': 'Computer vision & image analysis'},
+    'biomass': {'tab': '🤖 Machine Learning', 'subtab': 'Vision > Biomass Segmentation', 'tabIdx': 4, 'description': 'Biomass segmentation from images'},
+    'segmentation': {'tab': '🤖 Machine Learning', 'subtab': 'Vision > Biomass Segmentation', 'tabIdx': 4, 'description': 'Image segmentation for biomass'},
+
+    # Machine Learning - Supervised Learning category
+    'regression': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Models', 'tabIdx': 4, 'description': 'Regression models (Linear, RF, etc.)'},
+    'classification': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Models', 'tabIdx': 4, 'description': 'Classification models'},
+    'random forest': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Models', 'tabIdx': 4, 'description': 'Random Forest algorithm'},
+    'gradient boosting': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Models', 'tabIdx': 4, 'description': 'Gradient Boosting models'},
+    'xgboost': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Models', 'tabIdx': 4, 'description': 'XGBoost / Gradient Boosting'},
+    'svm': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Models', 'tabIdx': 4, 'description': 'Support Vector Machine'},
+    'cross validation': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Validation', 'tabIdx': 4, 'description': 'Cross-validation techniques'},
+    'train test split': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Models', 'tabIdx': 4, 'description': 'Split data for training'},
+    'feature selection': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Features', 'tabIdx': 4, 'description': 'Feature selection methods'},
+    'feature importance': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Features', 'tabIdx': 4, 'description': 'Feature importance ranking'},
+    'rfe': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Features', 'tabIdx': 4, 'description': 'Recursive Feature Elimination'},
+    'lasso': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Features', 'tabIdx': 4, 'description': 'LASSO feature selection'},
+    'mutual information': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Features', 'tabIdx': 4, 'description': 'Mutual information scores'},
+    'validation': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Validation', 'tabIdx': 4, 'description': 'Model validation techniques'},
+    'rmse': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Validation', 'tabIdx': 4, 'description': 'RMSE and error metrics'},
+    'r-squared': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Validation', 'tabIdx': 4, 'description': 'R² and goodness of fit'},
+    'auc': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Validation', 'tabIdx': 4, 'description': 'AUC-ROC for classification'},
+    'confusion matrix': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Validation', 'tabIdx': 4, 'description': 'Confusion matrix'},
+    'shap': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Interpretability', 'tabIdx': 4, 'description': 'SHAP feature explanations'},
+    'interpretability': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Interpretability', 'tabIdx': 4, 'description': 'Model interpretability (SHAP, LIME)'},
+    'nonlinear': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Non-Linear', 'tabIdx': 4, 'description': 'Nonlinear regression models'},
+    'polynomial': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Non-Linear', 'tabIdx': 4, 'description': 'Polynomial regression'},
+    'exponential': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Non-Linear', 'tabIdx': 4, 'description': 'Exponential curve fitting'},
+    'logistic': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Non-Linear', 'tabIdx': 4, 'description': 'Logistic growth model'},
+    'curve fitting': {'tab': '🤖 Machine Learning', 'subtab': 'Supervised > Non-Linear', 'tabIdx': 4, 'description': 'Non-linear curve fitting'},
+
+    # Machine Learning - Unsupervised category
+    'pca': {'tab': '🤖 Machine Learning', 'subtab': 'Unsupervised > PCA', 'tabIdx': 4, 'description': 'Principal Component Analysis'},
+    'principal component': {'tab': '🤖 Machine Learning', 'subtab': 'Unsupervised > PCA', 'tabIdx': 4, 'description': 'PCA biplot and loadings'},
+    'svd': {'tab': '🤖 Machine Learning', 'subtab': 'Unsupervised > Dim Reduction', 'tabIdx': 4, 'description': 'Singular Value Decomposition'},
+    'tsne': {'tab': '🤖 Machine Learning', 'subtab': 'Unsupervised > Dim Reduction', 'tabIdx': 4, 'description': 't-SNE visualization'},
+    't-sne': {'tab': '🤖 Machine Learning', 'subtab': 'Unsupervised > Dim Reduction', 'tabIdx': 4, 'description': 't-SNE dimensionality reduction'},
+    'umap': {'tab': '🤖 Machine Learning', 'subtab': 'Unsupervised > Dim Reduction', 'tabIdx': 4, 'description': 'UMAP dimensionality reduction'},
+    'dimensionality reduction': {'tab': '🤖 Machine Learning', 'subtab': 'Unsupervised > Dim Reduction', 'tabIdx': 4, 'description': 'Reduce feature dimensions (PCA, t-SNE, UMAP)'},
+    'clustering': {'tab': '🤖 Machine Learning', 'subtab': 'Unsupervised > Clustering', 'tabIdx': 4, 'description': 'Clustering algorithms'},
+    'kmeans': {'tab': '🤖 Machine Learning', 'subtab': 'Unsupervised > Clustering', 'tabIdx': 4, 'description': 'K-Means clustering'},
+    'k-means': {'tab': '🤖 Machine Learning', 'subtab': 'Unsupervised > Clustering', 'tabIdx': 4, 'description': 'K-Means clustering'},
+    'dbscan': {'tab': '🤖 Machine Learning', 'subtab': 'Unsupervised > Clustering', 'tabIdx': 4, 'description': 'DBSCAN density-based clustering'},
+    'hierarchical': {'tab': '🤖 Machine Learning', 'subtab': 'Unsupervised > Clustering', 'tabIdx': 4, 'description': 'Hierarchical clustering'},
+    'silhouette': {'tab': '🤖 Machine Learning', 'subtab': 'Unsupervised > Clustering', 'tabIdx': 4, 'description': 'Silhouette score for clustering'},
+    'anomaly': {'tab': '🤖 Machine Learning', 'subtab': 'Unsupervised > Anomaly', 'tabIdx': 4, 'description': 'Anomaly detection methods'},
+    'isolation forest': {'tab': '🤖 Machine Learning', 'subtab': 'Unsupervised > Anomaly', 'tabIdx': 4, 'description': 'Isolation Forest algorithm'},
+
+    # Visualization (tab idx 6)
+    'scatter': {'tab': '📈 Visualization', 'tabIdx': 6, 'description': 'Scatter plots'},
+    'boxplot': {'tab': '📈 Visualization', 'tabIdx': 6, 'description': 'Box plots'},
+    'heatmap': {'tab': '📈 Visualization', 'tabIdx': 6, 'description': 'Heatmaps and correlation matrices'},
+    'violin': {'tab': '📈 Visualization', 'tabIdx': 6, 'description': 'Violin plots'},
+    'pair plot': {'tab': '📈 Visualization', 'tabIdx': 6, 'description': 'Pairwise scatter matrix'},
+
+    # Visualization (tab idx 6) - additional keywords
+    'plot': {'tab': '📈 Visualization', 'tabIdx': 6, 'description': 'Interactive plotting and charts'},
+    'chart': {'tab': '📈 Visualization', 'tabIdx': 6, 'description': 'Create interactive charts'},
+
+    # Domain Specific / Scientific Tools (tab idx 5)
+    'survival': {'tab': '🔬 Scientific Tools', 'subtab': 'Survival', 'tabIdx': 5, 'subtabIdx': 0, 'description': 'Survival analysis (Kaplan-Meier)'},
+    'kaplan-meier': {'tab': '🔬 Scientific Tools', 'subtab': 'Survival', 'tabIdx': 5, 'subtabIdx': 0, 'description': 'Kaplan-Meier survival curves'},
+    'cox': {'tab': '🔬 Scientific Tools', 'subtab': 'Survival', 'tabIdx': 5, 'subtabIdx': 0, 'description': 'Cox proportional hazards'},
+    'ecology': {'tab': '🔬 Scientific Tools', 'subtab': 'Community Ecology', 'tabIdx': 5, 'subtabIdx': 2, 'description': 'Community ecology (alpha/beta diversity, rarefaction)'},
+    'shannon': {'tab': '🔬 Scientific Tools', 'subtab': 'Community Ecology', 'tabIdx': 5, 'subtabIdx': 2, 'description': 'Shannon diversity index'},
+    'simpson': {'tab': '🔬 Scientific Tools', 'subtab': 'Community Ecology', 'tabIdx': 5, 'subtabIdx': 2, 'description': 'Simpson diversity index'},
+    'clinical': {'tab': '🔬 Scientific Tools', 'subtab': 'Domain-Specific', 'tabIdx': 5, 'subtabIdx': 1, 'description': 'Clinical trial analysis'},
+    'environmental': {'tab': '🔬 Scientific Tools', 'subtab': 'Domain-Specific', 'tabIdx': 5, 'subtabIdx': 1, 'description': 'Environmental data analysis'},
+    'diversity': {'tab': '🔬 Scientific Tools', 'subtab': 'Community Ecology', 'tabIdx': 5, 'subtabIdx': 2, 'description': 'Biodiversity indices'},
+    'rarefaction': {'tab': '🔬 Scientific Tools', 'subtab': 'Community Ecology', 'tabIdx': 5, 'subtabIdx': 2, 'description': 'Rarefaction analysis'},
+    'ordination': {'tab': '🔬 Scientific Tools', 'subtab': 'Ordination', 'tabIdx': 5, 'subtabIdx': 3, 'description': 'Multivariate ordination (PCoA, NMDS, CA, CCA, RDA)'},
+    'pcoa': {'tab': '🔬 Scientific Tools', 'subtab': 'Ordination', 'tabIdx': 5, 'subtabIdx': 3, 'description': 'Principal Coordinates Analysis'},
+    'nmds': {'tab': '🔬 Scientific Tools', 'subtab': 'Ordination', 'tabIdx': 5, 'subtabIdx': 3, 'description': 'Non-metric Multidimensional Scaling'},
+    'cca': {'tab': '🔬 Scientific Tools', 'subtab': 'Ordination', 'tabIdx': 5, 'subtabIdx': 3, 'description': 'Canonical Correspondence Analysis'},
+    'rda': {'tab': '🔬 Scientific Tools', 'subtab': 'Ordination', 'tabIdx': 5, 'subtabIdx': 3, 'description': 'Redundancy Analysis'},
+    'permanova': {'tab': '🔬 Scientific Tools', 'subtab': 'Multivariate Tests', 'tabIdx': 5, 'subtabIdx': 4, 'description': 'Permutational MANOVA'},
+    'anosim': {'tab': '🔬 Scientific Tools', 'subtab': 'Multivariate Tests', 'tabIdx': 5, 'subtabIdx': 4, 'description': 'Analysis of Similarities'},
+    'manova': {'tab': '🔬 Scientific Tools', 'subtab': 'Multivariate Tests', 'tabIdx': 5, 'subtabIdx': 4, 'description': 'Multivariate ANOVA'},
+    'hotelling': {'tab': '🔬 Scientific Tools', 'subtab': 'Multivariate Tests', 'tabIdx': 5, 'subtabIdx': 4, 'description': 'Hotelling T² test'},
+    'discriminant': {'tab': '🔬 Scientific Tools', 'subtab': 'Multivariate Tests', 'tabIdx': 5, 'subtabIdx': 4, 'description': 'Discriminant analysis (LDA)'},
+    'curve fitting': {'tab': '🔬 Scientific Tools', 'subtab': 'Curve Fitting', 'tabIdx': 5, 'subtabIdx': 5, 'description': 'Non-linear curve fitting'},
+    'allometric': {'tab': '🔬 Scientific Tools', 'subtab': 'Curve Fitting', 'tabIdx': 5, 'subtabIdx': 5, 'description': 'Allometric/power curve fitting'},
+    'logistic': {'tab': '🔬 Scientific Tools', 'subtab': 'Curve Fitting', 'tabIdx': 5, 'subtabIdx': 5, 'description': 'Logistic curve fitting'},
+    'gompertz': {'tab': '🔬 Scientific Tools', 'subtab': 'Curve Fitting', 'tabIdx': 5, 'subtabIdx': 5, 'description': 'Gompertz growth curve'},
+    'rma': {'tab': '🔬 Scientific Tools', 'subtab': 'Curve Fitting', 'tabIdx': 5, 'subtabIdx': 5, 'description': 'Reduced Major Axis regression'},
+    'plugin': {'tab': '🔌 Plugins', 'tabIdx': 8, 'description': 'Custom analysis plugins'},
+
+    # Reports (tab idx 7)
+    'report': {'tab': '📄 Reports', 'tabIdx': 7, 'description': 'Generate HTML/Markdown analysis reports'},
+    'export': {'tab': '📄 Reports', 'tabIdx': 7, 'description': 'Export analysis results to reports'},
+}
+
+
+def search_functions(query: str) -> list:
+    """Search the function index and return matching results with navigation info."""
+    query = query.lower().strip()
+    if not query:
+        return []
+
+    results = []
+    for keyword, info in FUNCTION_INDEX.items():
+        # Match on keyword or description
+        if query in keyword.lower() or query in info['description'].lower():
+            result = {
+                'keyword': keyword,
+                'tab': info['tab'],
+                'subtab': info.get('subtab', ''),
+                'tabIdx': info.get('tabIdx', 0),
+                'subtabIdx': info.get('subtabIdx'),
+                'description': info['description']
+            }
+            results.append(result)
+
+    # Remove duplicates based on description
+    seen = set()
+    unique_results = []
+    for r in results:
+        key = (r['tab'], r['subtab'], r['description'])
+        if key not in seen:
+            seen.add(key)
+            unique_results.append(r)
+
+    return unique_results[:10]  # Limit to 10 results
+
+
+# =============================================================================
 # TUTORIAL CONTENT
 # =============================================================================
 TUTORIALS = {
@@ -348,7 +617,7 @@ Welcome! This toolkit provides comprehensive data analysis capabilities organize
 | Main Tab | Subtabs Inside |
 |----------|----------------|
 | **📁 Data** | Data Loading (upload files, select columns) |
-| **📊 Statistics** | Descriptive Statistics, Hypothesis Tests, Bayesian Inference, Uncertainty Analysis |
+| **📊 Statistics** | Descriptive Stats, Hypothesis Tests, Effect Sizes, Sensitivity, Data Quality, **Bayesian Inference** (priors + credible intervals), Uncertainty |
 | **🔊 Signal Processing** | FFT/Wavelet (frequency and time-frequency analysis) |
 | **⏱️ Time Series** | Time Series Analysis, Causality (Granger) |
 | **🤖 Machine Learning** | Regression/Classification, PCA, Clustering, Anomaly Detection, Dimensionality Reduction, Non-Linear Analysis |
@@ -373,7 +642,8 @@ Welcome! This toolkit provides comprehensive data analysis capabilities organize
 |---------------|-------------------|
 | Basic statistics? | 📊 Statistics → Descriptive Statistics |
 | Significant difference? | 📊 Statistics → Hypothesis Tests |
-| Effect size? | Use API: `EffectSizes` |
+| Effect size? | 📊 Statistics → Effect Sizes |
+| Bayesian with priors? | 📊 Statistics → Bayesian Inference |
 | Confidence intervals? | 📊 Statistics → Uncertainty Analysis |
 | Frequency content? | 🔊 Signal Processing → FFT/Wavelet |
 | Time patterns? | ⏱️ Time Series → Analysis |
@@ -638,39 +908,87 @@ PCA finds eigenvectors of the covariance matrix:
     "bayesian": """
 ## 📈 Bayesian Analysis Guide
 
+> **Navigate here:** 📊 Statistics → 📈 Bayesian Inference
+
 ### What is Bayesian Analysis?
-Unlike classical statistics that gives single-point estimates, Bayesian analysis provides **probability distributions** for parameters.
+Unlike classical (frequentist) statistics that gives single-point estimates, Bayesian analysis provides **probability distributions** for parameters by combining **prior knowledge** with data.
 
 **Key Concept:** `Posterior ∝ Likelihood × Prior`
 
+| Feature | Frequentist | Bayesian |
+|---------|------------|----------|
+| **Probability** | Long-run frequency | Degree of belief |
+| **Prior knowledge** | Not used | Incorporated via priors |
+| **Key metrics** | p-values, Confidence Intervals | Posterior, **Credible Intervals** |
+| **Goal** | Evaluate under assumptions | Infer given data + priors |
+
+---
+
+### 🔧 Prior Configuration (3 ways)
+
+Before running Bayesian regression you **choose a prior** — your beliefs before seeing data:
+
+| Mode | How |
+|------|-----|
+| **📂 Preset file** | Pick from `test_data/priors/*.json` (weak, informative, strong, domain) |
+| **📤 Upload JSON** | Upload your own prior JSON file |
+| **✏️ Manual entry** | Set prior mean & precision via sliders / inputs, then 💾 save to file |
+
+**Prior JSON format:**
+```json
+{
+  "name": "My prior",
+  "prior_mean": [5.0, 2.0, -1.5, 0.8],
+  "prior_precision": 1.0,
+  "noise_var_estimate": 4.0
+}
+```
+
+- `prior_mean` — expected coefficients [intercept, β₁, β₂, …]
+- `prior_precision` — how strongly to trust the prior (0.001 = vague, 100 = strong)
+- `noise_var_estimate` — known noise σ² or `null` to estimate from data
+
+---
+
 ### Methods Available
 
-**📊 Bayesian Regression**
-- Estimates regression coefficients as distributions
-- Shows uncertainty in each coefficient
-- Wider distribution = more uncertainty
+**🎲 Bayesian Regression**
+- Conjugate Normal-Inverse-Gamma prior for coefficients
+- Explicit prior mean and precision that you control
+- Posterior samples drawn from the exact conjugate posterior
+- Coefficient histograms with 95% credible bounds
 
-**📐 Credible Intervals (CI)**
-- Bayesian version of confidence intervals
-- 95% CI: "There's 95% probability the true value is in this range"
-- **Note**: Unlike frequentist CIs, this is a probability statement!
+**📊 Credible Intervals**
+- Bayesian **credible** intervals — NOT frequentist confidence intervals
+- 95% CI means: "There is a 95% posterior probability the true value lies in this range"
+- Student-t posterior predictive distribution
+- Actual vs predicted plot with credible band
 
-**📏 Posterior Distributions**
-- Full probability distribution for each parameter
-- Can answer: "What's the probability coefficient > 0?"
-- More informative than single-point estimates
+**🔍 Prior Sensitivity**
+- Automatically varies prior precision from 0.001 to 100
+- Table + line chart of posterior means across prior strengths
+- Stable results → data dominates; shifting → choose prior carefully
 
-**🔄 Model Comparison (BIC)**
-- **BIC (Bayesian Information Criterion)**: Lower = better model
-- Penalizes complexity to prevent overfitting
-- Compare multiple models: choose lowest BIC
+---
 
 ### Interpreting Results
 - **Narrow posteriors**: High certainty about parameter value
-- **Wide posteriors**: High uncertainty (need more data)
-- **Posterior mean**: Best estimate of parameter
+- **Wide posteriors**: High uncertainty — need more data
+- **Prior info panel**: Shows exactly which prior was used
+- **R² (posterior mean)**: Goodness-of-fit with posterior coefficients
+- **Wrong prior + enough data**: Posterior still converges toward truth
 
-💡 **Tip**: Wide credible intervals suggest you need more data!
+---
+
+### Quick Start
+1. Load data → select features & target (📁 Data tab)
+2. Go to **📊 Statistics → 📈 Bayesian Inference**
+3. Choose a prior (📂 Preset: try *informative_correct*)
+4. Click **🎲 Bayesian Regression**
+5. Review posterior means, credible intervals, histograms
+6. Click **🔍 Prior Sensitivity** to see the prior's influence
+
+💡 **Tip**: Start with the *weakly informative* preset, then compare with *informative_correct* and *strong_wrong* to build intuition!
 """,
 
     "uncertainty": """
@@ -2117,6 +2435,48 @@ moments = do.moments('column')
 # =============================================================================
 # SESSION STATE INITIALIZATION
 # =============================================================================
+# ── Mapping from FUNCTION_INDEX tabIdx/subtabIdx to actual rendered tab labels ──
+# These MUST match the exact strings passed to st.tabs() in main().
+MAIN_TAB_LABELS = [
+    "📁 Data",
+    "📊 Statistics",
+    "🔊 Signal Processing",
+    "⏱️ Time Series",
+    "🤖 Machine Learning",
+    "🔬 Scientific Tools",
+    "📈 Visualization",
+    "📄 Reports",
+    "🔌 Plugins",
+]
+
+SUBTAB_LABELS = {
+    1: [  # Statistics
+        "📊 Descriptive Statistics",
+        "🧪 Hypothesis Tests",
+        "📏 Effect Sizes",
+        "🎯 Sensitivity Analysis",
+        "🔍 Data Quality & Outliers",
+        "📈 Bayesian Inference",
+        "🎲 Uncertainty Analysis",
+    ],
+    3: [  # Time Series
+        "⏱️ Time Series Analysis",
+        "📊 Cross-Correlation (CCF)",
+        "📈 Moving Average",
+        "🔗 Causality (Granger)",
+        "🔮 Advanced (Prophet/DTW)",
+    ],
+    5: [  # Scientific Tools
+        "⏳ Survival Analysis",
+        "🌿 Domain-Specific",
+        "🦠 Community Ecology",
+        "🗺️ Ordination",
+        "📊 Multivariate Tests",
+        "📈 Curve Fitting",
+    ],
+}
+
+
 def init_session_state():
     """Initialize session state variables"""
     if 'df' not in st.session_state:
@@ -2133,6 +2493,11 @@ def init_session_state():
         st.session_state.analysis_results = {}
     if 'use_rust' not in st.session_state:
         st.session_state.use_rust = is_rust_available()
+    # Search-navigation jump targets
+    if 'search_jump_tab' not in st.session_state:
+        st.session_state.search_jump_tab = None
+    if 'search_jump_subtab' not in st.session_state:
+        st.session_state.search_jump_subtab = None
 
 
 # =============================================================================
@@ -2142,6 +2507,51 @@ def render_tutorial_sidebar():
     """Render the tutorial sidebar matching the tab/subtab structure"""
     with st.sidebar:
         st.markdown("# 📚 Help & Documentation")
+
+        # Function Search
+        st.markdown("### 🔍 Search Functions")
+        search_query = st.text_input(
+            "Search for a function or feature",
+            placeholder="e.g., t-test, PCA, outlier, CV...",
+            key="function_search",
+            help="Search for analysis methods, statistical tests, or features"
+        )
+
+        if search_query:
+            results = search_functions(search_query)
+            if results:
+                st.markdown("**Found locations:**")
+                for i, r in enumerate(results):
+                    location = f"{r['tab']}"
+                    if r['subtab']:
+                        location += f" → {r['subtab']}"
+
+                    col_info, col_btn = st.columns([4, 1])
+                    with col_info:
+                        st.markdown(f"📍 **{location}**")
+                        st.caption(r['description'])
+                    with col_btn:
+                        if st.button("Go ➜", key=f"search_goto_{i}",
+                                     help=f"Navigate to {location}"):
+                            # Resolve actual tab labels from indices
+                            tab_idx = r.get('tabIdx', 0)
+                            main_label = MAIN_TAB_LABELS[tab_idx] if tab_idx < len(MAIN_TAB_LABELS) else None
+                            subtab_idx = r.get('subtabIdx')
+                            subtab_label = None
+                            if subtab_idx is not None and tab_idx in SUBTAB_LABELS:
+                                subs = SUBTAB_LABELS[tab_idx]
+                                if subtab_idx < len(subs):
+                                    subtab_label = subs[subtab_idx]
+                            st.session_state.search_jump_tab = main_label
+                            st.session_state.search_jump_subtab = subtab_label
+                            st.rerun()
+
+                    if i < len(results) - 1:
+                        st.markdown("---")
+            else:
+                st.info("No matching functions found. Try different keywords.")
+
+        st.markdown("---")
 
         st.session_state.show_tutorial = st.checkbox(
             "Show Documentation Panel",
@@ -2187,8 +2597,8 @@ def render_tutorial_sidebar():
                 "interpretability": "🤖 ML › Interpretability (v4)",
                 "image_recognition": "🖼️ ML › Image Recognition",
                 "biomass_segmentation": "🌿 ML › Biomass Segmentation",
-                # Data Quality group
-                "data_quality": "🔍 Data Quality › Missing Data & QA (v4)",
+                # Data Quality now under Statistics
+                "data_quality": "📊 Statistics › Data Quality & Outliers (v4)",
                 # Domain-specific group
                 "survival": "🏥 Domain › Survival Analysis (v4)",
                 "domain_specific": "🔬 Domain › Environmental/Clinical/Ecology (v4)",
@@ -4784,6 +5194,40 @@ def render_clustering_tab():
                 fig.update_layout(height=500)
                 st.plotly_chart(fig, width='stretch')
 
+            # Dendrogram for Hierarchical clustering
+            linkage_matrix = results.get('linkage_matrix')
+            if linkage_matrix is not None:
+                st.subheader("🌳 Dendrogram")
+                from scipy.cluster.hierarchy import dendrogram as scipy_dendrogram
+                import io, matplotlib
+                matplotlib.use('Agg')
+                import matplotlib.pyplot as plt
+
+                fig_mpl, ax = plt.subplots(figsize=(12, 6))
+                dendro = scipy_dendrogram(
+                    linkage_matrix,
+                    truncate_mode='lastp',
+                    p=min(40, len(linkage_matrix) + 1),
+                    leaf_rotation=90,
+                    leaf_font_size=9,
+                    color_threshold=linkage_matrix[-(results.get('n_clusters', 3) - 1), 2]
+                    if len(linkage_matrix) >= results.get('n_clusters', 3)
+                    else None,
+                    ax=ax,
+                )
+                ax.set_title('Hierarchical Clustering Dendrogram', fontsize=14)
+                ax.set_xlabel('Sample index (or cluster size)')
+                ax.set_ylabel('Distance')
+                ax.axhline(
+                    y=linkage_matrix[-(results.get('n_clusters', 3) - 1), 2]
+                    if len(linkage_matrix) >= results.get('n_clusters', 3) else 0,
+                    color='r', linestyle='--', label=f"Cut for {results.get('n_clusters', 3)} clusters"
+                )
+                ax.legend()
+                fig_mpl.tight_layout()
+                st.pyplot(fig_mpl)
+                plt.close(fig_mpl)
+
             # Export clustering results
             st.subheader("📥 Export Clustering Results")
             df_clean = df[features].dropna()
@@ -6802,19 +7246,65 @@ def render_data_quality_tab():
         outlier_cols = st.multiselect("Columns to Check", numeric_cols, default=numeric_cols[:3] if len(numeric_cols) >= 3 else numeric_cols, key="outlier_cols")
         outlier_method = st.selectbox("Detection Method", ["iqr", "zscore", "mad"], key="outlier_method")
 
+        # Method-specific threshold sliders with appropriate defaults
+        if outlier_method == "iqr":
+            threshold_value = st.slider(
+                "IQR Multiplier",
+                min_value=0.5, max_value=3.0, value=1.5, step=0.1,
+                help="Standard: 1.5 (moderate), 3.0 (extreme only). Values outside Q1 - k×IQR to Q3 + k×IQR are outliers.",
+                key="iqr_threshold"
+            )
+        elif outlier_method == "zscore":
+            threshold_value = st.slider(
+                "Z-Score Threshold",
+                min_value=1.5, max_value=5.0, value=3.0, step=0.1,
+                help="Standard: 3.0 (±3 std from mean). Lower values detect more outliers.",
+                key="zscore_threshold"
+            )
+        else:  # mad
+            threshold_value = st.slider(
+                "MAD Threshold",
+                min_value=2.0, max_value=5.0, value=3.5, step=0.1,
+                help="Standard: 3.5. Based on modified Z-score using median and MAD.",
+                key="mad_threshold"
+            )
+
         if st.button("Detect Outliers", key="detect_outliers"):
             if outlier_cols:
                 try:
-                    result = dqa.detect_outliers(outlier_cols, method=outlier_method)
+                    # Pass method-specific threshold
+                    if outlier_method == "iqr":
+                        result = dqa.detect_outliers(outlier_cols, method=outlier_method, iqr_multiplier=threshold_value)
+                    elif outlier_method == "zscore":
+                        result = dqa.detect_outliers(outlier_cols, method=outlier_method, zscore_threshold=threshold_value)
+                    else:
+                        result = dqa.detect_outliers(outlier_cols, method=outlier_method, mad_threshold=threshold_value)
 
-                    st.write(f"**Total outliers detected:** {result['total_outliers']}")
+                    st.write(f"**Total outliers detected:** {result['total_outliers']} (threshold: {result.get('threshold_used', 'N/A')})")
 
-                    # Per-column breakdown
-                    outlier_df = pd.DataFrame({
-                        'Column': list(result['outlier_counts'].keys()),
-                        'Outlier Count': list(result['outlier_counts'].values())
-                    })
-                    st.dataframe(outlier_df, width='stretch')
+                    # Per-column breakdown with more detail
+                    results_data = []
+                    for col_name, col_info in result['per_column'].items():
+                        results_data.append({
+                            'Column': col_name,
+                            'Outliers': col_info['n_outliers'],
+                            '%': f"{col_info['pct_outliers']:.1f}%"
+                        })
+
+                    if results_data:
+                        outlier_df = pd.DataFrame(results_data)
+                        st.dataframe(outlier_df, width='stretch')
+
+                        # Show bounds info for first column
+                        first_col = outlier_cols[0]
+                        if first_col in result['per_column']:
+                            bounds = result['per_column'][first_col].get('bounds', {})
+                            if outlier_method == "iqr" and 'lower' in bounds:
+                                st.caption(f"IQR bounds for {first_col}: [{bounds['lower']:.3f}, {bounds['upper']:.3f}]")
+                            elif outlier_method == "zscore" and 'mean' in bounds:
+                                st.caption(f"Z-score params for {first_col}: mean={bounds['mean']:.3f}, std={bounds['std']:.3f}")
+                            elif outlier_method == "mad" and 'median' in bounds:
+                                st.caption(f"MAD params for {first_col}: median={bounds['median']:.3f}, MAD={bounds['mad']:.3f}")
 
                     st.session_state.analysis_results['outliers'] = result
                 except Exception as e:
@@ -6834,6 +7324,104 @@ def render_data_quality_tab():
                     st.write("**Total Missing Values:**", report['total_missing'])
 
                     st.session_state.analysis_results['quality_report'] = report
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
+
+        st.markdown("---")
+        st.subheader("📊 Sensor QA/QC (CV & MAD)")
+        st.caption("Quality analysis for sensor measurements using Coefficient of Variation and Median Absolute Deviation")
+
+        burst_value_col = st.selectbox(
+            "Value Column (measurements)",
+            numeric_cols,
+            key="sensor_value_col",
+            help="Select the column containing measurement values (e.g., chlorophyll readings)"
+        )
+
+        all_cols = df.columns.tolist()
+        burst_group_col = st.selectbox(
+            "Grouping Column (optional)",
+            ["None"] + all_cols,
+            key="sensor_group_col",
+            help="Select column to group measurements (e.g., station, timestamp, sensor_id)"
+        )
+
+        col_cv, col_mad = st.columns(2)
+        with col_cv:
+            cv_threshold = st.number_input("CV Threshold (%)", value=30.0, min_value=1.0, max_value=100.0,
+                                           help="CV above this is flagged as poor quality")
+        with col_mad:
+            mad_threshold = st.number_input("MAD Threshold", value=3.5, min_value=1.0, max_value=10.0,
+                                            help="Modified Z-score threshold for outlier detection")
+
+        if st.button("🔬 Run Sensor QA/QC Analysis", key="run_sensor_qa"):
+            if burst_value_col:
+                try:
+                    group_col = None if burst_group_col == "None" else burst_group_col
+
+                    if group_col:
+                        result = dqa.burst_quality_analysis(burst_value_col, group_col, cv_threshold, mad_threshold)
+                    else:
+                        # Run individual CV and MAD analyses without grouping
+                        cv_result = dqa.coefficient_of_variation(burst_value_col)
+                        mad_result = dqa.median_absolute_deviation(burst_value_col, mad_threshold)
+                        result = {
+                            'overall_statistics': {
+                                'cv': cv_result.get('overall_cv'),
+                                'cv_quality': cv_result.get('quality_flag'),
+                                'median': mad_result.get('median'),
+                                'mad': mad_result.get('mad'),
+                                'n_outliers': mad_result.get('n_outliers'),
+                                'pct_outliers': mad_result.get('pct_outliers')
+                            },
+                            'outlier_indices': mad_result.get('outlier_indices', []),
+                            'recommendation': 'Run with grouping column for detailed group-level analysis'
+                        }
+
+                    if 'error' in result:
+                        st.error(result['error'])
+                    else:
+                        # Display results
+                        st.success("✅ Sensor QA/QC Analysis Complete")
+
+                        stats = result.get('overall_statistics', {})
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            cv_val = stats.get('cv', 0)
+                            st.metric("CV (%)", f"{cv_val:.1f}" if cv_val else "N/A")
+                        with col2:
+                            st.metric("Quality", stats.get('cv_quality', 'N/A').upper())
+                        with col3:
+                            st.metric("MAD", f"{stats.get('mad', 0):.3f}")
+                        with col4:
+                            st.metric("Outliers", f"{stats.get('n_outliers', 0)} ({stats.get('pct_outliers', 0):.1f}%)")
+
+                        # Show CV interpretation guide
+                        with st.expander("📖 CV Interpretation Guide"):
+                            st.markdown("""
+                            | CV Range | Quality | Interpretation |
+                            |----------|---------|----------------|
+                            | < 10% | **Good** | Low variability, excellent measurement consistency |
+                            | 10-30% | **Acceptable** | Moderate variability, typical for field measurements |
+                            | > 30% | **Poor** | High variability, investigate sensor issues or environmental factors |
+                            """)
+
+                        # Burst summary if available
+                        if 'burst_summary' in result:
+                            st.subheader("Group-Level Summary")
+                            burst_df = pd.DataFrame(result['burst_summary'])
+                            st.dataframe(burst_df, width='stretch')
+
+                            st.write(f"**Total Bursts:** {result.get('n_bursts', 0)}")
+                            st.write(f"**Poor Quality Bursts:** {result.get('n_poor_bursts', 0)}")
+                            st.write(f"**Bursts with Outliers:** {result.get('n_bursts_with_outliers', 0)}")
+
+                        # Recommendation
+                        if 'recommendation' in result:
+                            st.info(f"💡 **Recommendation:** {result['recommendation']}")
+
+                        st.session_state.analysis_results['burst_qa'] = result
+
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
 
@@ -6870,7 +7458,17 @@ def render_feature_selection_tab():
             "Permutation Importance"
         ], key="fs_method")
 
-        n_features = st.slider("Number of Features to Select", 1, len(features), min(5, len(features)), key="fs_n")
+        if len(features) == 1:
+            st.info("Only one feature is available, so selection is not required.")
+            n_features = 1
+        else:
+            n_features = st.slider(
+                "Number of Features to Select",
+                min_value=1,
+                max_value=len(features),
+                value=min(5, len(features)),
+                key="fs_n"
+            )
 
         if st.button("🔍 Run Feature Selection", key="run_fs"):
             with st.spinner("Selecting features..."):
@@ -8083,7 +8681,7 @@ def main():
     render_tutorial_sidebar()
 
     st.title("📊 Advanced Data Analysis Toolkit")
-    st.caption("Version 4.0 - Scientific Research Edition with Interactive Plotly Charts")
+    st.caption(f"Version {APP_VERSION} — Scientific Research Edition with Interactive Plotly Charts")
 
     # =========================================================================
     # LEVEL 1: Main Category Tabs (8 groups - expanded for v4.0)
@@ -8096,34 +8694,81 @@ def main():
         "🤖 Machine Learning",
         "🔬 Scientific Tools",
         "📈 Visualization",
-        "📄 Reports"
+        "📄 Reports",
+        "🔌 Plugins"
     ])
+
+    # ---- Auto-switch tab via JS when user clicked "Go ➜" from search ----
+    if st.session_state.get("search_jump_tab") is not None:
+        _main_label = st.session_state.search_jump_tab
+        _sub_label = st.session_state.search_jump_subtab
+        st.session_state.search_jump_tab = None
+        st.session_state.search_jump_subtab = None
+
+        _main_esc = _main_label.replace("'", "\\'")
+        _sub_js = ""
+        if _sub_label:
+            _sub_esc = _sub_label.replace("'", "\\'")
+            _sub_js = f"""
+                // After main tab is clicked, wait then click subtab
+                setTimeout(function clickSubTab() {{
+                    const allTabs = window.parent.document.querySelectorAll(
+                        '[data-baseweb="tab-list"] button[role="tab"]'
+                    );
+                    for (const t of allTabs) {{
+                        if (t.textContent.trim() === '{_sub_esc}') {{
+                            t.click();
+                            t.scrollIntoView({{behavior: 'smooth', inline: 'center'}});
+                            return;
+                        }}
+                    }}
+                    // Subtab may not be rendered yet – retry
+                    setTimeout(clickSubTab, 250);
+                }}, 500);
+            """
+
+        components.html(f"""
+            <script>
+            (function() {{
+                const target = '{_main_esc}';
+                function clickMainTab() {{
+                    const tabs = window.parent.document.querySelectorAll(
+                        '[data-baseweb="tab-list"] button[role="tab"]'
+                    );
+                    for (const tab of tabs) {{
+                        if (tab.textContent.trim() === target) {{
+                            tab.click();
+                            tab.scrollIntoView({{behavior: 'smooth', inline: 'center'}});
+                            {_sub_js}
+                            return;
+                        }}
+                    }}
+                    setTimeout(clickMainTab, 200);
+                }}
+                setTimeout(clickMainTab, 300);
+            }})();
+            </script>
+        """, height=0, width=0)
 
     # =========================================================================
     # 📁 DATA GROUP
     # =========================================================================
     with main_tabs[0]:
-        data_subtabs = st.tabs([
-            "📂 Data Loading",
-            "🔍 Data Quality"
-        ])
-        with data_subtabs[0]:
-            render_data_tab()
-        with data_subtabs[1]:
-            render_data_quality_tab()
+        render_data_tab()
 
     # =========================================================================
-    # 📊 STATISTICS GROUP (6 subtabs - added Effect Sizes and Sensitivity)
+    # 📊 STATISTICS GROUP (7 subtabs - added Data Quality)
     # =========================================================================
     with main_tabs[1]:
         st.markdown("#### 📊 Statistics Group")
-        st.caption("Descriptive statistics, hypothesis testing, effect sizes, sensitivity, and uncertainty quantification")
+        st.caption("Descriptive statistics, hypothesis testing, effect sizes, sensitivity, data quality, and uncertainty quantification")
 
         stats_subtabs = st.tabs([
             "📊 Descriptive Statistics",
             "🧪 Hypothesis Tests",
             "📏 Effect Sizes",
             "🎯 Sensitivity Analysis",
+            "🔍 Data Quality & Outliers",
             "📈 Bayesian Inference",
             "🎲 Uncertainty Analysis"
         ])
@@ -8137,8 +8782,10 @@ def main():
         with stats_subtabs[3]:
             _render_sensitivity_tab_module()
         with stats_subtabs[4]:
-            render_bayesian_tab()
+            render_data_quality_tab()
         with stats_subtabs[5]:
+            render_bayesian_tab()
+        with stats_subtabs[6]:
             render_uncertainty_tab()
 
     # =========================================================================
@@ -8196,6 +8843,7 @@ def main():
             # Supervised learning: Regression, Classification, Validation, Feature Selection, Interpretability
             ml_super_tabs = st.tabs([
                 "🤖 Regression/Classification",
+                "🧠 Neural Networks",
                 "✅ Model Validation",
                 "🎯 Feature Selection",
                 "🔮 Interpretability",
@@ -8205,12 +8853,14 @@ def main():
             with ml_super_tabs[0]:
                 render_ml_tab()
             with ml_super_tabs[1]:
-                render_model_validation_tab()
+                render_neural_networks_tab()
             with ml_super_tabs[2]:
-                render_feature_selection_tab()
+                render_model_validation_tab()
             with ml_super_tabs[3]:
-                render_interpretability_tab()
+                render_feature_selection_tab()
             with ml_super_tabs[4]:
+                render_interpretability_tab()
+            with ml_super_tabs[5]:
                 render_nonlinear_tab()
 
         elif ml_category == "🔍 Unsupervised Learning":
@@ -8248,17 +8898,29 @@ def main():
     # =========================================================================
     with main_tabs[5]:
         st.markdown("#### 🔬 Scientific Tools (v4.0)")
-        st.caption("Survival analysis, domain-specific methods for environmental, clinical, and ecology research")
+        st.caption("Survival analysis, ecology, ordination, multivariate tests, and domain-specific methods")
 
         sci_subtabs = st.tabs([
             "⏳ Survival Analysis",
-            "🌿 Domain-Specific"
+            "🌿 Domain-Specific",
+            "🦠 Community Ecology",
+            "🗺️ Ordination",
+            "📊 Multivariate Tests",
+            "📈 Curve Fitting"
         ])
 
         with sci_subtabs[0]:
             render_survival_tab()
         with sci_subtabs[1]:
             render_domain_specific_tab()
+        with sci_subtabs[2]:
+            render_ecology_tab()
+        with sci_subtabs[3]:
+            render_ordination_tab()
+        with sci_subtabs[4]:
+            render_multivariate_analysis_tab()
+        with sci_subtabs[5]:
+            render_curve_fitting_tab()
 
     # =========================================================================
     # 📈 VISUALIZATION GROUP
@@ -8275,6 +8937,14 @@ def main():
         st.markdown("#### 📄 Report Generation (v4.0)")
         st.caption("Generate publication-ready HTML and Markdown reports")
         render_report_tab()
+
+    # =========================================================================
+    # 🔌 PLUGINS GROUP (v4.3 - NEW)
+    # =========================================================================
+    with main_tabs[8]:
+        st.markdown("#### 🔌 Plugin System (v4.3)")
+        st.caption("Load, manage, and execute custom analysis plugins")
+        render_plugin_tab()
 
     st.markdown("---")
     st.caption("💡 All charts are **interactive**: zoom, pan, hover, download! | v4.0 Scientific Research Edition")

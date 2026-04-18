@@ -11,23 +11,21 @@ Tests cover:
 - Probability Distributions
 """
 
+import os
+import sys
+
 import numpy as np
 import pandas as pd
 import pytest
-import sys
-import os
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from data_toolkit.signal_analysis import (
-    coherence_analysis,
-    cross_wavelet_transform,
-    wavelet_coherence,
-    harmonic_analysis,
-)
-from data_toolkit.timeseries_analysis import TimeSeriesAnalysis
+from data_toolkit.signal_analysis import (coherence_analysis,
+                                          cross_wavelet_transform,
+                                          harmonic_analysis, wavelet_coherence)
 from data_toolkit.statistical_analysis import StatisticalAnalysis
+from data_toolkit.timeseries_analysis import TimeSeriesAnalysis
 
 
 class TestCoherenceAnalysis:
@@ -39,12 +37,12 @@ class TestCoherenceAnalysis:
         np.random.seed(42)
         n = 500
         t = np.linspace(0, 10, n)
-        
+
         # Create two correlated signals with common frequency
         freq = 3.0
         signal1 = np.sin(2 * np.pi * freq * t) + 0.3 * np.random.randn(n)
         signal2 = 0.8 * np.sin(2 * np.pi * freq * t + 0.5) + 0.3 * np.random.randn(n)
-        
+
         return pd.DataFrame({
             'time': t,
             'signal1': signal1,
@@ -54,7 +52,7 @@ class TestCoherenceAnalysis:
     def test_coherence_basic(self, sample_data):
         """Test basic coherence computation."""
         result = coherence_analysis(sample_data, 'signal1', 'signal2', sampling_rate=50.0)
-        
+
         assert 'error' not in result
         assert 'frequencies' in result
         assert 'coherence' in result
@@ -65,7 +63,7 @@ class TestCoherenceAnalysis:
     def test_coherence_peak(self, sample_data):
         """Test that coherence detects the correlated frequency."""
         result = coherence_analysis(sample_data, 'signal1', 'signal2', sampling_rate=50.0)
-        
+
         assert 'peak_frequency' in result
         assert 'peak_coherence' in result
         # Coherence should be high for correlated signals
@@ -73,9 +71,9 @@ class TestCoherenceAnalysis:
 
     def test_coherence_nperseg(self, sample_data):
         """Test coherence with different segment lengths."""
-        result = coherence_analysis(sample_data, 'signal1', 'signal2', 
+        result = coherence_analysis(sample_data, 'signal1', 'signal2',
                                     sampling_rate=50.0, nperseg=128)
-        
+
         assert 'error' not in result
         assert len(result['frequencies']) > 0
 
@@ -89,11 +87,11 @@ class TestCrossWaveletTransform:
         np.random.seed(42)
         n = 256
         t = np.linspace(0, 5, n)
-        
+
         # Signals with common periodicities
         signal1 = np.sin(2 * np.pi * 2 * t) + 0.5 * np.sin(2 * np.pi * 5 * t)
         signal2 = 0.8 * np.sin(2 * np.pi * 2 * t + 0.3) + 0.5 * np.sin(2 * np.pi * 5 * t)
-        
+
         return pd.DataFrame({
             'time': t,
             'signal1': signal1,
@@ -104,7 +102,7 @@ class TestCrossWaveletTransform:
         """Test basic XWT computation."""
         result = cross_wavelet_transform(sample_data, 'signal1', 'signal2',
                                          sampling_rate=50.0)
-        
+
         assert 'error' not in result
         assert 'xwt' in result or 'xwt_power' in result
         assert 'phase_difference' in result
@@ -115,7 +113,7 @@ class TestCrossWaveletTransform:
         scales = np.arange(1, 32)
         result = cross_wavelet_transform(sample_data, 'signal1', 'signal2',
                                          scales=scales, sampling_rate=50.0)
-        
+
         assert 'error' not in result
         assert len(result.get('scales', [])) == len(scales)
 
@@ -129,10 +127,10 @@ class TestWaveletCoherence:
         np.random.seed(42)
         n = 256
         t = np.linspace(0, 5, n)
-        
+
         signal1 = np.sin(2 * np.pi * 3 * t)
         signal2 = 0.9 * np.sin(2 * np.pi * 3 * t + 0.2) + 0.1 * np.random.randn(n)
-        
+
         return pd.DataFrame({
             'signal1': signal1,
             'signal2': signal2
@@ -142,7 +140,7 @@ class TestWaveletCoherence:
         """Test basic wavelet coherence computation."""
         result = wavelet_coherence(sample_data, 'signal1', 'signal2',
                                    sampling_rate=50.0)
-        
+
         assert 'error' not in result
         assert 'coherence' in result
         assert 'scales' in result
@@ -151,7 +149,7 @@ class TestWaveletCoherence:
         """Test WTC with different smoothing factors."""
         result = wavelet_coherence(sample_data, 'signal1', 'signal2',
                                    sampling_rate=50.0, smooth_factor=5)
-        
+
         assert 'error' not in result
 
 
@@ -164,13 +162,13 @@ class TestHarmonicAnalysis:
         np.random.seed(42)
         n = 500
         t = np.linspace(0, 10, n)
-        
+
         # Create signal with known harmonics
-        signal = (3.0 * np.sin(2 * np.pi * 1.0 * t) + 
+        signal = (3.0 * np.sin(2 * np.pi * 1.0 * t) +
                   1.5 * np.sin(2 * np.pi * 2.0 * t) +
                   0.5 * np.sin(2 * np.pi * 3.0 * t) +
                   0.2 * np.random.randn(n))
-        
+
         return pd.DataFrame({
             'time': t,
             'signal': signal
@@ -178,9 +176,9 @@ class TestHarmonicAnalysis:
 
     def test_harmonic_basic(self, sample_data):
         """Test basic harmonic analysis."""
-        result = harmonic_analysis(sample_data, 'signal', n_harmonics=3, 
+        result = harmonic_analysis(sample_data, 'signal', n_harmonics=3,
                                    sampling_rate=50.0)
-        
+
         assert 'error' not in result
         assert 'r_squared' in result
         assert 'harmonics' in result or 'fitted' in result
@@ -189,7 +187,7 @@ class TestHarmonicAnalysis:
         """Test that harmonic fit has good quality."""
         result = harmonic_analysis(sample_data, 'signal', n_harmonics=5,
                                    sampling_rate=50.0)
-        
+
         assert 'error' not in result
         # R² should be reasonably high for data with clear harmonics
         assert result.get('r_squared', 0) > 0.7
@@ -203,17 +201,17 @@ class TestExtendedANOVA:
         """Create sample data for ANOVA tests."""
         np.random.seed(42)
         n = 100
-        
+
         # Create data with group effects
         group1 = np.random.normal(10, 2, n)
         group2 = np.random.normal(12, 2, n)
         group3 = np.random.normal(11, 2, n)
-        
+
         # Two-way data
         factor1 = np.repeat(['A', 'B'], n * 3 // 2)[:n*3]
         factor2 = np.tile(['X', 'Y', 'Z'], n)[:n*3]
         values = np.concatenate([group1, group2, group3])
-        
+
         return {
             'groups': pd.DataFrame({
                 'group1': group1,
@@ -231,7 +229,7 @@ class TestExtendedANOVA:
         """Test one-way ANOVA."""
         stats = StatisticalAnalysis(sample_data['groups'])
         result = stats.anova_oneway(['group1', 'group2', 'group3'])
-        
+
         assert 'error' not in result
         assert 'F' in result or 'statistic' in result
         assert 'p_value' in result
@@ -240,7 +238,7 @@ class TestExtendedANOVA:
         """Test two-way ANOVA."""
         stats = StatisticalAnalysis(sample_data['twoway'])
         result = stats.anova_twoway('value', 'factor1', 'factor2')
-        
+
         assert 'error' not in result
         assert 'effects' in result
 
@@ -256,7 +254,7 @@ class TestExtendedANOVA:
         })
         stats = StatisticalAnalysis(df)
         result = stats.posthoc_tukey('value', 'group')
-        
+
         assert 'error' not in result
         assert 'comparisons' in result
 
@@ -269,12 +267,12 @@ class TestVECM:
         """Create cointegrated time series data."""
         np.random.seed(42)
         n = 200
-        
+
         # Create cointegrated series
         e = np.random.randn(n)
         x1 = np.cumsum(np.random.randn(n))
         x2 = x1 + 0.5 + 0.3 * e  # Cointegrated with x1
-        
+
         return pd.DataFrame({
             'x1': x1,
             'x2': x2
@@ -284,7 +282,7 @@ class TestVECM:
         """Test basic VECM fitting."""
         ts = TimeSeriesAnalysis(sample_data)
         result = ts.vecm_model(['x1', 'x2'], deterministic='co', k_ar_diff=1)
-        
+
         # VECM may return warning if no cointegration detected
         assert 'error' not in result or 'warning' in result
 
@@ -303,18 +301,18 @@ class TestTwoWayANOVAWithTestData:
         """Test two-way ANOVA with the test data file."""
         stats = StatisticalAnalysis(twoway_data)
         result = stats.anova_twoway('score', 'treatment', 'gender')
-        
+
         assert 'error' not in result
         assert 'effects' in result
         assert 'factor1' in result['effects']
         assert 'factor2' in result['effects']
         assert 'interaction' in result['effects']
-        
+
     def test_twoway_detects_treatment_effect(self, twoway_data):
         """Test that two-way ANOVA detects the treatment effect."""
         stats = StatisticalAnalysis(twoway_data)
         result = stats.anova_twoway('score', 'treatment', 'gender')
-        
+
         # Treatment should have a significant effect in our test data
         assert result['effects']['factor1']['p_value'] < 0.05
 
@@ -333,28 +331,28 @@ class TestRepeatedMeasuresANOVAWithTestData:
         """Test repeated-measures ANOVA with the test data file."""
         stats = StatisticalAnalysis(rm_data)
         result = stats.anova_repeated_measures('score', 'subject_id', 'time_point')
-        
+
         assert 'error' not in result
         assert 'F' in result
         assert 'p_value' in result
         assert 'n_subjects' in result
         assert 'n_conditions' in result
-        
+
     def test_rm_detects_time_effect(self, rm_data):
         """Test that repeated-measures ANOVA detects the time effect."""
         stats = StatisticalAnalysis(rm_data)
         result = stats.anova_repeated_measures('score', 'subject_id', 'time_point')
-        
+
         # Time should have a significant effect (scores increase over time)
         assert result['p_value'] < 0.05
-        
+
     def test_rm_subject_count(self, rm_data):
         """Test that repeated-measures ANOVA counts subjects correctly."""
         stats = StatisticalAnalysis(rm_data)
         result = stats.anova_repeated_measures('score', 'subject_id', 'time_point')
-        
-        # We have 10 subjects and 4 time points in our test data
-        assert result['n_subjects'] == 10
+
+        # We have 40 subjects and 4 time points in our test data
+        assert result['n_subjects'] == 40
         assert result['n_conditions'] == 4
 
 
@@ -374,7 +372,7 @@ class TestProbabilityDistributions:
     def test_distribution_fitting(self, sample_data):
         """Test distribution fitting."""
         stats = StatisticalAnalysis(sample_data)
-        
+
         # Test that distribution analysis runs
         if hasattr(stats, 'fit_distributions'):
             result = stats.fit_distributions('normal')
@@ -398,7 +396,7 @@ class TestChiSquare:
         """Test basic chi-square test."""
         stats = StatisticalAnalysis(sample_data)
         result = stats.chi_square_test('category1', 'category2')
-        
+
         assert 'error' not in result
         assert 'statistic' in result
         assert 'p_value' in result

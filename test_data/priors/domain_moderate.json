@@ -1,0 +1,9 @@
+{
+  "name": "Moderate domain knowledge",
+  "description": "Prior based on approximate domain knowledge: positive effect of x1 (~1.5), negative effect of x2 (~-1.0), uncertain about x3. Precision=0.5 is modest relative to data precision ~75 (n=300, σ²~4), so data dominates but prior nudges estimates.",
+  "features": ["predictor_1", "predictor_2", "predictor_3"],
+  "target": "response_homoscedastic",
+  "prior_mean": [3.0, 1.5, -1.0, 0.0],
+  "prior_precision": 0.5,
+  "noise_var_estimate": null
+}
